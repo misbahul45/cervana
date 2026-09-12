@@ -1,0 +1,27 @@
+# Docker configs
+*.pid
+*.log
+.env
+.env.*
+!.env.example
+
+# Node (kalau mount langsung)
+node_modules/
+
+# Python (kalau mount langsung)
+__pycache__/
+.venv/
+
+# Data volumes (handled by named volumes)
+db_data/
+
+# Git
+.git/
+.gitignore
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store

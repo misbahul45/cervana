@@ -1,0 +1,808 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id            String       @id @default(uuid())
+  name          String
+  email         String       @unique
+  emailVerified DateTime?
+  image         Json?
+  provider      AuthProvider @default(JWT)
+  password      String?
+  role          Role         @default(STUDENT)
+  isActive      Boolean      @default(true)
+
+  // gamification & streak
+  totalPoints    Int       @default(0)
+  souls          Int       @default(5)
+  stars          Int       @default(0)
+  currentStreak  Int       @default(0)
+  longestStreak  Int       @default(0)
+  lastStreakDate DateTime?
+
+  // relations
+  sessions           Session[]
+  userTopics         UserTopic[]
+  subTopicProgresses SubTopicProgress[]
+  lessonProgresses   LessonProgress[]
+  quizAttempts       QuizAttempt[]
+  personalityQuizzes PersonalityQuiz[]
+  userSteps          UserStep[]
+  stepProgresses     StepProgress[]
+  streakHistories    StreakHistory[]
+  notifications      Notification[]
+  achievements       UserAchievement[]
+  dailyActivities    DailyActivityLog[]
+  leaderboards       LeaderboardScore[]
+  orders             Order[]
+
+  // teacher
+  teacherApplication TeacherApplication?
+  topics             Topic[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([email])
+}
+
+model Session {
+  id           String   @id @default(uuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model VerificationToken {
+  id         String           @id @default(uuid())
+  identifier String
+  otp        String
+  type       VerificationType
+  expires    DateTime
+  createdAt  DateTime         @default(now())
+  updatedAt  DateTime         @updatedAt
+
+  @@unique([identifier, otp], name: "VerificationToken_identifier_otp_key")
+  @@index([identifier], name: "VerificationToken_identifier_idx")
+  @@index([expires], name: "VerificationToken_expires_idx")
+}
+
+model TeacherApplication {
+  id     String @id @default(uuid())
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  fullName     String
+  bio          String?
+  cvUrl        String?
+  portfolioUrl String?
+  expertise    String?
+
+  status     TeacherStatus @default(PENDING)
+  reviewedBy String?
+  reviewedAt DateTime?
+  feedback   String?
+
+  experiences    TeacherExperience[]
+  certifications Certification[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model TeacherExperience {
+  id                   String             @id @default(uuid())
+  teacherApplicationId String
+  teacherApplication   TeacherApplication @relation(fields: [teacherApplicationId], references: [id], onDelete: Cascade)
+
+  title       String
+  institution String?
+  startDate   DateTime
+  endDate     DateTime?
+  description String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([teacherApplicationId])
+}
+
+model Certification {
+  id             String    @id @default(uuid())
+  name           String
+  issuer         String?
+  issuedDate     DateTime?
+  expirationDate DateTime?
+  credentialUrl  Json?
+  credentialId   String?
+
+  teacherApplicationId String
+  teacherApplication   TeacherApplication @relation(fields: [teacherApplicationId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// -----------------------------------------------------------------------------
+// 2. CONTENT HIERARCHY – 5 LEVEL
+//   Category → Topic → SubTopic → Lesson → Step → Content
+// -----------------------------------------------------------------------------
+model Category {
+  id   String @id @default(uuid())
+  name String @unique
+
+  parentId         String?
+  parent           Category?          @relation("CategoryHierarchy", fields: [parentId], references: [id])
+  children         Category[]         @relation("CategoryHierarchy")
+  leaderbordScores LeaderboardScore[]
+
+  topics    Topic[]  @relation("CategoryTopics")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Topic {
+  id          String  @id @default(uuid())
+  title       String
+  slug        String  @unique
+  description String?
+  image       Json
+  isVerified  Boolean @default(false)
+
+  price         Float
+  topicDuration Int   @default(30)
+
+  quiz              Quiz?              @relation("QuizTopic")
+  subTopics         SubTopic[]
+  userTopics        UserTopic[]
+  orders            Order[]
+  resources         Resource[]
+  leaderboardScores LeaderboardScore[]
+  categories        Category[]         @relation("CategoryTopics")
+
+  createdBy String?
+  teacher   User?   @relation(fields: [createdBy], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model SubTopic {
+  id          String  @id @default(uuid())
+  title       String
+  description String?
+  sortOrder   Int     @default(1)
+
+  quiz Quiz? @relation("QuizSubTopic")
+
+  topicId String
+  topic   Topic  @relation(fields: [topicId], references: [id], onDelete: Cascade)
+
+  themeId String?
+  theme   Theme?  @relation(fields: [themeId], references: [id], onDelete: Cascade)
+
+  resources          Resource[]
+  leaderbordScores   LeaderboardScore[]
+  subTopicProgresses SubTopicProgress[]
+  lessons            Lesson[]
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+
+  @@index([topicId])
+}
+
+model Lesson {
+  id          String  @id @default(uuid())
+  title       String
+  description String?
+  sortOrder   Int     @default(0)
+
+  subTopicId String
+  subTopic   SubTopic @relation(fields: [subTopicId], references: [id], onDelete: Cascade)
+
+  themeId            String
+  theme              Theme?            @relation(fields: [themeId], references: [id], onDelete: Cascade)
+  lessonProgresses   LessonProgress[]
+  steps              Step[]
+  resources          Resource[]
+  quiz               Quiz?             @relation("QuizLesson")
+  personalityQuizzes PersonalityQuiz[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([subTopicId])
+}
+
+model PersonalityQuiz {
+  id          String    @id @default(uuid())
+  userId      String
+  lessonId    String
+  title       String
+  questions   Json
+  userAttempt Json?
+  result      Json?
+  createdAt   DateTime  @default(now())
+  takenAt     DateTime?
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  lesson Lesson @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+}
+
+model Step {
+  id          String  @id @default(uuid())
+  title       String
+  description String?
+  sortOrder   Int     @default(1)
+
+  lessonId String
+  lesson   Lesson @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+
+  themeId String
+  theme   Theme? @relation(fields: [themeId], references: [id], onDelete: Cascade)
+
+  quiz           Quiz?          @relation("QuizStep")
+  userSteps      UserStep[]
+  resources      Resource[]
+  stepProgresses StepProgress[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([lessonId])
+}
+
+model UserStep {
+  id             String  @id @default(uuid())
+  userId         String
+  user           User    @relation(fields: [userId], references: [id])
+  isUnlocked     Boolean @default(false)
+  order          Int
+  stepTemplateId String?
+  stepTemplate   Step?   @relation(fields: [stepTemplateId], references: [id])
+
+  title  String
+  isDone Boolean @default(false)
+  quizId String? @unique
+  quiz   Quiz?   @relation("QuizUserStepProgress", fields: [quizId], references: [id], onDelete: Cascade)
+  chat   Chat?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, stepTemplateId, order])
+}
+
+// -----------------------------------------------------------------------------
+// 3. LEARNING PROGRESS
+// -----------------------------------------------------------------------------
+enum TopicAccessType {
+  FREE
+  PURCHASED
+}
+
+model UserTopic {
+  id      String @id @default(uuid())
+  userId  String
+  topicId String
+  user    User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  topic   Topic  @relation(fields: [topicId], references: [id], onDelete: Cascade)
+
+  accessType           TopicAccessType       @default(FREE)
+  status               LearningStatus        @default(NOT_STARTED)
+  progressPercent      Int                   @default(0)
+  learningStyleProfile LearningStyleProfile?
+  quizId               String?               @unique
+  quiz                 Quiz?                 @relation("QuizTopicProgress", fields: [quizId], references: [id], onDelete: Cascade)
+
+  purchasedAt DateTime?
+  expiredAt   DateTime?
+
+  @@unique([userId, topicId])
+}
+
+model LearningStyleProfile {
+  id          String    @id @default(uuid())
+  userTopicId String    @unique
+  userTopic   UserTopic @relation(fields: [userTopicId], references: [id], onDelete: Cascade)
+
+  visual      Float?
+  auditory    Float?
+  reading     Float?
+  kinesthetic Float?
+
+  dominantStyle String?
+  takenAt       DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
+
+model SubTopicProgress {
+  id          String         @id @default(cuid())
+  userId      String
+  subTopicId  String
+  progress    Float          @default(0.0)
+  completed   Boolean        @default(false)
+  status      LearningStatus @default(NOT_STARTED)
+  startedAt   DateTime       @default(now())
+  completedAt DateTime?
+  quizId      String?        @unique
+  quiz        Quiz?          @relation("QuizSubTopicProgress", fields: [quizId], references: [id], onDelete: Cascade)
+  user        User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  subTopic    SubTopic       @relation(fields: [subTopicId], references: [id], onDelete: Cascade)
+}
+
+model LessonProgress {
+  id           String   @id @default(uuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id])
+  lessonId     String
+  lesson       Lesson   @relation(fields: [lessonId], references: [id])
+  isDone       Boolean  @default(false)
+  introduction String?
+  percentage   Float    @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  quizId       String?  @unique
+  quiz         Quiz?    @relation("QuizLessonProgress", fields: [quizId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, lessonId])
+  @@index([lessonId])
+  @@index([userId])
+}
+
+model StepProgress {
+  id     String @id @default(uuid())
+  userId String
+  stepId String
+
+  // Relasi ke Quiz
+  quizId String? @unique
+  quiz   Quiz?   @relation("QuizStepProgress", fields: [quizId], references: [id], onDelete: Cascade)
+
+  progress Float          @default(0)
+  isDone   Boolean        @default(false)
+  status   LearningStatus @default(NOT_STARTED)
+
+  startedAt   DateTime  @default(now())
+  completedAt DateTime?
+
+  // Relasi User & Step
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  step Step @relation(fields: [stepId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, stepId])
+  @@index([userId])
+  @@index([stepId])
+}
+
+// -----------------------------------------------------------------------------
+// 4. QUIZ & ASSESSMENT
+// -----------------------------------------------------------------------------
+model Quiz {
+  id    String @id @default(uuid())
+  title String
+
+  stepId String? @unique
+  step   Step?   @relation("QuizStep", fields: [stepId], references: [id], onDelete: Cascade)
+
+  lessonId String? @unique
+  lesson   Lesson? @relation("QuizLesson", fields: [lessonId], references: [id], onDelete: Cascade)
+
+  subTopicId String?   @unique
+  subTopic   SubTopic? @relation("QuizSubTopic", fields: [subTopicId], references: [id], onDelete: Cascade)
+
+  topicId String? @unique
+  topic   Topic?  @relation("QuizTopic", fields: [topicId], references: [id], onDelete: Cascade)
+
+  // FIX relasi progress
+  topicProgress    UserTopic?        @relation("QuizTopicProgress")
+  subTopicProgress SubTopicProgress? @relation("QuizSubTopicProgress")
+  lessonProgress   LessonProgress?   @relation("QuizLessonProgress")
+  stepProgress     StepProgress?     @relation("QuizStepProgress")
+  userStepProgress UserStep?         @relation("QuizUserStepProgress")
+
+  passingScore Int @default(70)
+
+  questions    Question[]
+  quizAttempts QuizAttempt[]
+}
+
+model Question {
+  id     String @id @default(uuid())
+  quizId String
+  quiz   Quiz   @relation(fields: [quizId], references: [id], onDelete: Cascade)
+
+  question      String
+  questionType  QuestionType @default(MULTIPLE_CHOICE)
+  options       Json?
+  correctAnswer Json
+  points        Int          @default(1)
+  sortOrder     Int          @default(0)
+
+  answers Answer[]
+
+  @@index([quizId])
+}
+
+model QuizAttempt {
+  id     String @id @default(uuid())
+  userId String
+  quizId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  quiz   Quiz   @relation(fields: [quizId], references: [id])
+
+  score         Float?
+  status        AttemptStatus @default(IN_PROGRESS)
+  attemptNumber Int           @default(1)
+
+  answers Answer[]
+
+  @@unique([userId, quizId, attemptNumber])
+  @@index([userId])
+}
+
+model Answer {
+  id         String      @id @default(uuid())
+  attemptId  String
+  questionId String
+  attempt    QuizAttempt @relation(fields: [attemptId], references: [id], onDelete: Cascade)
+  question   Question    @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  userAnswer   Json
+  isCorrect    Boolean
+  pointsEarned Int     @default(0)
+
+  @@unique([attemptId, questionId])
+}
+
+// -----------------------------------------------------------------------------
+// 5. CHAT
+// -----------------------------------------------------------------------------
+model Chat {
+  id         String        @id @default(uuid())
+  userStepId String        @unique
+  userStep   UserStep      @relation(fields: [userStepId], references: [id], onDelete: Cascade)
+  messages   ChatMessage[]
+  contents   Content[]
+  title      String
+  updatedAt  DateTime      @updatedAt
+}
+
+model ChatMessage {
+  id        String        @id @default(uuid())
+  chatId    String
+  chat      Chat          @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  text      String?
+  role      ChatRole
+  status    MessageStatus @default(PENDING)
+  content   Content?      @relation("MessageToContent")
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+}
+
+model Content {
+  id            String       @id @default(uuid())
+  chatMessageId String?      @unique
+  message       ChatMessage? @relation("MessageToContent", fields: [chatMessageId], references: [id], onDelete: SetNull)
+  data          String
+  citations     Json?
+  metadata      Json?
+  chatId        String
+  chat          Chat         @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+
+  @@map("contents")
+}
+
+model StreakHistory {
+  id     String @id @default(uuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  date         DateTime       @db.Date
+  activityType StreakActivity
+  streakCount  Int            @default(1)
+  isDeleted    Boolean        @default(false)
+
+  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now())
+
+  @@unique([userId, date])
+  @@index([userId])
+}
+
+model DailyActivityLog {
+  id     String @id @default(uuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  date         DateTime       @db.Date
+  activityType StreakActivity
+
+  metadata       Json?
+  lastAccessedAt DateTime?
+
+  @@index([userId, date])
+}
+
+model Achievement {
+  id          String          @id @default(uuid())
+  title       String
+  description String?
+  icon        String?
+  type        AchievementType
+  condition   String?
+
+  createdAt DateTime          @default(now())
+  users     UserAchievement[]
+}
+
+model UserAchievement {
+  id     String @id @default(uuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  achievementId String
+  achievement   Achievement @relation(fields: [achievementId], references: [id], onDelete: Cascade)
+
+  awardedAt DateTime @default(now())
+
+  @@unique([userId, achievementId])
+}
+
+model LeaderboardScore {
+  id     String @id @default(uuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id])
+
+  categoryId String?
+  category   Category? @relation(fields: [categoryId], references: [id])
+
+  topicId String?
+  topic   Topic?  @relation(fields: [topicId], references: [id])
+
+  subTopicId String?
+  subTopic   SubTopic? @relation(fields: [subTopicId], references: [id])
+
+  scope     LeaderboardScope @default(GLOBAL)
+  score     Int              @default(0)
+  updatedAt DateTime         @updatedAt
+
+  @@unique([userId, scope, categoryId, topicId, subTopicId])
+  @@index([score])
+}
+
+model DailyStats {
+  id   String   @id @default(uuid())
+  date DateTime @unique @db.Date
+
+  activeUsers   Int @default(0)
+  lessonsDone   Int @default(0)
+  quizzesTaken  Int @default(0)
+  messagesSent  Int @default(0)
+  streaksEarned Int @default(0)
+
+  generatedAt DateTime @default(now())
+}
+
+model Notification {
+  id     String  @id @default(uuid())
+  userId String?
+  user   User?   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  title     String
+  body      String?
+  type      NotificationType
+  isGlobal  Boolean          @default(false)
+  readAt    DateTime?
+  createdAt DateTime         @default(now())
+
+  @@index([userId])
+  @@index([isGlobal])
+}
+
+model Order {
+  id     String @id @default(uuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  topicId String
+  topic   Topic  @relation(fields: [topicId], references: [id], onDelete: Cascade)
+
+  amount   Float
+  currency String      @default("IDR")
+  status   OrderStatus @default(PENDING)
+
+  snapToken String? @unique
+  gateway   String?
+
+  paidAt    DateTime?
+  expiredAt DateTime
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, topicId, status])
+  @@index([userId])
+  @@index([status])
+}
+
+model Resource {
+  id          String        @id @default(uuid())
+  type        ResourceType
+  title       String?
+  content     String?
+  file        Json?
+  topicId     String?
+  subTopicId  String?
+  lessonId    String?
+  stepId      String?
+  isEmbedded  Boolean       @default(false)
+  embeddingAt DateTime?
+  jobStatus   JOBSTATUSTYPE @default(PENDING)
+  topic       Topic?        @relation(fields: [topicId], references: [id], onDelete: Cascade)
+  subTopic    SubTopic?     @relation(fields: [subTopicId], references: [id], onDelete: Cascade)
+  lesson      Lesson?       @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  step        Step?         @relation(fields: [stepId], references: [id], onDelete: Cascade)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+}
+
+// theme
+model Theme {
+  id          String  @id @default(uuid())
+  title       String
+  description String?
+
+  primary    String
+  secondary  String
+  tertiary   String?
+  quaternary String?
+
+  bg_image     Json?
+  planet_image Json?
+
+  icons ThemeIcon[]
+
+  subTopics SubTopic[]
+  lessons   Lesson[]
+  steps     Step[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model ThemeIcon {
+  id        String   @id @default(uuid())
+  themeId   String
+  theme     Theme    @relation(fields: [themeId], references: [id], onDelete: Cascade)
+  imageIcon Json?
+  name      String
+  createdAt DateTime @default(now())
+}
+
+enum LearningStatus {
+  NOT_STARTED
+  IN_PROGRESS
+  COMPLETED
+}
+
+enum TeacherStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum LessonStatus {
+  IN_PROGRESS
+  LOCKED
+  DONE
+}
+
+enum MessageStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
+enum ChatRole {
+  USER
+  ASSISTANT
+}
+
+enum LeaderboardScope {
+  GLOBAL
+  CATEGORY
+  TOPIC
+  SUBTOPIC
+}
+
+enum AuthProvider {
+  Google
+  JWT
+}
+
+enum VerificationType {
+  EMAIL_VERIFICATION
+  PASSWORD_RESET
+}
+
+enum ResourceType {
+  VIDEO
+  TEXT
+  PDF
+  LINK
+  IMAGE
+  INTERACTIVE
+}
+
+enum JOBSTATUSTYPE {
+  SUCCESS
+  FAILED
+  PROCESSING
+  PENDING
+}
+
+enum OrderStatus {
+  PENDING
+  PAID
+  FAILED
+  REFUNDED
+}
+
+enum Role {
+  STUDENT
+  ADMIN
+  TEACHER
+}
+
+enum AttemptStatus {
+  IN_PROGRESS
+  COMPLETED
+  ABANDONED
+  EXPIRED
+}
+
+enum QuestionType {
+  MULTIPLE_CHOICE
+  TEXT
+  FILE_UPLOAD
+  CASE_STUDY
+}
+
+enum StreakActivity {
+  LOGIN
+  LESSON
+  QUIZ
+  TOPIC_COMPLETE
+  TOPIC_ACCESS
+  DAILY_LOGIN
+  REGISTER
+}
+
+enum AchievementType {
+  STREAK
+  QUIZ
+  TOPIC
+  LESSON
+  SCORE
+  PARTICIPATION
+}
+
+enum NotificationType {
+  STREAK
+  QUIZ
+  ACHIEVEMENT
+  SYSTEM
+}

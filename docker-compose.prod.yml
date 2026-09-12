@@ -1,0 +1,396 @@
+name: cervana_prod
+
+x-image-tag: &image_tag ${IMAGE_TAG:-latest}
+
+x-logging: &default_logging
+  driver: json-file
+  options:
+    max-size: "20m"
+    max-file: "5"
+
+x-restart: &default_restart
+  restart: unless-stopped
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: cervana_postgres
+    <<: *default_restart
+    env_file:
+      - .env
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:-cervana}
+      PGDATA: /var/lib/postgresql/data/pgdata
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./postgres/init:/docker-entrypoint-initdb.d:ro
+    expose:
+      - "5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB:-cervana}"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+    logging: *default_logging
+    networks:
+      - cervana_backend
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: "1.0"
+        reservations:
+          memory: 512M
+
+  redis:
+    image: redis:7-alpine
+    container_name: cervana_redis
+    <<: *default_restart
+    env_file:
+      - .env
+    command: ["redis-server", "--appendonly", "yes", "--maxmemory", "512mb", "--maxmemory-policy", "allkeys-lru"]
+    volumes:
+      - redis_data:/data
+    expose:
+      - "6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+    logging: *default_logging
+    networks:
+      - cervana_backend
+    deploy:
+      resources:
+        limits:
+          memory: 768M
+          cpus: "0.5"
+
+  qdrant:
+    image: qdrant/qdrant:v1.12.4
+    container_name: cervana_qdrant
+    <<: *default_restart
+    env_file:
+      - .env
+    volumes:
+      - qdrant_data:/qdrant/storage
+      - ./qdrant/config.yaml:/qdrant/config/config.yaml:ro
+    expose:
+      - "6333"
+      - "6334"
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:6333/healthz"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    logging: *default_logging
+    networks:
+      - cervana_backend
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+          cpus: "1.5"
+
+  api:
+    image: cervana/api:${IMAGE_TAG:-latest}
+    build:
+      context: ./cervana-api
+      dockerfile: Dockerfile
+    container_name: cervana_api
+    <<: *default_restart
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: ${DATABASE_URL}
+      REDIS_HOST: ${REDIS_HOST:-redis}
+      REDIS_PORT: ${REDIS_PORT_INTERNAL:-6379}
+      PORT: 3002
+      NODE_ENV: production
+      API_INTERNAL_URL: ${API_INTERNAL_URL:-http://api:3002}
+      FRONTEND_URL: ${FRONTEND_URL}
+      ADMIN_URL: ${ADMIN_URL}
+      COOKIE_SECRET: ${COOKIE_SECRET}
+      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET}
+      JWT_ACCESS_EXPIRES_IN: ${JWT_ACCESS_EXPIRES_IN}
+      JWT_REFRESH_EXPIRES_IN: ${JWT_REFRESH_EXPIRES_IN}
+      SUPABASE_URL: ${SUPABASE_URL}
+      SUPABASE_ANON_KEY: ${SUPABASE_ANON_KEY}
+      SUPABASE_SERVICE_ROLE_KEY: ${SUPABASE_SERVICE_ROLE_KEY}
+      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY}
+      STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET}
+      GOOGLE_CALLBACK_URL: ${GOOGLE_CALLBACK_URL}
+      CLOUDINARY_CLOUD_NAME: ${CLOUDINARY_CLOUD_NAME}
+      CLOUDINARY_API_KEY: ${CLOUDINARY_API_KEY}
+      CLOUDINARY_API_SECRET: ${CLOUDINARY_API_SECRET}
+      RESEND_API_KEY: ${RESEND_API_KEY}
+      ARCJET_KEY: ${ARCJET_KEY}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+    expose:
+      - "3002"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3002/api/v1/docs"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    logging: *default_logging
+    networks:
+      - cervana_backend
+      - cervana_frontend
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: "1.5"
+        reservations:
+          memory: 512M
+
+  api-migrate:
+    image: cervana/api:${IMAGE_TAG:-latest}
+    container_name: cervana_api_migrate
+    profiles: ["migrate"]
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: ${DATABASE_URL}
+      NODE_ENV: production
+    depends_on:
+      postgres:
+        condition: service_healthy
+    entrypoint: ["node", "node_modules/prisma/build/index.js", "migrate", "deploy"]
+    networks:
+      - cervana_backend
+    restart: "no"
+
+  ai-api:
+    image: cervana/ai-api:${IMAGE_TAG:-latest}
+    build:
+      context: ./ai-api-cervana
+      dockerfile: Dockerfile
+    container_name: cervana_ai_api
+    <<: *default_restart
+    env_file:
+      - .env
+    environment:
+      PORT: 3003
+      APP_VERSION: ${APP_VERSION:-v1}
+      NEST_API: ${NEST_API:-http://api:3002/api/v1}
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
+      CELERY_BROKER_URL: ${CELERY_BROKER_URL:-redis://redis:6379/0}
+      CELERY_RESULT_BACKEND: ${CELERY_RESULT_BACKEND:-redis://redis:6379/0}
+      QDRANT_URL: ${QDRANT_URL:-http://qdrant:6333}
+      QDRANT_API_KEY: ${QDRANT_API_KEY}
+      QDRANT_COLLECTION: ${QDRANT_COLLECTION:-cervana-embedding}
+      QDRANT_MEMORY_COLLECTION: ${QDRANT_MEMORY_COLLECTION:-cervana-memory}
+      GEMINI_API_KEY: ${GEMINI_API_KEY}
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      EMBEDDING_MODEL: ${EMBEDDING_MODEL:-models/text-embedding-004}
+      TAVILY_API_KEY: ${TAVILY_API_KEY}
+      WEB_URL: ${WEB_URL:-http://web:3000}
+      ADMIN_URL: ${ADMIN_URL}
+      HF_HOME: /home/cervana/.cache/huggingface
+      HF_TOKEN: ${HF_TOKEN}
+      NODE_ENV: production
+    expose:
+      - "3003"
+    volumes:
+      - hf_cache:/home/cervana/.cache/huggingface
+    depends_on:
+      redis:
+        condition: service_healthy
+      qdrant:
+        condition: service_healthy
+      api:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:3003/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 90s
+    logging: *default_logging
+    networks:
+      - cervana_backend
+      - cervana_frontend
+    deploy:
+      resources:
+        limits:
+          memory: 3G
+          cpus: "2.0"
+
+  celery-worker:
+    image: cervana/ai-api:${IMAGE_TAG:-latest}
+    container_name: cervana_celery_worker
+    <<: *default_restart
+    env_file:
+      - .env
+    environment:
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
+      CELERY_BROKER_URL: ${CELERY_BROKER_URL:-redis://redis:6379/0}
+      CELERY_RESULT_BACKEND: ${CELERY_RESULT_BACKEND:-redis://redis:6379/0}
+      CELERY_WORKER_CONCURRENCY: ${CELERY_WORKER_CONCURRENCY:-2}
+      CELERY_WORKER_PREFETCH_MULTIPLIER: ${CELERY_WORKER_PREFETCH_MULTIPLIER:-1}
+      HF_HOME: /home/cervana/.cache/huggingface
+      HF_TOKEN: ${HF_TOKEN}
+      NODE_ENV: production
+    volumes:
+      - hf_cache:/home/cervana/.cache/huggingface
+    depends_on:
+      redis:
+        condition: service_healthy
+      qdrant:
+        condition: service_healthy
+    command: ["celery", "-A", "config.celery:celery_app", "worker", "--loglevel=info", "--concurrency=2"]
+    logging: *default_logging
+    networks:
+      - cervana_backend
+    deploy:
+      resources:
+        limits:
+          memory: 4G
+          cpus: "3.0"
+
+  web:
+    image: cervana/web:${IMAGE_TAG:-latest}
+    build:
+      context: ./web-cervana
+      dockerfile: Dockerfile
+    container_name: cervana_web
+    <<: *default_restart
+    env_file:
+      - .env
+    environment:
+      NUXT_PUBLIC_API_URL: ${NUXT_PUBLIC_API_URL:-http://localhost/api/v1}
+      NUXT_PUBLIC_AI_URL: ${NUXT_PUBLIC_AI_URL:-http://localhost/ai/v1}
+      NUXT_PUBLIC_SITE_URL: ${NUXT_PUBLIC_SITE_URL:-http://localhost}
+      API_URL_INTERNAL: ${API_URL_INTERNAL:-http://api:3002}
+      AI_API_INTERNAL_URL: ${AI_API_INTERNAL_URL:-http://ai-api:3003}
+      NODE_ENV: production
+      PORT: 3000
+      NITRO_PORT: 3000
+    expose:
+      - "3000"
+    depends_on:
+      api:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    logging: *default_logging
+    networks:
+      - cervana_frontend
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: "0.5"
+
+  admin:
+    image: cervana/admin:${IMAGE_TAG:-latest}
+    build:
+      context: ./admin-cervana
+      dockerfile: Dockerfile
+    container_name: cervana_admin
+    <<: *default_restart
+    env_file:
+      - .env
+    environment:
+      PUBLIC_API_URL: ${PUBLIC_API_URL:-http://localhost/api/v1}
+      PUBLIC_AI_URL: ${PUBLIC_AI_URL:-http://localhost/ai/v1}
+      API_URL_INTERNAL: ${API_URL_INTERNAL:-http://api:3002}
+      NODE_ENV: production
+      PORT: 3001
+      HOST: ${HOST:-0.0.0.0}
+      ORIGIN: ${ORIGIN:-http://localhost:3001}
+    expose:
+      - "3001"
+    depends_on:
+      api:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3001/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    logging: *default_logging
+    networks:
+      - cervana_frontend
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: "0.5"
+
+  nginx:
+    image: nginx:1.27-alpine
+    container_name: cervana_nginx
+    <<: *default_restart
+    env_file:
+      - .env
+    ports:
+      - "${NGINX_HTTP_PORT:-80}:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/conf.d:/etc/nginx/conf.d:ro
+      - nginx_logs:/var/log/nginx
+    depends_on:
+      web:
+        condition: service_healthy
+      admin:
+        condition: service_healthy
+      api:
+        condition: service_healthy
+      ai-api:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost/nginx-health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    logging: *default_logging
+    networks:
+      - cervana_frontend
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: "0.3"
+
+networks:
+  cervana_backend:
+    driver: bridge
+    name: cervana_backend
+  cervana_frontend:
+    driver: bridge
+    name: cervana_frontend
+
+volumes:
+  postgres_data:
+    name: cervana_postgres_data
+  redis_data:
+    name: cervana_redis_data
+  qdrant_data:
+    name: cervana_qdrant_data
+  hf_cache:
+    name: cervana_hf_cache
+  nginx_logs:
+    name: cervana_nginx_logs

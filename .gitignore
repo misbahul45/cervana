@@ -2,13 +2,18 @@
 node_modules/
 __pycache__/
 .env
-*.env
+.env.*
+!.env.example
+.env.prod
 db_data/
 
 # Build outputs
 dist/
 .next/
 .nuxt/
+.output/
+.svelte-kit/
+build/
 .cache/
 out/
 
@@ -19,6 +24,19 @@ out/
 # Python
 *.pyc
 .venv/
+__pycache__/
+
+# Qdrant
+qdrant/storage/
+qdrant/snapshots/
+
+# Postgres data (jika pernah di-bind mount)
+postgres/data/
+
+# Nginx certs (private)
+nginx/certs/
 
 # Misc
 .DS_Store
+.vscode/
+.idea/

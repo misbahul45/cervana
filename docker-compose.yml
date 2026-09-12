@@ -1,116 +1,273 @@
-version: "3.9"
+name: cervana
 
 services:
   postgres:
     image: postgres:15-alpine
     container_name: cervana_postgres
-    restart: always
+    restart: unless-stopped
+    env_file:
+      - .env
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: cervana
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: ${POSTGRES_DB:-cervana}
+      PGDATA: /var/lib/postgresql/data/pgdata
     volumes:
-      - ./db_data:/var/lib/postgresql/data
+      - postgres_data:/var/lib/postgresql/data
     ports:
-      - "5433:5432"
+      - "${POSTGRES_PORT:-5433}:5432"
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
-      interval: 5s
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-cervana}"]
+      interval: 10s
       timeout: 5s
       retries: 5
+      start_period: 10s
     networks:
       - cervana_network
 
   redis:
     image: redis:7-alpine
     container_name: cervana_redis
-    restart: always
+    restart: unless-stopped
+    env_file:
+      - .env
+    command: ["redis-server", "--appendonly", "yes"]
     ports:
-      - "6380:6379"
+      - "${REDIS_PORT:-6380}:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+    networks:
+      - cervana_network
+
+  qdrant:
+    image: qdrant/qdrant:v1.12.4
+    container_name: cervana_qdrant
+    restart: unless-stopped
+    env_file:
+      - .env
+    volumes:
+      - qdrant_data:/qdrant/storage
+    ports:
+      - "${QDRANT_PORT:-6333}:6333"
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:6333/healthz"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
     networks:
       - cervana_network
 
   api:
-    build: ./cervana-api
+    build:
+      context: ./cervana-api
+      dockerfile: Dockerfile
     container_name: cervana_api
-    restart: always
+    restart: unless-stopped
     env_file:
-      - ./cervana-api/.env
-    ports:
-      - "3002:3002"
+      - .env
     environment:
-      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/cervana
-      REDIS_HOST: redis
-      REDIS_PORT: 6379
+      DATABASE_URL: ${DATABASE_URL}
+      REDIS_HOST: ${REDIS_HOST:-redis}
+      REDIS_PORT: ${REDIS_PORT_INTERNAL:-6379}
       PORT: 3002
+      NODE_ENV: ${NODE_ENV:-development}
+      API_INTERNAL_URL: ${API_INTERNAL_URL:-http://api:3002}
+      FRONTEND_URL: ${FRONTEND_URL}
+      ADMIN_URL: ${ADMIN_URL}
+      COOKIE_SECRET: ${COOKIE_SECRET}
+      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET}
+      JWT_ACCESS_EXPIRES_IN: ${JWT_ACCESS_EXPIRES_IN}
+      JWT_REFRESH_EXPIRES_IN: ${JWT_REFRESH_EXPIRES_IN}
+      SUPABASE_URL: ${SUPABASE_URL}
+      SUPABASE_ANON_KEY: ${SUPABASE_ANON_KEY}
+      SUPABASE_SERVICE_ROLE_KEY: ${SUPABASE_SERVICE_ROLE_KEY}
+      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY}
+      STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET}
+      GOOGLE_CALLBACK_URL: ${GOOGLE_CALLBACK_URL}
+      CLOUDINARY_CLOUD_NAME: ${CLOUDINARY_CLOUD_NAME}
+      CLOUDINARY_API_KEY: ${CLOUDINARY_API_KEY}
+      CLOUDINARY_API_SECRET: ${CLOUDINARY_API_SECRET}
+      RESEND_API_KEY: ${RESEND_API_KEY}
+      ARCJET_KEY: ${ARCJET_KEY}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+    ports:
+      - "${API_PORT:-3002}:3002"
     depends_on:
-      - postgres
-      - redis
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3002/api/v1/docs"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
     networks:
       - cervana_network
 
   ai-api:
-    build: ./ai-api-cervana
+    build:
+      context: ./ai-api-cervana
+      dockerfile: Dockerfile
     container_name: cervana_ai_api
-    restart: always
+    restart: unless-stopped
     env_file:
-      - ./ai-api-cervana/.env
+      - .env
+    environment:
+      PORT: 3003
+      APP_VERSION: ${APP_VERSION:-v1}
+      NEST_API: ${NEST_API:-http://api:3002/api/v1}
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
+      CELERY_BROKER_URL: ${CELERY_BROKER_URL:-redis://redis:6379/0}
+      CELERY_RESULT_BACKEND: ${CELERY_RESULT_BACKEND:-redis://redis:6379/0}
+      QDRANT_URL: ${QDRANT_URL:-http://qdrant:6333}
+      QDRANT_API_KEY: ${QDRANT_API_KEY}
+      QDRANT_COLLECTION: ${QDRANT_COLLECTION:-cervana-embedding}
+      QDRANT_MEMORY_COLLECTION: ${QDRANT_MEMORY_COLLECTION:-cervana-memory}
+      GEMINI_API_KEY: ${GEMINI_API_KEY}
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      EMBEDDING_MODEL: ${EMBEDDING_MODEL:-models/text-embedding-004}
+      TAVILY_API_KEY: ${TAVILY_API_KEY}
+      WEB_URL: ${WEB_URL:-http://web:3000}
+      ADMIN_URL: ${ADMIN_URL}
+      HF_HOME: /home/cervana/.cache/huggingface
+      HF_TOKEN: ${HF_TOKEN}
+      NODE_ENV: ${NODE_ENV:-production}
     ports:
-      - "3003:3003"
+      - "${AI_API_PORT:-3003}:3003"
     volumes:
-      - ~/.cache/huggingface:/root/.cache/huggingface
+      - hf_cache:/home/cervana/.cache/huggingface
     depends_on:
-      - api
+      redis:
+        condition: service_healthy
+      qdrant:
+        condition: service_healthy
+      api:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:3003/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
     networks:
       - cervana_network
 
   web:
-    build: ./web-cervana
+    build:
+      context: ./web-cervana
+      dockerfile: Dockerfile
     container_name: cervana_web
-    restart: always
+    restart: unless-stopped
     env_file:
-      - ./web-cervana/.env
-    ports:
-      - "3000:3000"
+      - .env
     environment:
-      NUXT_PUBLIC_API_URL: http://api:3002
+      NUXT_PUBLIC_API_URL: ${NUXT_PUBLIC_API_URL:-http://localhost/api/v1}
+      NUXT_PUBLIC_AI_URL: ${NUXT_PUBLIC_AI_URL:-http://localhost/ai/v1}
+      NUXT_PUBLIC_SITE_URL: ${NUXT_PUBLIC_SITE_URL:-http://localhost}
+      API_URL_INTERNAL: ${API_URL_INTERNAL:-http://api:3002}
+      AI_API_INTERNAL_URL: ${AI_API_INTERNAL_URL:-http://ai-api:3003}
+      NODE_ENV: ${NODE_ENV:-production}
+      PORT: 3000
+      NITRO_PORT: 3000
+    ports:
+      - "${WEB_PORT:-3000}:3000"
     depends_on:
-      - api
-      - ai-api
+      api:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
     networks:
       - cervana_network
 
   admin:
-    build: ./admin-cervana
+    build:
+      context: ./admin-cervana
+      dockerfile: Dockerfile
     container_name: cervana_admin
-    restart: always
+    restart: unless-stopped
     env_file:
-      - ./admin-cervana/.env
-    ports:
-      - "3001:3001"
+      - .env
     environment:
-      PUBLIC_API_URL: http://api:3002
+      PUBLIC_API_URL: ${PUBLIC_API_URL:-http://localhost/api/v1}
+      PUBLIC_AI_URL: ${PUBLIC_AI_URL:-http://localhost/ai/v1}
+      API_URL_INTERNAL: ${API_URL_INTERNAL:-http://api:3002}
+      NODE_ENV: ${NODE_ENV:-production}
+      PORT: 3001
+      HOST: ${HOST:-0.0.0.0}
+      ORIGIN: ${ORIGIN:-http://localhost:3001}
+    ports:
+      - "${ADMIN_PORT:-3001}:3001"
     depends_on:
-      - api
+      api:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3001/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
     networks:
       - cervana_network
 
   nginx:
-    image: nginx:stable-alpine
+    image: nginx:1.27-alpine
     container_name: cervana_nginx
-    restart: always
+    restart: unless-stopped
+    env_file:
+      - .env
     ports:
-      - "80:80"
+      - "${NGINX_HTTP_PORT:-80}:80"
+      - "${NGINX_HTTPS_PORT:-443}:443"
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/conf.d:/etc/nginx/conf.d:ro
+      - nginx_logs:/var/log/nginx
     depends_on:
-      - web
-      - admin
-      - api
-      - ai-api
+      web:
+        condition: service_started
+      admin:
+        condition: service_started
+      api:
+        condition: service_started
+      ai-api:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost/nginx-health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
     networks:
       - cervana_network
 
 networks:
   cervana_network:
     driver: bridge
+    name: cervana_network
+
+volumes:
+  postgres_data:
+    name: cervana_postgres_data
+  redis_data:
+    name: cervana_redis_data
+  qdrant_data:
+    name: cervana_qdrant_data
+  hf_cache:
+    name: cervana_hf_cache
+  nginx_logs:
+    name: cervana_nginx_logs

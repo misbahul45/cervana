@@ -1,0 +1,27 @@
+# =================================================================
+# CERVANA — Qdrant vector store config (production)
+# Pasang di ./qdrant/config.yaml dan mount ke /qdrant/config/config.yaml
+# =================================================================
+
+storage:
+  # Snapshot & storage path (default sudah /qdrant/storage, pastikan di-mount)
+  storage_path: /qdrant/storage
+  snapshots_path: /qdrant/snapshots
+
+service:
+  # HTTP (gRPC port 6334 tidak di-expose ke host)
+  host: 0.0.0.0
+  http_port: 6333
+  grpc_port: 6334
+  enable_cors: true
+  # Matikan telemetry untuk privacy
+  enable_telemetry: false
+
+# Tunable untuk server kecil (2 vCPU / 4GB RAM)
+# Untuk production skala besar, naikkan sesuai resource
+optimizer:
+  default_segment_number: 2
+  indexing_threshold_kb: 10000
+  flush_interval_sec: 5
+
+log_level: WARN

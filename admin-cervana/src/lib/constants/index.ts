@@ -1,0 +1,27 @@
+  export const sidebarItems = [
+    { id: 1, label: "Dashboard", icon: "lucide:layout-dashboard", href: "/teacher" },
+    { id: 2, label: "Application", icon: "lucide:clipboard-list", href: "/teacher/application" },
+    { 
+      id: 3, 
+      label: "Curiculums", 
+      icon: "lucide:book-open", 
+      children: [
+        { id: 31, label: "Missions", icon: "lucide:target", href: "/teacher/topics" },
+        { id: 32, label: "Stages", icon: "lucide:map", href: "/teacher/topics/:topicId/subtopics" },
+        { id: 33, label: "Levels", icon: "lucide:layers", href: "/teacher/subtopics/:subTopicId/lessons" },
+        { id: 34, label: "Challenges", icon: "lucide:swords", href: "/teacher/lessons/:lessonId/steps" },
+      ],
+    },
+    { id: 4, label: "Quizzes", icon: "lucide:help-circle", href: "/teacher/quizzes" },
+    { id: 5, label: "Resources", icon: "lucide:folder", href: "/teacher/resources" },
+    { id: 6, label: "Students", icon: "lucide:users", href: "/teacher/students" },
+    { id: 7, label: "Leaderboard", icon: "lucide:trophy", href: "/teacher/leaderboard" },
+    { id: 8, label: "Statistics", icon: "lucide:bar-chart", href: "/teacher/statistics" },
+    { id: 9, label: "Achievements", icon: "lucide:award", href: "/teacher/achievements" },
+    { id: 10, label: "Notifications", icon: "lucide:bell", href: "/teacher/notifications" },
+    { id: 11, label: "Themes", icon: "lucide:palette", href: "/teacher/themes" },
+    { id: 12, label: "Orders", icon: "lucide:credit-card", href: "/teacher/orders" },
+    { id: 13, label: "Insights", icon: "lucide:activity", href: "/teacher/insights" },
+    { id: 14, label: "Messages", icon: "lucide:message-square", href: "/teacher/chats" },
+    { id: 15, label: "Profile", icon: "lucide:user", href: "/teacher/profile" },
+  ];

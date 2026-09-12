@@ -1,196 +1,270 @@
-Berikut **README.md** profesional untuk proyek kamu **CERVANA**, disusun berdasarkan isi proposal dan struktur sistem docker yang kamu buat:
+# CERVANA
 
----
+AI-powered learning platform for vocational accounting students, combining Retrieval-Augmented Generation with gamified microlearning.
 
-# 🧠 CERVANA — AI Agent Learning untuk SMK Akuntansi
+## Overview
 
-*Inovasi Pembelajaran Digital Berbasis Retrieval-Augmented Generation (RAG) dan Gamifikasi*
+CERVANA is a full-stack web platform that helps SMK Akuntansi students prepare for competency certification through:
 
----
+- RAG-based AI tutor over accounting curriculum (PDF, video, modules)
+- Adaptive quizzes with real-time evaluation
+- Gamification (points, streaks, badges, leaderboard)
+- Admin dashboard for content, progress, and analytics management
 
-## 📘 Deskripsi Proyek
+## Tech Stack
 
-**CERVANA** adalah platform pembelajaran berbasis web yang dirancang untuk membantu **siswa SMK Akuntansi** mempersiapkan **sertifikasi kompetensi** secara efektif dan interaktif.
-Platform ini menggabungkan:
+| Layer | Technology | Version |
+|---|---|---|
+| Frontend (Student) | Nuxt | 4.x |
+| Frontend (Admin) | SvelteKit | 2.x |
+| Backend API | NestJS + Prisma | 11.x / 7.x |
+| AI Service | FastAPI + LangChain + Celery | 0.121+ / 0.3+ / 5.5+ |
+| Vector Database | Qdrant | 1.12+ |
+| Relational Database | PostgreSQL | 15 |
+| Cache / Broker | Redis | 7 |
+| Reverse Proxy | Nginx | 1.27 |
+| Package Manager | pnpm | 10.x |
+| Python Tooling | uv + pyproject | latest |
+| Containerization | Docker Compose | v2 |
 
-* **AI Agent Learning** untuk memahami dan menjawab pertanyaan siswa secara kontekstual.
-* **Retrieval-Augmented Generation (RAG)** untuk menghasilkan materi pembelajaran akurat dari sumber PDF, video, dan modul digital.
-* **Gamifikasi dan microlearning** untuk meningkatkan motivasi belajar dan retensi pengetahuan.
-
-Inovasi ini dikembangkan untuk **Lomba Inovasi Digital Mahasiswa (LIDM) 2025** oleh tim **The2D** dari Universitas Airlangga.
-
----
-
-## 👥 Tim Pengembang
-
-| Nama                    | NIM       | Peran                    |
-| ----------------------- | --------- | ------------------------ |
-| **Anindya Wita Wisesa** | 187231045 | Ketua & Perancang Sistem |
-| **Misbahul Muttaqin**   | 187241037 | Backend & AI Engineer    |
-| **Dina Fadiah**         | 171231069 | Peneliti & Evaluator     |
-| **Diana Resti**         | 175221066 | Konten & Gamifikasi      |
-
-Dosen Pembimbing:
-**Dr. Indra Kharisma Raharjana, S.Kom., M.T.**
-
----
-
-## 🧩 Arsitektur Sistem
+## Architecture
 
 ```
-nginx
- ├── web (Nuxt 3)
- ├── admin (Next.js)
- ├── api (NestJS)
- ├── ai-api (FastAPI + RAG)
- ├── postgres
- └── redis
+                   Browser
+                      │
+                      ▼
+                 ┌─────────┐
+                 │  Nginx  │ :80 / :443
+                 └────┬────┘
+       ┌──────────────┼──────────────┬──────────────┐
+       ▼              ▼              ▼              ▼
+  ┌─────────┐   ┌──────────┐   ┌─────────┐   ┌──────────┐
+  │   web   │   │  admin   │   │   api   │   │  ai-api  │
+  │  Nuxt   │   │SvelteKit │   │ NestJS  │   │ FastAPI  │
+  │  :3000  │   │  :3001   │   │  :3002  │   │  :3003   │
+  └─────────┘   └──────────┘   └────┬────┘   └────┬─────┘
+                                   │              │
+                           ┌───────┴──────┐       │
+                           ▼              ▼       ▼
+                      ┌────────┐    ┌─────────┐  ┌──────────┐
+                      │postgres│    │  redis  │  │ celery   │
+                      │  :5432 │    │  :6379  │  │ worker   │
+                      └────────┘    └─────────┘  └────┬─────┘
+                                                      ▼
+                                                 ┌─────────┐
+                                                 │ qdrant  │
+                                                 │  :6333  │
+                                                 └─────────┘
 ```
 
-Semuanya berjalan dalam container menggunakan **Docker Compose** dan berkomunikasi melalui network internal `cervana_network`.
+### Service Responsibilities
 
----
+| Service | Role | Exposed Port |
+|---|---|---|
+| `nginx` | Reverse proxy, TLS termination, static caching | 80, 443 |
+| `web` | Student-facing Nuxt SSR | 3000 |
+| `admin` | Admin dashboard (SvelteKit) | 3001 |
+| `api` | Core REST API (auth, users, gamification, content) | 3002 |
+| `ai-api` | AI inference, RAG orchestration, embedding pipeline | 3003 |
+| `celery-worker` | Async embedding & indexing tasks | — |
+| `postgres` | Primary OLTP database | 5432 (internal) |
+| `redis` | Cache, BullMQ queue, Celery broker | 6379 (internal) |
+| `qdrant` | Vector store for RAG retrieval | 6333 (internal) |
 
-## ⚙️ Fitur Utama
-
-* 📚 **Pembelajaran berbasis RAG** — AI dapat mengambil dan menyajikan materi akuntansi dari dokumen PDF.
-* 🎮 **Gamifikasi interaktif** — poin, streak, leaderboard, dan badge untuk memotivasi siswa.
-* 💬 **AI Chatbot kontekstual** — membantu siswa memahami konsep dan menjawab pertanyaan.
-* 📊 **Evaluasi otomatis** — kuis dan asesmen real-time berbasis hasil belajar.
-* 🧑‍🏫 **Portal admin & guru** — kelola konten, progres, dan statistik pengguna.
-
----
-
-## 🏗️ Struktur Direktori
+## Repository Layout
 
 ```
-lidm/
-├── api/           # Backend utama (NestJS)
-├── ai-api/        # Backend AI (FastAPI + RAG)
-├── admin/         # Admin dashboard (Next.js)
-├── web/           # Frontend siswa (Nuxt 3)
-├── nginx/         # Reverse proxy
-├── docker-compose.yml
-└── db_data/       # Data Postgres
+cervana/
+├── cervana-api/            NestJS API + Prisma schema
+├── ai-api-cervana/         FastAPI + Celery + LangChain pipeline
+├── web-cervana/            Nuxt student app
+├── admin-cervana/          SvelteKit admin dashboard
+├── nginx/                  Reverse proxy configuration
+├── postgres/init/          SQL bootstrap scripts
+├── qdrant/                 Vector DB configuration
+├── docker-compose.yml      Development stack
+├── docker-compose.prod.yml Production stack
+├── AGENTS.md               Operating rules for Docker/deployment
+└── .env.example            Environment variable template
 ```
 
----
+## Prerequisites
 
-## 🚀 Cara Menjalankan Proyek
+- Docker Engine 24+ with Compose v2
+- 8 GB RAM minimum, 16 GB recommended (AI/API services are memory-intensive)
+- 20 GB free disk space
+- Host ports available: `80`, `443`, `3000`, `3001`, `3002`, `3003`, `5433`, `6333`, `6380`
 
-### 1️⃣ Prasyarat
-
-Pastikan kamu sudah menginstal:
-
-* Docker & Docker Compose
-* Node.js + pnpm (opsional untuk development)
-* Python 3.10+ (opsional untuk AI lokal)
-
----
-
-### 2️⃣ Clone Repositori
+## Quick Start (Development)
 
 ```bash
-git clone https://github.com/username/lidm-cervana.git
-cd lidm
+git clone <repository-url> cervana
+cd cervana
+cp .env.example .env
 ```
 
----
+Generate required secrets and replace placeholders in `.env`:
 
-### 3️⃣ Konfigurasi Environment
-
-Buat file `.env` di setiap service (`api`, `ai-api`, `web`, `admin`) seperti contoh:
-
-#### 📄 `api/.env`
-
-```env
-DATABASE_URL=postgresql://postgres:postgres@postgres:5433/cervana
-REDIS_HOST=redis
-REDIS_PORT=6380
-PORT=3002
-NODE_ENV=development
-JWT_ACCESS_SECRET=your-secret
-JWT_REFRESH_SECRET=your-refresh-secret
-SUPABASE_URL=your-supabase-url
-SUPABASE_ANON_KEY=your-supabase-key
+```bash
+openssl rand -base64 48   # COOKIE_SECRET
+openssl rand -base64 48   # JWT_ACCESS_SECRET
+openssl rand -base64 48   # JWT_REFRESH_SECRET
+openssl rand -base64 48   # POSTGRES_PASSWORD
 ```
 
----
-
-### 4️⃣ Build dan Jalankan Container
+Build and start all services:
 
 ```bash
 docker compose up -d --build
 ```
 
-Jika kamu ingin memastikan tidak ada cache:
+Initial build takes 5–10 minutes due to PyTorch and dependency installation in `ai-api`.
+
+Verify health status:
 
 ```bash
-docker compose build --no-cache
-docker compose up -d
+docker compose ps
+curl http://localhost/nginx-health
+curl http://localhost/api/v1/docs
 ```
 
----
+## Production Deployment
 
-### 5️⃣ Akses Aplikasi
+### Build Images
 
-| Service    | URL                                            | Deskripsi           |
-| ---------- | ---------------------------------------------- | ------------------- |
-| Web (User) | [http://localhost:3000](http://localhost:3000) | Portal siswa SMK    |
-| Admin      | [http://localhost:3001](http://localhost:3001) | Dashboard admin     |
-| API        | [http://localhost:3002](http://localhost:3002) | Backend utama       |
-| AI API     | [http://localhost:3003](http://localhost:3003) | Model RAG & chatbot |
-| Nginx      | [http://localhost](http://localhost)           | Proxy & routing     |
+```bash
+export IMAGE_TAG=1.0.0
 
----
+docker build -t cervana/api:$IMAGE_TAG      ./cervana-api
+docker build -t cervana/ai-api:$IMAGE_TAG   ./ai-api-cervana
+docker build -t cervana/web:$IMAGE_TAG      ./web-cervana
+docker build -t cervana/admin:$IMAGE_TAG    ./admin-cervana
+```
 
-## 🔁 Hot Reload / Development Mode
+Push to a private registry if deploying across multiple hosts.
 
-* Semua service (`web`, `admin`, `api`, `ai-api`) sudah menggunakan **volume bind mount** ke folder lokal.
-  Artinya:
+### Configure Environment
 
-  > setiap perubahan kode di folder lokal akan langsung tercermin di container (realtime update tanpa rebuild).
+On the production host:
 
----
+```bash
+git clone <repository-url> cervana
+cd cervana
+cp .env.example .env
+```
 
-## 🧠 Teknologi Utama
+Edit `.env` and set:
 
-| Komponen         | Teknologi                                       |
-| ---------------- | ----------------------------------------------- |
-| Backend          | NestJS (API), FastAPI (AI)                      |
-| Frontend         | Nuxt 3 (User Web), Next.js (Admin)              |
-| Database         | PostgreSQL                                      |
-| Caching / PubSub | Redis                                           |
-| AI & NLP         | Retrieval-Augmented Generation (RAG), Embedding |
-| Proxy            | Nginx                                           |
-| Deployment       | Docker Compose                                  |
+- `NODE_ENV=production`
+- `IMAGE_TAG=<version>`
+- `POSTGRES_PASSWORD`, `COOKIE_SECRET`, `JWT_ACCESS_SECRET`, `JWT_REFRESH_SECRET` to strong random values
+- `PUBLIC_API_URL`, `PUBLIC_AI_URL`, `PUBLIC_WEB_URL`, `PUBLIC_ADMIN_URL` to the public HTTPS endpoints
+- LLM provider keys: `GEMINI_API_KEY` or `OPENAI_API_KEY`
 
----
+### Run Database Migrations
 
-## 🧩 Metodologi Pengembangan
+```bash
+docker compose -f docker-compose.prod.yml --profile migrate run --rm api-migrate
+```
 
-Metode pengembangan yang digunakan adalah **Rapid Application Development (RAD)**, dengan tahapan:
+This uses a one-shot init container that runs `prisma migrate deploy` then exits.
 
-1. Analisis kebutuhan pengguna.
-2. Desain prototipe dan arsitektur sistem.
-3. Pengembangan cepat (iteratif).
-4. Uji coba pada siswa SMK Akuntansi.
-5. Evaluasi efektivitas pembelajaran.
+### Start Services
 
----
+```bash
+docker compose -f docker-compose.prod.yml up -d
+```
 
-## 🧾 Evaluasi & Dampak
+### TLS Configuration
 
-* **Efektivitas pembelajaran**: peningkatan skor pre-test vs post-test siswa.
-* **Kinerja sistem AI**: akurasi retrieval konten dan relevansi jawaban chatbot.
-* **Kepuasan pengguna**: survei terhadap interaksi dan motivasi belajar siswa.
+```bash
+certbot certonly --standalone -d cervana.example.com
 
----
+mkdir -p nginx/certs/cervana.example.com
+cp /etc/letsencrypt/live/cervana.example.com/fullchain.pem nginx/certs/
+cp /etc/letsencrypt/live/cervana.example.com/privkey.pem   nginx/certs/
 
-## 📄 Lisensi
+mv nginx/conf.d/01-ssl.conf.example nginx/conf.d/01-ssl.conf
 
-Proyek ini dibuat untuk keperluan **Lomba Inovasi Digital Mahasiswa (LIDM) 2025** dan tidak untuk penggunaan komersial tanpa izin tim pengembang.
+docker compose -f docker-compose.prod.yml restart nginx
+```
 
----
+### Rollback
 
-Apakah kamu ingin saya tambahkan bagian **cara kontribusi & struktur branch Git (development/production)** juga biar README-nya cocok buat publikasi GitHub?
+```bash
+sed -i 's/^IMAGE_TAG=.*/IMAGE_TAG=<previous-version>/' .env
+docker compose -f docker-compose.prod.yml up -d
+```
+
+## Development vs Production
+
+| Aspect | Development | Production |
+|---|---|---|
+| Image source | Built from source on `up` | Pre-built with immutable tag |
+| Service ports | Exposed to host for debugging | Only Nginx exposed |
+| Network segmentation | Single bridge | Split `cervana_backend` + `cervana_frontend` |
+| Resource limits | None | `memory` + `cpus` per service |
+| Celery worker | Subprocess inside `ai-api` | Dedicated `celery-worker` service |
+| Qdrant | Optional | Required for AI |
+| Log rotation | Default | `json-file` 20m × 5 |
+| Migrations | Manual | One-shot init container |
+
+## Environment Variables
+
+All configuration is centralized in a single root `.env` file. See `.env.example` for the full template.
+
+| Variable | Purpose |
+|---|---|
+| `POSTGRES_*` | Database credentials and host port |
+| `REDIS_*` | Cache and broker |
+| `QDRANT_*` | Vector database endpoint and collections |
+| `COOKIE_SECRET`, `JWT_*` | Authentication secrets |
+| `NUXT_PUBLIC_*` | Public URLs exposed to browser (student app) |
+| `PUBLIC_*` | Public URLs exposed to browser (admin app) |
+| `*_INTERNAL` | Service-to-service URLs resolved via Docker DNS |
+| `GEMINI_API_KEY` / `OPENAI_API_KEY` | LLM provider credentials |
+| `IMAGE_TAG` | Production image version (rollback control) |
+
+Full naming and precedence rules are documented in [`AGENTS.md`](./AGENTS.md).
+
+## Operations
+
+```bash
+docker compose ps                                          # Service health
+docker compose logs -f api                                  # Tail API logs
+docker compose exec postgres pg_dump -U cervana_prod cervana > backup.sql
+docker compose exec api npx prisma studio                  # Prisma GUI
+docker compose restart ai-api                              # Restart single service
+docker compose up -d --build web                           # Rebuild single service
+docker compose down -v                                     # Remove all data (DESTRUCTIVE)
+```
+
+Production equivalents:
+
+```bash
+docker compose -f docker-compose.prod.yml ps
+docker compose -f docker-compose.prod.yml logs -f --tail=100 ai-api
+docker compose -f docker-compose.prod.yml exec postgres pg_dump -U cervana_prod cervana > backup-$(date +%F).sql
+```
+
+## Health Endpoints
+
+| Endpoint | Service | Method |
+|---|---|---|
+| `/nginx-health` | Nginx | `curl http://localhost/nginx-health` |
+| `/api/v1/docs` | NestJS Swagger UI | `curl http://localhost/api/v1/docs` |
+| `/ai/` | FastAPI root | `curl http://localhost/ai/` |
+
+## Contributing
+
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feat/<name>`)
+3. Follow conventions in `AGENTS.md`
+4. Verify with `docker compose config` before committing
+5. Submit a pull request with a clear description
+
+Commit format: `<scope>: <imperative summary>` (e.g., `api: add rate limiter middleware`)
+
+## License
+
+Proprietary. All rights reserved.

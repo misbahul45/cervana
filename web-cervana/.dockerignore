@@ -1,0 +1,53 @@
+# Build artifacts
+node_modules/
+.pnpm-store/
+.next/
+.nuxt/
+.output/
+.svelte-kit/
+build/
+dist/
+
+# Cache
+.cache/
+.eslintcache
+
+# Logs
+*.log
+logs/
+npm-debug.log*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editors
+.vscode/
+.idea/
+*.swp
+
+# Env
+.env
+.env.*
+!.env.example
+
+# Docker
+Dockerfile*
+docker-compose*.yml
+.dockerignore
+
+# Git
+.git/
+.gitignore
+
+# Tests
+coverage/
+*.test.ts
+*.spec.ts
+__tests__/
+
+# Public (akan di-copy manual jika perlu)
+# public/  <-- tetap di-include untuk build Nuxt
+
+# Misc
+*.pid

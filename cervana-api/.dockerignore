@@ -1,0 +1,59 @@
+# Build artifacts
+node_modules/
+.pnpm-store/
+.next/
+.nuxt/
+.output/
+.svelte-kit/
+build/
+dist/
+
+# Cache
+.cache/
+.eslintcache
+.parcel-cache/
+.turbo/
+
+# Logs
+*.log
+logs/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Editors
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Env files (jangan sampai terbocor ke image)
+.env
+.env.*
+!.env.example
+
+# Docker
+Dockerfile*
+docker-compose*.yml
+.dockerignore
+
+# Git
+.git/
+.gitignore
+.gitattributes
+
+# Tests & docs
+coverage/
+*.test.ts
+*.spec.ts
+__tests__/
+docs/
+
+# Misc
+*.pid
+*.seed
+*.pid.lock
