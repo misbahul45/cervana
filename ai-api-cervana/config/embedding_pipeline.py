@@ -111,7 +111,7 @@ class EmbeddingPipeline:
         self,
         enable_thinking: bool = True,
         enable_retrieval: bool = True,
-        enable_translation: bool = True,
+        enable_translation: bool = False,
     ):
         self.enable_thinking = enable_thinking
         self.enable_retrieval = enable_retrieval

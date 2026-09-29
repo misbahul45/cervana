@@ -3,10 +3,12 @@ from typing import Dict
 import logging
 from v1.resources.service import get_resource
 from v1.resources.workers import extract_task, embedding_task
+from config.rate_limit import rate_limit
 
 router = APIRouter(prefix="/resources", tags=["Resources"])
 
 @router.post("/extract")
+@rate_limit(capacity_per_minute=30, burst=5)
 async def extract_resource(
     type: str = Query(..., regex="^(PDF|IMAGE|VIDEO)$"),
     resource_id: str = Query(...),
@@ -26,6 +28,7 @@ async def extract_resource(
 
 
 @router.post("/embedding/{resource_id}")
+@rate_limit(capacity_per_minute=30, burst=5)
 async def embed_single(
     resource_id: str,
     Authorization: str | None = Header(None)
@@ -41,7 +44,6 @@ async def embed_single(
 
     if not resource_dict.get("content"):
         raise HTTPException(400, "Resource content is missing or invalid")
-
 
     task = embedding_task.delay(resource_dict, token)
     return {"task_id": task.id, "status": "queued"}

@@ -2,6 +2,8 @@
   "name": "ai",
   "version": "0.1.0",
   "scripts": {
-     "dev": "fish -c 'source .venv/bin/activate.fish; uvicorn main:app --reload --port (grep PORT .env | cut -d '=' -f2)'"
+    "dev": "fish -c 'source .venv/bin/activate.fish; uvicorn main:app --reload --port (grep PORT .env | cut -d '=' -f2)'",
+    "test": "uv run pytest -q",
+    "test:cov": "uv run pytest --cov=. --cov-report=term-missing"
   }
 }

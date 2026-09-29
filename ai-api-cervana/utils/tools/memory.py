@@ -12,9 +12,38 @@ memory_manager = MemoryManager(embed_model=embed_pipeline.embed_model)
 
 def tool_semantic_search(userId: str, lessonId: str, top_k: int = 15):
     """
-    Retrieve user semantic memory related to learning_path,
-    filtered by lessonId when available.
+    Retrieve user semantic memory strictly filtered by lessonId.
+    Returns empty list when no lesson-scoped memory exists.
+    Cross-lesson leakage is forbidden; the caller decides whether
+    to fall back (allow_fallback=True) or accept the empty result.
     """
+    return _semantic_search(userId=userId, lessonId=lessonId, top_k=top_k, allow_fallback=False)
+
+
+def tool_semantic_search_with_fallback(
+    userId: str, lessonId: str, top_k: int = 15, fallback_limit: int = 5
+):
+    """
+    Like tool_semantic_search, but if no lesson-scoped memory exists,
+    returns up to fallback_limit recent items regardless of lesson.
+    The fallback is logged at WARNING level so it can be monitored.
+    """
+    return _semantic_search(
+        userId=userId,
+        lessonId=lessonId,
+        top_k=top_k,
+        allow_fallback=True,
+        fallback_limit=fallback_limit,
+    )
+
+
+def _semantic_search(
+    userId: str,
+    lessonId: str,
+    top_k: int,
+    allow_fallback: bool,
+    fallback_limit: int = 0,
+):
     try:
         items = memory_manager.retrieve(
             user_id=userId,
@@ -30,7 +59,19 @@ def tool_semantic_search(userId: str, lessonId: str, top_k: int = 15):
 
         if filtered:
             return filtered
-        return items[:5]
+
+        if allow_fallback:
+            logger.warning(
+                f"Cross-lesson memory fallback used for userId={userId} lessonId={lessonId}; "
+                f"returning {min(fallback_limit, len(items))} unrelated items"
+            )
+            return items[:fallback_limit]
+
+        logger.info(
+            f"No lesson-scoped memory for userId={userId} lessonId={lessonId}; "
+            f"returning empty list (allow_fallback={allow_fallback})"
+        )
+        return []
 
     except Exception as e:
         logger.error(f"Error retrieving memory: {e}")

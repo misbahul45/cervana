@@ -42,9 +42,6 @@ export class ActivityDetectorInterceptor implements NestInterceptor {
   }
 
   intercept(context: ExecutionContext, next: CallHandler): Observable<any> {
-    const request = context.switchToHttp().getRequest();
-    const user = request.user;
-    if (user) this.detect(user.id).catch(console.error);
     return next.handle();
   }
 }

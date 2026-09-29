@@ -1,5 +1,9 @@
 import logging
 from config.embedding_pipeline import get_embedding_pipeline
+from config.prompt_segmentation import (
+    build_segmented_prompt,
+    segment_retrieved,
+)
 from utils.tools.memory import tool_memory_upsert, tool_semantic_search
 from utils.tools.web_search import tool_web_search
 from v1.users_steps.service import *
@@ -145,64 +149,55 @@ def generate_material(state: GenerateContentMaterialPipeline) -> GenerateContent
         if state.learningStyle else "Default"
     )
 
-    prompt = f"""
-Anda adalah *Pakar Materi Sertifikasi Profesi*.
+    rag_segmented = segment_retrieved(
+        [{"id": f"rag-{i}", "text": c} for i, c in enumerate(rag.split("\n")) if c.strip()],
+        source="cervana-embedding",
+    )
+    web_segmented = segment_retrieved(
+        [{"id": f"web-{i}", "text": c} for i, c in enumerate(web.split("\n")) if c.strip()],
+        source="tavily-web",
+    )
 
-🎯 Tujuan:
-Menghasilkan *materi pembelajaran final* untuk peserta
-berdasarkan kemajuan belajar mereka pada:
+    task_segment = (
+        f"Topik: {topic_title}\n"
+        f"Pelajaran: {lesson_title}\n"
+        f"Step / Kompetensi: {step_title}\n"
+        f"User Step: {state.userStep.title}\n"
+        f"Gaya Belajar User: {learning_style}"
+    )
 
-- Topik: **{topic_title}**
-- Pelajaran: **{lesson_title}**
-- Step / Kompetensi: **{step_title}**
-- user_step/topic user yang harus dibahas : **{state.userStep.title}** dengan goalnya itu pada kompetisi**{state.step.title}**
-- Gaya Belajar User: {learning_style}
-
-Gunakan seluruh referensi berikut sebagai sumber:
-=====================
-📌 KONTEN SEBELUMNYA:
-{state.context}
-
-📌 MATERIAL ORGANISASI (RAG):
-{rag}
-
-📌 MATERIAL WEB:
-{web}
-=====================
-
-📌 Ketentuan Materi:
-- Bahasa Indonesia profesional & mudah dipahami
-- Relevan langsung dengan **kompetensi step ini**
-- Fokus pada *pengetahuan + praktik + contoh nyata*
-- Struktur teratur
-- Tidak berisi instruksi tugas kurikulum atau format desain lain
-- Panjang: 300–700 kata
-- Gunakan Markdown
-
-📌 Struktur Wajib Output:
-## {state.userStep.title}
-
-### Mengapa Hal Ini Penting
-(paragraf pendek)
-
-### Materi Inti
-- konsep utama
-- aturan / rumus / prosedur terkait
-- elemen penting
-(boleh subheading jika perlu)
-
-### Contoh Praktik di Dunia Kerja
-(contoh yang sangat relevan dengan teknisi akuntansi)
-
-### Latihan Singkat
-3–5 soal singkat
-
-### Ringkasan Kunci
-3–7 poin
-
-⚠ Tidak boleh menyinggung pembuatan kurikulum.
-⚠ Output = *langsung materi belajar*, tanpa kata pembuka tambahan.
-"""
+    prompt = build_segmented_prompt(
+        system_policy=(
+            "Anda adalah Pakar Materi Sertifikasi Profesi. "
+            "Tujuan: menghasilkan materi pembelajaran final berdasarkan kemajuan learner."
+        ),
+        educational_policy=(
+            "Bahasa Indonesia profesional dan mudah dipahami. "
+            "Relevan langsung dengan kompetensi step ini. "
+            "Fokus pada pengetahuan, praktik, dan contoh nyata. "
+            "Panjang 300 sampai 700 kata. Gunakan Markdown. "
+            "Output langsung materi belajar tanpa kata pembuka tambahan. "
+            "Dilarang membahas pembuatan kurikulum."
+        ),
+        course_context=(
+            f"Topik: {topic_title}\n"
+            f"Pelajaran: {lesson_title}\n"
+            f"Step: {step_title}\n"
+            f"User Step: {state.userStep.title}"
+        ),
+        learner_state=(
+            f"Mastery Topic: {getattr(state, 'topic_mastery', 'unknown')}\n"
+            f"Learning Style: {learning_style}"
+        ),
+        relevant_memory=f"Konteks pembelajaran sebelumnya:\n{state.context}",
+        current_task=task_segment,
+        adaptive_strategy=(
+            f"Format output markdown dengan bagian: "
+            f"Mengapa Hal Ini Penting, Materi Inti, Contoh Praktik di Dunia Kerja, "
+            f"Latihan Singkat (3-5 soal), Ringkasan Kunci (3-7 poin)."
+        ),
+        retrieved_documents=f"{rag_segmented}\n\n{web_segmented}",
+    )
 
     content = pipeline.llm.invoke(prompt).content.strip()
     state.generate = {

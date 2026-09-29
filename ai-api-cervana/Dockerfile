@@ -32,8 +32,11 @@ RUN uv pip install --system --no-cache \
     "torch==2.9.0+cpu" \
     --index-url https://download.pytorch.org/whl/cpu
 
-# Install project dependencies
+# Install project dependencies (runtime)
 RUN uv pip install --system --no-cache .
+
+# Install dev dependencies (pytest, httpx for TestClient)
+RUN uv pip install --system --no-cache --group dev
 
 # ---------- Runtime stage ----------
 FROM base AS runner
@@ -50,7 +53,7 @@ RUN groupadd -r cervana && useradd -r -g cervana -m -d /home/cervana cervana \
     && mkdir -p /home/cervana/.cache/huggingface \
     && chown -R cervana:cervana /home/cervana
 
-# Salin deps dari stage 'deps'
+# Salin deps dari stage 'deps' (termasuk dev deps untuk testing di dalam container)
 COPY --from=deps /usr/local/lib/python3.11/site-packages /usr/local/lib/python3.11/site-packages
 COPY --from=deps /usr/local/bin /usr/local/bin
 

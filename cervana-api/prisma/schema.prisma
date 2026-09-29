@@ -806,3 +806,19 @@ enum NotificationType {
   ACHIEVEMENT
   SYSTEM
 }
+
+model IdempotencyKey {
+  key           String
+  userId        String
+  path          String
+  method        String
+  requestHash   String
+  responseJson  String   @db.Text
+  statusCode    Int
+  createdAt     DateTime @default(now())
+  expiresAt     DateTime
+
+  @@id([key, userId])
+  @@index([userId, createdAt])
+  @@index([expiresAt])
+}

@@ -38,6 +38,12 @@
 | P-021 | `docs/01-audit/security-audit.md` (prompt / memory / RAG injection) | P1 | [x] | planner | [security-audit.md](../docs/01-audit/security-audit.md) |
 | P-022 | `docs/04-operations/test-matrix.md` (per-layer coverage) | P1 | [x] | planner | [test-matrix.md](../docs/04-operations/test-matrix.md) |
 | P-023 | `docs/04-operations/concurrency-and-consistency.md` (race + consistency) | P1 | [x] | planner | [concurrency-and-consistency.md](../docs/04-operations/concurrency-and-consistency.md) |
+| P-024 | `docs/standards/standards-matrix.md` (ISO/WCAG/OWASP alignment) | P1 | [x] | planner | [standards-matrix.md](../docs/standards/standards-matrix.md) |
+| P-025 | `docs/architecture/service-responsibility-matrix.md` (API vs AI vs Worker) | P1 | [x] | planner | [service-responsibility-matrix.md](../docs/architecture/service-responsibility-matrix.md) |
+| P-026 | `docs/architecture/circular-economy-model.md` (target loop + KPIs) | P1 | [x] | planner | [circular-economy-model.md](../docs/architecture/circular-economy-model.md) |
+| P-027 | `docs/architecture/accounting-sandbox.md` (deterministic + isolated) | P1 | [x] | planner | [accounting-sandbox.md](../docs/architecture/accounting-sandbox.md) |
+| P-028 | `docs/architecture/ai-agent-marketplace.md` (second product surface) | P1 | [x] | planner | [ai-agent-marketplace.md](../docs/architecture/ai-agent-marketplace.md) |
+| P-029 | `docs/architecture/agent-safety.md` (tool allow-list + permissions + audit) | P1 | [x] | planner | [agent-safety.md](../docs/architecture/agent-safety.md) |
 
 ### Discovery completed
 

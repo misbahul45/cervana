@@ -113,6 +113,14 @@ def get_yt_transcript(url: str, languages: list[str] = ["en", "id"]) -> str | No
 
 
 def extract_pdf(url: str) -> str | None:
+    from config.url_allowlist import assert_url_allowed
+
+    try:
+        assert_url_allowed(url)
+    except ValueError as e:
+        logging.error(f"[PDF][EXTRACT] URL blocked by allow-list: {e}")
+        return None
+
     try:
         response = requests.get(url.strip(), timeout=20)
         response.raise_for_status()
