@@ -303,43 +303,6 @@ services:
           memory: 512M
           cpus: "0.5"
 
-  admin:
-    image: cervana/admin:${IMAGE_TAG:-latest}
-    build:
-      context: ./admin-cervana
-      dockerfile: Dockerfile
-    container_name: cervana_admin
-    <<: *default_restart
-    env_file:
-      - .env
-    environment:
-      PUBLIC_API_URL: ${PUBLIC_API_URL:-http://localhost/api/v1}
-      PUBLIC_AI_URL: ${PUBLIC_AI_URL:-http://localhost/ai/v1}
-      API_URL_INTERNAL: ${API_URL_INTERNAL:-http://api:3002}
-      NODE_ENV: production
-      PORT: 3001
-      HOST: ${HOST:-0.0.0.0}
-      ORIGIN: ${ORIGIN:-http://localhost:3001}
-    expose:
-      - "3001"
-    depends_on:
-      api:
-        condition: service_started
-    healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3001/"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 30s
-    logging: *default_logging
-    networks:
-      - cervana_frontend
-    deploy:
-      resources:
-        limits:
-          memory: 512M
-          cpus: "0.5"
-
   nginx:
     image: nginx:1.27-alpine
     container_name: cervana_nginx
@@ -354,8 +317,6 @@ services:
       - nginx_logs:/var/log/nginx
     depends_on:
       web:
-        condition: service_healthy
-      admin:
         condition: service_healthy
       api:
         condition: service_healthy

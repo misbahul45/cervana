@@ -78,7 +78,6 @@ cervana/
 ├── cervana-api/            NestJS API + Prisma schema
 ├── ai-api-cervana/         FastAPI + Celery + LangChain pipeline
 ├── web-cervana/            Nuxt student app
-├── admin-cervana/          SvelteKit admin dashboard
 ├── nginx/                  Reverse proxy configuration
 ├── postgres/init/          SQL bootstrap scripts
 ├── qdrant/                 Vector DB configuration
@@ -93,7 +92,7 @@ cervana/
 - Docker Engine 24+ with Compose v2
 - 8 GB RAM minimum, 16 GB recommended (AI/API services are memory-intensive)
 - 20 GB free disk space
-- Host ports available: `80`, `443`, `3000`, `3001`, `3002`, `3003`, `5433`, `6333`, `6380`
+- Host ports available: `80`, `443`, `3000`, `3002`, `3003`, `5433`, `6333`, `6380`
 
 ## Quick Start (Development)
 
@@ -138,7 +137,6 @@ export IMAGE_TAG=1.0.0
 docker build -t cervana/api:$IMAGE_TAG      ./cervana-api
 docker build -t cervana/ai-api:$IMAGE_TAG   ./ai-api-cervana
 docker build -t cervana/web:$IMAGE_TAG      ./web-cervana
-docker build -t cervana/admin:$IMAGE_TAG    ./admin-cervana
 ```
 
 Push to a private registry if deploying across multiple hosts.
@@ -158,7 +156,7 @@ Edit `.env` and set:
 - `NODE_ENV=production`
 - `IMAGE_TAG=<version>`
 - `POSTGRES_PASSWORD`, `COOKIE_SECRET`, `JWT_ACCESS_SECRET`, `JWT_REFRESH_SECRET` to strong random values
-- `PUBLIC_API_URL`, `PUBLIC_AI_URL`, `PUBLIC_WEB_URL`, `PUBLIC_ADMIN_URL` to the public HTTPS endpoints
+- `PUBLIC_API_URL`, `PUBLIC_AI_URL`, `PUBLIC_WEB_URL` to the public HTTPS endpoints
 - LLM provider keys: `GEMINI_API_KEY` or `OPENAI_API_KEY`
 
 ### Run Database Migrations

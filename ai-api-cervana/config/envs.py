@@ -30,7 +30,7 @@ ENVS: ENVConfig = {
     "QDRANT_COLLECTION": os.getenv("QDRANT_COLLECTION", "cervana-embedding"),
     "GEMINI_API_KEY": os.getenv("GEMINI_API_KEY", ""),
     "WEB_URL": os.getenv("WEB_URL", "http://web:3000"),
-    "ADMIN_URL": os.getenv("ADMIN_URL", "http://admin:3001"),
+    "ADMIN_URL": os.getenv("ADMIN_URL", "http://localhost/admin"),
     "QDRANT_MEMORY_COLLECTION": os.getenv("QDRANT_MEMORY_COLLECTION", "cervana-memory"),
     "TAVILY_API_KEY": os.getenv("TAVILY_API_KEY", ""),
     "REDIS_URL": os.getenv("REDIS_URL", "redis://redis:6379/0"),

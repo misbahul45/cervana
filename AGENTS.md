@@ -33,7 +33,6 @@ metadata:
 | FastAPI AI | `ai-api` | `cervana_ai_api` | 3003 | 3003 | `cervana/ai-api:<tag>` |
 | Celery Worker | `celery-worker` | `cervana_celery_worker` | — | — | `cervana/ai-api:<tag>` |
 | Nuxt Web | `web` | `cervana_web` | 3000 | 3000 | `cervana/web:<tag>` |
-| SvelteKit Admin | `admin` | `cervana_admin` | 3001 | 3001 | `cervana/admin:<tag>` |
 | Nginx | `nginx` | `cervana_nginx` | 80, 443 | 80, 443 | `nginx:1.27-alpine` |
 
 ## Docker Compose Rules
@@ -74,11 +73,73 @@ metadata:
 ## Network Architecture
 
 - Browser → Nginx (port 80/443).
-- Nginx routes `/` → web:3000, `/admin/` → admin:3001, `/api/` → api:3002, `/ai/` → ai-api:3003.
+- Nginx routes `/` → web:3000, `/api/` → api:3002, `/ai/` → ai-api:3003.
 - All inter-service traffic uses Docker internal DNS (service names).
 - Redis serves three roles: app cache, BullMQ broker, Celery broker.
 - Qdrant stores embeddings for RAG pipeline.
 - Celery worker is a separate service. Never spawn it as a subprocess inside ai-api container.
+
+## Service Ownership & Cross-Service Boundaries
+
+The Cervana platform follows a strict service-ownership model. Each service has exactly one primary domain. Boundaries are not negotiable; if a feature appears to require breaking one, the correct response is to add a new endpoint on the owner service, not to bypass the boundary.
+
+### Ownership table
+
+| Service | Sole owner of | May call | Must NOT |
+|---|---|---|---|
+| `api` (NestJS :3002) | PostgreSQL via Prisma; Redis (BullMQ queues); SSE bus; auth + authorization | PostgreSQL; Redis; `ai-api` over HTTP | LLM provider APIs directly; Qdrant client directly; any database other than its own Prisma connection |
+| `ai-api` (FastAPI :3003) | Qdrant collections (`cervana-embedding`, `cervana-memory`); LLM provider clients; Tavily client | Qdrant; LLM providers; Tavily; `api` over HTTP | Direct PostgreSQL/Prisma access; `DATABASE_URL` env var; any DB connection string |
+| `celery-worker` | inherits `ai-api` rules | same as `ai-api` | Direct PostgreSQL/Prisma access |
+| `web` (Nuxt :3000) | – | `api` and `ai-api` via Nginx | Anything else |
+| `nginx` | – | All upstream services | – |
+
+### Cross-service rules
+
+1. **If `ai-api` needs DB data**, call `api` over HTTP with the original user's bearer token forwarded. Example: `requests.get(f"{ENVS['NEST_API']}/learning/user-steps/{id}", headers={"Authorization": f"Bearer {token}"})`.
+2. **If `api` needs AI capabilities** (embedding, generation, RAG, agent pipeline, structured-output), call `ai-api` over HTTP. Example: `POST /ai/v1/resources/extract?type=PDF&resource_id=...`.
+3. **Never** inject `DATABASE_URL` into `ai-api`'s environment. If the AI service needs data, it asks the API.
+4. **Never** inject `OPENAI_API_KEY`, `GEMINI_API_KEY`, or any LLM credential into `api`'s environment. If the API needs AI, it asks the AI service.
+5. **Service-to-service calls must forward the original user's auth token** so `api` can enforce ownership checks. Internal calls are not a privilege escalation.
+6. **Read-only DB projections** that `ai-api` legitimately needs (lesson, step, topic, learning style, personality quiz) are exposed as `api` endpoints and consumed over HTTP — never bypassed via direct DB access.
+7. **No shared Prisma client, no shared SQLAlchemy, no shared migration tool.** Each service owns its own data layer.
+
+### Rationale
+
+- **Single owner of truth**: state lives in exactly one place per concept. No split-brain across services writing to the same row.
+- **DB migrations live in one place** (`api`). Adding a column does not require coordinating schema with `ai-api`.
+- **LLM cost and rate-limit** live in one place (`ai-api`). Adding a direct LLM call in `api` would double the cost surface and bypass any rate-limiting we add later.
+- **Ownership checks and authorization** live in one place (`api`). If `ai-api` could write to the DB directly, every authorization rule in `api` becomes advisory.
+- **Replayability and audit** depend on one choke point per concern. A user-action trace must be reconstructible from one service's logs.
+- **Failure isolation**: if `ai-api` is down, the user-facing API can degrade gracefully (return cached content, skip AI features). If `api` is down, AI work cannot write results back — a clear, recoverable failure.
+
+### Migration of existing violations
+
+If you find code that violates these rules, refactor in this order:
+
+1. **Do not** delete the offending call site before adding the corresponding remote endpoint on the owner service.
+2. Add the endpoint on the owner service (`ai-api` for LLM/embedding/Qdrant, `api` for DB).
+3. Replace the offending call with an HTTP call to the new endpoint. Keep the synchronous-call shape: caller passes input, gets output back.
+4. Verify the new path with a smoke test against the deployed stack.
+5. Update tests and documentation.
+
+**Known violation at audit time (2026-09-30)**:
+
+- `cervana-api/src/common/lib/embeding.ts` — `splitAndEmbedding()` calls Gemini directly via `axios.post(...generativelanguage.googleapis.com...)`. Migrate to `ai-api` as `POST /ai/v1/embeddings/text` that accepts `{ texts: string[] }` and returns `number[][]`. Replace the call site in `api` with an HTTP POST to the new endpoint. Do this before adding any new LLM-dependent feature in `api`.
+
+### Detection
+
+When reviewing code or CI, the following grep patterns indicate a violation that must be fixed before merge:
+
+```
+grep -rn "prisma\."            ai-api-cervana/   # direct DB access from ai-api
+grep -rn "DATABASE_URL"        ai-api-cervana/   # DB env var leaking into ai-api
+grep -rn "import.*prisma"      ai-api-cervana/   # shared ORM import
+grep -rn "openai|anthropic|google" cervana-api/   # direct LLM provider call from api
+grep -rn "qdrant_client|QdrantClient" cervana-api/ # direct Qdrant access from api
+grep -rn "ChatOpenAI|ChatGoogleGenerativeAI|ChatAnthropic" cervana-api/
+```
+
+Any non-empty result is a violation and must be resolved before merge.
 
 ## Deployment Workflow
 
@@ -108,11 +169,10 @@ metadata:
 - `curl http://localhost/nginx-health` returns 200.
 - `curl http://localhost/api/v1/docs` returns Swagger UI.
 - Frontend loads at `http://localhost/`.
-- Admin loads at `http://localhost/admin/`.
 
 ## Git Operations
 
-- The repository uses a **single root `.git`**. Never initialize or clone git inside service subdirectories (`cervana-api/`, `ai-api-cervana/`, `web-cervana/`, `admin-cervana/`).
+- The repository uses a **single root `.git`**. Never initialize or clone git inside service subdirectories (`cervana-api/`, `ai-api-cervana/`, `web-cervana/`).
 - **Never run `git add`.** Staging is the owner's responsibility.
 - **Never run `git commit`.** Committing is the owner's responsibility.
 - **Never run `git push`, `git pull --rebase`, `git merge`, `git rebase`, `git reset --hard`, or `git stash drop` without explicit instruction.**

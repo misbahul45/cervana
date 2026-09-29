@@ -195,36 +195,6 @@ services:
     networks:
       - cervana_network
 
-  admin:
-    build:
-      context: ./admin-cervana
-      dockerfile: Dockerfile
-    container_name: cervana_admin
-    restart: unless-stopped
-    env_file:
-      - .env
-    environment:
-      PUBLIC_API_URL: ${PUBLIC_API_URL:-http://localhost/api/v1}
-      PUBLIC_AI_URL: ${PUBLIC_AI_URL:-http://localhost/ai/v1}
-      API_URL_INTERNAL: ${API_URL_INTERNAL:-http://api:3002}
-      NODE_ENV: ${NODE_ENV:-production}
-      PORT: 3001
-      HOST: ${HOST:-0.0.0.0}
-      ORIGIN: ${ORIGIN:-http://localhost:3001}
-    ports:
-      - "${ADMIN_PORT:-3001}:3001"
-    depends_on:
-      api:
-        condition: service_started
-    healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3001/"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 30s
-    networks:
-      - cervana_network
-
   nginx:
     image: nginx:1.27-alpine
     container_name: cervana_nginx
@@ -240,8 +210,6 @@ services:
       - nginx_logs:/var/log/nginx
     depends_on:
       web:
-        condition: service_started
-      admin:
         condition: service_started
       api:
         condition: service_started

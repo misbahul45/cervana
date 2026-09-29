@@ -36,7 +36,7 @@ server {
 
     # Pakai semua lokasi dari main nginx.conf
     # (lihat server block di nginx.conf — semua location di-share via
-    # /api/, /ai/, /admin/, /)
+    # /api/, /ai/, /)
     location / {
         proxy_pass http://cervana_web;
         proxy_http_version 1.1;
@@ -66,23 +66,5 @@ server {
         proxy_set_header X-Forwarded-Proto https;
         proxy_buffering    off;
         proxy_read_timeout 600s;
-    }
-
-    location /admin {
-        proxy_pass http://cervana_admin;
-        proxy_http_version 1.1;
-        proxy_set_header Host              $host;
-        proxy_set_header X-Real-IP         $remote_addr;
-        proxy_set_header X-Forwarded-For   $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto https;
-    }
-
-    location /admin/ {
-        proxy_pass http://cervana_admin/;
-        proxy_http_version 1.1;
-        proxy_set_header Host              $host;
-        proxy_set_header X-Real-IP         $remote_addr;
-        proxy_set_header X-Forwarded-For   $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto https;
     }
 }
