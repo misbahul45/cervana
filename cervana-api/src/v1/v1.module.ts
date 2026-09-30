@@ -14,6 +14,7 @@ import { NotificationsModule } from './notifications/notifications.module';
 import { EmittersModule } from './emitters/emitters.module';
 import { CategoriesModule } from './categories/categories.module';
 import { OrdersModule } from './orders/orders.module';
+import { LearnerModelModule } from './learner-model/learner-model.module';
 
 @Module({
   imports:[
@@ -31,7 +32,8 @@ import { OrdersModule } from './orders/orders.module';
     NotificationsModule,
     EmittersModule,
     CategoriesModule,
-    OrdersModule
+    OrdersModule,
+    LearnerModelModule
   ],
   exports:[
     AuthModule, 

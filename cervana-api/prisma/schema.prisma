@@ -45,6 +45,22 @@ model User {
   teacherApplication TeacherApplication?
   topics             Topic[]
 
+  // Phase 2 domain-model additions
+  learnerGoals         LearnerGoal[]
+  topicMasteries       TopicMasteryRecord[]
+  stepMasteries        StepMasteryRecord[]
+  misconceptions       Misconception[]
+  learningPreference   LearningPreference?
+  behavioralSignals    BehavioralSignals?
+  episodicMemories     EpisodicMemory[]
+  semanticMemories     SemanticLearnerMemory[]
+  proceduralMemories   ProceduralMemory[]
+  learningEvents       LearningEvent[]
+  episodes             Episode[]
+  decisionTraces       DecisionTrace[]
+  teacherOverridesGiven   TeacherOverride[] @relation("teacherOverridesGiven")
+  teacherOverridesReceived TeacherOverride[] @relation("teacherOverridesReceived")
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -168,6 +184,9 @@ model Topic {
   leaderboardScores LeaderboardScore[]
   categories        Category[]         @relation("CategoryTopics")
 
+  learnerGoals      LearnerGoal[]
+  topicMasteries    TopicMasteryRecord[]
+
   createdBy String?
   teacher   User?   @relation(fields: [createdBy], references: [id])
 
@@ -253,6 +272,7 @@ model Step {
   userSteps      UserStep[]
   resources      Resource[]
   stepProgresses StepProgress[]
+  stepMasteries  StepMasteryRecord[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -498,6 +518,9 @@ model Content {
   metadata      Json?
   chatId        String
   chat          Chat         @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  jobStatus     JOBSTATUSTYPE @default(PENDING)
+  isEmbedded    Boolean      @default(false)
+  embeddingAt   DateTime?
   createdAt     DateTime     @default(now())
   updatedAt     DateTime     @updatedAt
 
@@ -807,6 +830,53 @@ enum NotificationType {
   SYSTEM
 }
 
+// -----------------------------------------------------------------------------
+// Phase 2 — Domain Model enums
+// -----------------------------------------------------------------------------
+
+enum GoalStatus {
+  ACTIVE
+  COMPLETED
+  ABANDONED
+}
+
+enum MisconceptionStatus {
+  OPEN
+  RESOLVED
+}
+
+enum MemoryStatus {
+  ACTIVE
+  DECAYING
+  SUPERSEDED
+  INVALIDATED
+  ARCHIVED
+}
+
+enum PromptStatus {
+  DRAFT
+  EXPERIMENTAL
+  VALIDATED
+  ACTIVE
+  REJECTED
+  ROLLED_BACK
+  ARCHIVED
+}
+
+enum ExperimentStatus {
+  DRAFT
+  RUNNING
+  COMPLETED
+  CANCELLED
+}
+
+enum OptimizationDecision {
+  PENDING
+  ACCEPTED
+  REJECTED
+  DEFERRED
+}
+
 model IdempotencyKey {
   key           String
   userId        String
@@ -821,4 +891,324 @@ model IdempotencyKey {
   @@id([key, userId])
   @@index([userId, createdAt])
   @@index([expiresAt])
+}
+
+// -----------------------------------------------------------------------------
+// Phase 2 — Domain Model additions
+// -----------------------------------------------------------------------------
+
+// -----------------------------------------------------------------------------
+// 2.1 Learner state
+// -----------------------------------------------------------------------------
+
+model LearnerGoal {
+  id            String      @id @default(uuid())
+  userId        String
+  user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  topicId       String
+  topic         Topic       @relation(fields: [topicId], references: [id])
+  targetMastery Float       @default(0.8)
+  deadline      DateTime?
+  status        GoalStatus  @default(ACTIVE)
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  @@index([userId, status])
+}
+
+model TopicMasteryRecord {
+  id               String    @id @default(uuid())
+  userId           String
+  user             User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  topicId          String
+  topic            Topic     @relation(fields: [topicId], references: [id])
+  score            Float     @default(0.0)
+  confidence       Float     @default(0.0)
+  evidenceCount    Int       @default(0)
+  lastObservedAt   DateTime?
+  lastDecayedAt    DateTime?
+  @@unique([userId, topicId])
+}
+
+model StepMasteryRecord {
+  id               String    @id @default(uuid())
+  userId           String
+  user             User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  stepId           String
+  step             Step      @relation(fields: [stepId], references: [id])
+  score            Float     @default(0.0)
+  attempts         Int       @default(0)
+  lastScore        Float?
+  lastAttemptedAt  DateTime?
+  hintUsedLast     Boolean   @default(false)
+  @@unique([userId, stepId])
+}
+
+model Misconception {
+  id            String               @id @default(uuid())
+  userId        String
+  user          User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  conceptKey    String
+  count         Int                  @default(1)
+  firstSeenAt   DateTime             @default(now())
+  lastSeenAt    DateTime             @default(now())
+  status        MisconceptionStatus  @default(OPEN)
+  @@unique([userId, conceptKey])
+}
+
+model LearningPreference {
+  id                String   @id @default(uuid())
+  userId            String   @unique
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  explanationStyle  String?
+  problemStyle      String?
+  pace              String?
+  hintTolerance     String?
+  lastUpdatedAt     DateTime @updatedAt
+}
+
+model BehavioralSignals {
+  id                       String   @id @default(uuid())
+  userId                   String   @unique
+  user                     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  hintsPerQuestionAvg      Float?
+  responseTimeAvgSec       Float?
+  skipRate                 Float?
+  retryRate                Float?
+  lastUpdatedAt            DateTime @updatedAt
+}
+
+// -----------------------------------------------------------------------------
+// 2.2 Memory
+// -----------------------------------------------------------------------------
+
+model EpisodicMemory {
+  id              String        @id @default(uuid())
+  userId          String
+  user            User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  eventType       String
+  content         String        @db.Text
+  source          String
+  lessonId        String?
+  stepId          String?
+  topicId         String?
+  importance      Float         @default(0.5)
+  evidenceCount   Int           @default(1)
+  lastUsedAt      DateTime?
+  expiresAt       DateTime?
+  status          MemoryStatus  @default(ACTIVE)
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  @@index([userId, status])
+  @@index([userId, topicId, status])
+}
+
+model SemanticLearnerMemory {
+  id                String        @id @default(uuid())
+  userId            String
+  user              User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  traitKey          String
+  traitValue        String        @db.Text
+  confidence        Float         @default(0.5)
+  evidenceCount     Int           @default(1)
+  sourceMemoryIds   Json
+  status            MemoryStatus  @default(ACTIVE)
+  lastUpdatedAt     DateTime      @updatedAt
+  @@unique([userId, traitKey])
+}
+
+model ProceduralMemory {
+  id                    String        @id @default(uuid())
+  userId                String
+  user                  User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  strategyKey           String
+  conditions            Json
+  expectedOutcome       String
+  sampleSize            Int           @default(0)
+  observedSuccessRate   Float?
+  confidence            Float         @default(0.5)
+  status                MemoryStatus  @default(ACTIVE)
+  @@unique([userId, strategyKey])
+}
+
+// -----------------------------------------------------------------------------
+// 2.3 Events and episodes
+// -----------------------------------------------------------------------------
+
+model LearningEvent {
+  id          String    @id @default(uuid())
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  eventType   String
+  payload     Json
+  createdAt   DateTime  @default(now())
+  @@index([userId, eventType, createdAt])
+}
+
+model Episode {
+  id              String    @id @default(uuid())
+  userId          String
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  taskType        String
+  inputPayload    Json
+  retrievedChunks Json
+  retrievedMemory Json
+  strategy        Json
+  promptVersion   String
+  modelName       String
+  response        String    @db.Text
+  evaluationScore Float?
+  evaluationJson  Json?
+  inputTokens     Int?
+  outputTokens    Int?
+  costUsd         Decimal?  @db.Decimal(10, 6)
+  latencyMs       Int?
+  createdAt       DateTime  @default(now())
+  evaluation      InteractionEvaluation?
+  @@index([userId, createdAt])
+  @@index([createdAt])
+}
+
+model InteractionEvaluation {
+  id              String    @id @default(uuid())
+  episodeId       String    @unique
+  episode         Episode   @relation(fields: [episodeId], references: [id], onDelete: Cascade)
+  correctness     Float?
+  grounding       Float?
+  pedagogy        Float?
+  personalization  Float?
+  difficultyAlign Float?
+  hallucination   Float?
+  safety          Float?
+  overallScore    Float?
+  judgeModel      String
+  judgeVersion    String
+  createdAt       DateTime  @default(now())
+}
+
+// -----------------------------------------------------------------------------
+// 2.4 Prompts, policies, experiments
+// -----------------------------------------------------------------------------
+
+model PromptVersion {
+  id              String         @id @default(uuid())
+  name            String
+  version         Int
+  body            String         @db.Text
+  modelName       String
+  temperature     Float?
+  status          PromptStatus   @default(DRAFT)
+  createdAt       DateTime       @default(now())
+  createdBy       String
+  metricsJson     Json?
+  parentVersionId String?
+  @@unique([name, version])
+  @@index([name, status])
+}
+
+model PolicyVersion {
+  id              String         @id @default(uuid())
+  name            String
+  version         Int
+  parametersJson  Json
+  status          PromptStatus   @default(DRAFT)
+  createdAt       DateTime       @default(now())
+  createdBy       String
+  metricsJson     Json?
+  @@unique([name, version])
+}
+
+model Experiment {
+  id            String           @id @default(uuid())
+  name          String
+  description   String?          @db.Text
+  armsJson      Json
+  status        ExperimentStatus @default(DRAFT)
+  createdAt     DateTime         @default(now())
+  startedAt     DateTime?
+  completedAt   DateTime?
+  createdBy     String
+  runs          ExperimentRun[]
+}
+
+model ExperimentRun {
+  id              String    @id @default(uuid())
+  experimentId    String
+  experiment      Experiment @relation(fields: [experimentId], references: [id])
+  armName         String
+  userId          String?
+  metricsJson     Json
+  startedAt       DateTime  @default(now())
+  completedAt     DateTime?
+}
+
+model EvaluationDataset {
+  id              String    @id @default(uuid())
+  name            String    @unique
+  version         Int
+  isFrozen        Boolean   @default(false)
+  examplesJson    Json
+  description     String?   @db.Text
+  createdAt       DateTime  @default(now())
+  @@unique([name, version])
+}
+
+model OptimizationRun {
+  id                  String                 @id @default(uuid())
+  optimizerName       String
+  basePromptVersionId String?
+  candidateJson       Json
+  baseMetricsJson     Json
+  candidateMetricsJson Json
+  decision            OptimizationDecision
+  rationale           String?                @db.Text
+  decidedBy           String?
+  decidedAt           DateTime?
+  createdAt           DateTime               @default(now())
+}
+
+// -----------------------------------------------------------------------------
+// 2.5 Decision trace
+// -----------------------------------------------------------------------------
+
+model DecisionTrace {
+  id              String    @id @default(uuid())
+  traceId         String    @unique
+  userId          String
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sessionId       String?
+  taskId          String?
+  agentVersion    String
+  promptVersion   String
+  policyVersion   String
+  modelName       String
+  strategyJson    Json
+  retrievedMemory Json
+  retrievedChunks Json
+  responseText    String    @db.Text
+  evaluationJson  Json?
+  latencyMs       Int?
+  inputTokens     Int?
+  outputTokens    Int?
+  costUsd         Decimal?  @db.Decimal(10, 6)
+  createdAt       DateTime  @default(now())
+  @@index([userId, createdAt])
+  @@index([traceId])
+}
+
+// -----------------------------------------------------------------------------
+// 2.6 Human override
+// -----------------------------------------------------------------------------
+
+model TeacherOverride {
+  id              String    @id @default(uuid())
+  teacherId       String
+  teacher         User      @relation("teacherOverridesGiven", fields: [teacherId], references: [id])
+  targetUserId    String
+  targetUser      User      @relation("teacherOverridesReceived", fields: [targetUserId], references: [id])
+  targetType      String
+  targetId        String
+  beforeValue     Json
+  afterValue      Json
+  reason          String    @db.Text
+  createdAt       DateTime  @default(now())
 }

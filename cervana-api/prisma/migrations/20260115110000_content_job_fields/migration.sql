@@ -1,0 +1,4 @@
+-- AlterTable
+ALTER TABLE "contents" ADD COLUMN "jobStatus" "JOBSTATUSTYPE" NOT NULL DEFAULT 'PENDING';
+ALTER TABLE "contents" ADD COLUMN "isEmbedded" BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE "contents" ADD COLUMN "embeddingAt" TIMESTAMP(3);

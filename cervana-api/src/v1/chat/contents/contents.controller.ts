@@ -32,7 +32,7 @@ export class ContentsController {
       throw new AppError(
         'chatId and query are required',
         400,
-        AppErrorCode.BAD_REQUEST,
+        AppErrorCode.VALIDATION_ERROR,
       );
     }
 
@@ -59,7 +59,6 @@ export class ContentsController {
     const contents = await this.prisma.content.findMany({
       where: {
         chatId,
-        data: { not: null },
       },
       orderBy: { createdAt: 'desc' },
       take: 50,

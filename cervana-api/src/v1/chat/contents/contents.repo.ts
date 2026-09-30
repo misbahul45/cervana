@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../../common/config/prisma/prisma.service';
+import { Prisma } from '@prisma/client';
 import { Query } from '@/common/interfaces';
 import { errorHandler, validation } from '@/common/lib/utils';
 import { CreateContentDto, CreateContentDtoType } from './contents.dto';
@@ -102,7 +103,7 @@ export class ContentsRepo {
     });
   }
 
-  async update(id: string, values: Partial<CreateContentDtoType>) {
+  async update(id: string, values: Prisma.ContentUpdateInput) {
     return errorHandler(async () => {
       const existingContent = await this.prisma.content.findUnique({
         where: { id },
@@ -120,11 +121,11 @@ export class ContentsRepo {
       });
 
       if (shouldUpdateEmbeddings) {
-        const textContent = values.data!;
+        const textContent = values.data as string | undefined;
 
-        const chatId = updatedContent.message?.chatId || values.chatId;
+        const chatId = updatedContent.message?.chatId ?? updatedContent.chatId;
 
-        if (chatId) {
+        if (textContent && chatId) {
           await this.queueService.addContentEmbeddingJob({
             contentId: updatedContent.id,
             chatId,
