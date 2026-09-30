@@ -52,7 +52,7 @@ export const OrderListQueryDto = z.object({
   status: z.nativeEnum(OrderStatus).optional(),
   sort: z
     .string()
-    .regex(/^(createdAt|amount|status|paidAt):(asc|desc)$/)
+    .regex(/^(createdAt|total|status|paidAt):(asc|desc)$/)
     .optional(),
   include: z.enum(['topic']).optional(),
 });

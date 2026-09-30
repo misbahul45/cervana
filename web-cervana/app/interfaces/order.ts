@@ -5,15 +5,34 @@ import type { BaseTopic } from "./curriculum/topics"
 export enum OrderStatus {
   PENDING = "PENDING",
   PAID = "PAID",
+  FULFILLED = "FULFILLED",
   FAILED = "FAILED",
+  CANCELLED = "CANCELLED",
+  EXPIRED = "EXPIRED",
+  REFUND_PENDING = "REFUND_PENDING",
   REFUNDED = "REFUNDED",
+}
+
+export interface OrderPayment {
+  id: string
+  provider: string
+  status: string
+  amount: string
+  currency: string
+  expiresAt: Date | string
+  paidAt?: Date | string | null
+  presentation?: { type: string; data: Record<string, unknown> } | null
 }
 
 export interface BaseOrder {
   id: string
   userId: string
-  topicId: string
-  amount: number
+  topicId?: string | null
+  subtotal: string
+  platformFee: string
+  total: string
+  amount?: number | null
+  payment?: OrderPayment | null
   currency: string
   status: OrderStatus
   gateway?: string | null

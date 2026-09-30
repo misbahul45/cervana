@@ -20,6 +20,8 @@ import { TenantsModule } from './tenants/tenants.module';
 import { EntitlementsModule } from './entitlements/entitlements.module';
 import { PaymentsModule } from './payments/payments.module';
 import { CommerceModule } from './commerce/commerce.module';
+import { LedgerModule } from './ledger/ledger.module';
+import { ArticlesModule } from './articles/articles.module';
 import { EventsModule } from '@/common/events/events.module';
 
 @Module({
@@ -45,6 +47,8 @@ import { EventsModule } from '@/common/events/events.module';
     EntitlementsModule,
     EventsModule,
     PaymentsModule,
+    LedgerModule,
+    ArticlesModule,
     CommerceModule
   ],
   exports:[

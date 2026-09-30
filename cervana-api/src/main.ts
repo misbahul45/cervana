@@ -1,4 +1,5 @@
 import { NestFactory } from '@nestjs/core';
+import { NestExpressApplication } from '@nestjs/platform-express';
 import { AppModule } from './app.module';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { ResponseInterceptor } from './common/interceptors/response.interceptor';
@@ -6,12 +7,19 @@ import { AppExceptionsFilter } from './common/exceptions/app.exceptions';
 import { ZodExceptionFilter } from './common/exceptions/zod.exception';
 import { ConfigService } from '@nestjs/config';
 import * as cookieParser from 'cookie-parser';
+import { randomBytes } from 'crypto';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule, { rawBody: true });
+  const app = await NestFactory.create<NestExpressApplication>(AppModule, { rawBody: true });
+  app.useBodyParser('json', { limit: '1mb' });
 
   const configService = app.get(ConfigService);
-  const cookieSecret = configService.get<string>('COOKIE_SECRET') || 'your-secret-key';
+  const cookieSecret =
+    configService.get<string>('COOKIE_SECRET') ||
+    (process.env.NODE_ENV === 'production' ? undefined : randomBytes(32).toString('hex'));
+  if (!cookieSecret) {
+    throw new Error('COOKIE_SECRET must be set');
+  }
   app.use(cookieParser(cookieSecret));
 
   const APP_VERSION = process.env.APP_VERSION ?? 'v1';
@@ -23,7 +31,7 @@ async function bootstrap() {
     'https://cervana.vercel.app',
     'http://localhost:3000',
     'http://localhost:3001',
-  ].filter(Boolean);
+  ].filter((origin): origin is string => Boolean(origin));
 
   app.enableCors({
     origin: allowedOrigins,
@@ -51,7 +59,7 @@ async function bootstrap() {
     next();
   });
 
-  app.getHttpAdapter().get('/', (req, res) => {
+  app.getHttpAdapter().get('/', (_req: unknown, res: { redirect: (url: string) => void }) => {
     res.redirect(`/api/${APP_VERSION}/docs`);
   });
 

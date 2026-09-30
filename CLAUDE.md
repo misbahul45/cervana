@@ -86,7 +86,17 @@ Redis serves three roles: app cache, BullMQ broker (`api`, see `cervana-api/src/
 - **Tenant context** comes from `@TenantScoped()` (`common/tenancy`). `x-tenant-id` only selects among the caller's own memberships; tenant-owned queries must filter with `tenantWhere(context)`.
 - **Service-to-service** calls use signed headers (`common/authz/internal-signature.ts`, Python twin `ai-api-cervana/config/service_auth.py`, shared test vectors). Routes live under `/internal` with `@InternalOnly()`. The API must keep Nest's `rawBody` parser: do not add `app.use(json())` in `main.ts`, it hides the raw body and every signed POST fails.
 - **Zod 4 keeps `.default()` inside `.partial()`**. Build update DTOs with `partialWithoutDefaults` (`common/lib/zod-partial.ts`); `update-dto-defaults.spec.ts` enforces it.
-- Money is `Decimal`. Database rules (checks, partial unique indexes, append-only triggers) live in the hand-written tail of `prisma/migrations/*_domain_foundation/migration.sql`; Prisma does not know about them.
+- Money is `Decimal`. Database rules (checks, partial unique indexes, append-only triggers) live in the hand-written tails of `prisma/migrations/*_domain_foundation` and `*_payment_domain`; Prisma does not know about them.
+
+### Payments (`cervana-api/src/v1/payments`, `orders`, `commerce`)
+
+- Manual payment is the V1 adapter; the provider abstraction is the architecture (`docs/architecture/PAYMENT_ARCHITECTURE.md`, ADR-008). Do not put provider logic (proofs, bank accounts, gateway payloads) in `orders/`, `commerce/` or `entitlements/`, and do not import `payments/providers/*` from them.
+- Order → `PaymentService` → provider adapter. Approval, gateway settlement or any other verification ends in `PaymentService.markVerified`, which publishes `PaymentVerified`; `CommerceFulfillmentService` reacts (order paid, entitlement, creator earning, ledger, order fulfilled). Never grant access or write earnings from a controller.
+- Events go through `DomainEventBus.publish(event, tx)` inside the caller's transaction and are persisted in `DomainEvent`; a consumer error rolls the whole transaction back. Every event needs a stable `dedupeKey`.
+- Lock order is Order, then PaymentIntent (`PaymentService.lockIntent`). Keep it, or approve/cancel/expiry can deadlock.
+- A new gateway is a `PaymentProviderAdapter` registered in `PaymentsModule`, selected by `PAYMENT_PROVIDER`. `POST /webhooks/payments/:provider` returns `501` until one exists. Refund, wallet credit and payout are not built yet.
+- Payment settings: `PAYMENT_PROVIDER`, `PAYMENT_INTENT_TTL_MINUTES`, `PLATFORM_FEE_PERCENT`, `MANUAL_PAYMENT_MAX_SUBMISSIONS`, `MANUAL_PAYMENT_ACCOUNTS` (JSON). Without accounts, paid orders answer `503`.
+- Payment integration tests (`src/v1/__tests__/payment-flow.int.spec.ts`) commit rows to `TEST_DATABASE_URL` and append-only tables cannot be cleaned: use a disposable database.
 
 ### Database and tests
 

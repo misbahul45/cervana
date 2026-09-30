@@ -103,8 +103,8 @@ useHead({
     </h1>
     <div v-if="order" class="text-gray-700 space-y-1">
       <p><strong>Status:</strong> {{ order.status }}</p>
-      <p><strong>Jumlah:</strong> Rp{{ order.amount }}</p>
-      <p><strong>Gateway:</strong> {{ order.gateway || '-' }}</p>
+      <p><strong>Jumlah:</strong> Rp{{ order.total }}</p>
+      <p><strong>Metode:</strong> {{ order.payment?.provider || '-' }}</p>
       <p><strong>Dibayar pada:</strong> {{ order.paidAt || 'Belum dibayar' }}</p>
     </div>
 

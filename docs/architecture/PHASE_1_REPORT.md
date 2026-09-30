@@ -2,6 +2,7 @@
 
 > Date: 2026-09-30. Scope: `cervana-api`, `ai-api-cervana` (auth and resource flow only), compose and env templates, docs.
 > Nothing was staged or committed. `AGENTS.md` was not modified (see [ADR-007](../decisions/ADR-007-ai-api-service-boundary.md) for the proposed change).
+> Superseded in part by [PHASE_3_REPORT](./PHASE_3_REPORT.md): order-level `approve-payment`, `reject-payment` and `refund` were replaced by payment review (`/admin/payments/...`), the order state table gained `FULFILLED` and `REFUND_PENDING`, and the authorization matrix now lists 195 routes.
 > Related: [CURRENT_STATE](./CURRENT_STATE.md), [TARGET_STATE](./TARGET_STATE.md), [AUTHORIZATION_MATRIX](./AUTHORIZATION_MATRIX.md), [ADR-001](../decisions/ADR-001-multi-tenancy-model.md).
 
 ## 1. Result against the exit criteria

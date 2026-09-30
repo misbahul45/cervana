@@ -180,3 +180,11 @@ Single global role on `User`. No tenant role, no membership, no tenant context o
 - **The dev database** (`cervana`) is empty, has 58 tables and no `_prisma_migrations` table, so `migrate deploy` needs a baseline first.
 - **`schema.prisma` and the SQL migrations had drifted** (foreign keys without `ON UPDATE CASCADE`, missing index); reconciled by the first Phase 1 migration.
 - **`docker-compose.yml`** contains a default `DATABASE_URL` with a placeholder password (unchanged).
+
+## 20. Corrections and findings added during Phase 3
+
+- **Payment is now its own domain.** `PaymentIntent`, `PaymentTransaction`, `ManualPaymentSubmission` (linked to the intent) and `DomainEvent` sit between the order and everything that reacts to a paid order. The order-level `approve-payment`, `reject-payment` and `refund` of Phase 1 are gone; see [PAYMENT_ARCHITECTURE](./PAYMENT_ARCHITECTURE.md) and [PHASE_3_REPORT](./PHASE_3_REPORT.md). The row for `Order` and `Stripe webhook` in section 18 is superseded: the webhook route is now `POST /webhooks/payments/:provider` and answers `501`.
+- **`ManualPaymentSubmission`, `CreatorEarning`, `LedgerTransaction` and `Wallet` were empty tables** until this phase. Approval now writes the first three; wallets and payouts are still unused.
+- **Legacy `Order` unique index `(userId, topicId, status)` was a latent bug**: a user could not have two cancelled orders for the same topic. Dropped; duplicate open orders are prevented in the order-creation transaction.
+- **The web order page** (`web-cervana/app/pages/learn/topics/[identifier]/order.vue`) only displays status, amount, gateway and paid date. There is no checkout, proof upload or admin queue in the UI.
+- **Zod 4 `z.string().url()` accepts `javascript:` and `data:` URLs.** Any DTO that stores a URL should also constrain the scheme.

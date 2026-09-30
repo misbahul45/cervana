@@ -220,7 +220,7 @@ describeDb('payment domain on a real database (requires TEST_DATABASE_URL)', () 
         [w.orderId],
       );
       expect(earnings.rows).toEqual([
-        { creatorId: w.owner, tenantId: w.tenant, gross: '100000.00', fee: '10000.00', creator: '90000.00', status: 'PENDING' },
+        { creatorId: w.owner, tenantId: w.tenant, gross: '100000.00', fee: '10000.00', creator: '90000.00', status: 'AVAILABLE' },
       ]);
 
       const ledger = await pool.query(
@@ -231,7 +231,23 @@ describeDb('payment domain on a real database (requires TEST_DATABASE_URL)', () 
         { category: 'CREATOR_EARNING', amount: '90000.00' },
         { category: 'ORDER_PAYMENT', amount: '100000.00' },
         { category: 'PLATFORM_FEE', amount: '10000.00' },
+        { category: 'WALLET_CREDIT', amount: '90000.00' },
       ]);
+
+      const wallet = await pool.query(
+        `SELECT id, balance::text AS balance FROM "Wallet" WHERE "ownerId" = $1 AND "tenantId" = $2 AND currency = 'IDR'`,
+        [w.owner, w.tenant],
+      );
+      expect(wallet.rows).toHaveLength(1);
+      expect(wallet.rows[0].balance).toBe('90000.00');
+      expect(
+        (await pool.query(`SELECT count(*)::int AS n FROM "LedgerTransaction" WHERE "walletId" = $1`, [wallet.rows[0].id])).rows[0].n,
+      ).toBe(1);
+
+      for (const type of ['OrderFulfilled', 'CreatorEarningCreated']) {
+        expect(await count(`SELECT count(*) FROM "DomainEvent" WHERE type = $1 AND "payload"::text LIKE '%' || $2 || '%'`, [type, w.orderId])).toBe(1);
+      }
+      expect(await count(`SELECT count(*) FROM "DomainEvent" WHERE type = 'EntitlementGranted' AND "payload"::text LIKE '%' || $1 || '%'`, [w.article])).toBe(1);
 
       expect(await count(`SELECT count(*) FROM "DomainEvent" WHERE type = 'PaymentVerified' AND "aggregateId" = $1`, [w.intentId])).toBe(1);
       const actions = (await pool.query(
@@ -267,7 +283,7 @@ describeDb('payment domain on a real database (requires TEST_DATABASE_URL)', () 
       const again = await stack.manual.approve(admin(w.reviewer), w.submissionId, 'second', 't2');
       expect(again.data).toMatchObject({ status: 'APPROVED', paymentStatus: 'PAID', changed: false });
       expect(await snapshot()).toEqual(before);
-      expect(before).toMatchObject({ entitlements: 1, earnings: 1, ledger: 3, captures: 1 });
+      expect(before).toMatchObject({ entitlements: 1, earnings: 1, ledger: 4, captures: 1 });
     });
 
     it('concurrent approvals have exactly one effect', async () => {
@@ -283,7 +299,7 @@ describeDb('payment domain on a real database (requires TEST_DATABASE_URL)', () 
 
       expect(await count(`SELECT count(*) FROM "Entitlement" WHERE "userId" = $1`, [w.buyer])).toBe(1);
       expect(await count(`SELECT count(*) FROM "CreatorEarning" WHERE "orderId" = $1`, [w.orderId])).toBe(1);
-      expect(await count(`SELECT count(*) FROM "LedgerTransaction" WHERE "orderId" = $1`, [w.orderId])).toBe(3);
+      expect(await count(`SELECT count(*) FROM "LedgerTransaction" WHERE "orderId" = $1`, [w.orderId])).toBe(4);
       expect(await count(`SELECT count(*) FROM "PaymentTransaction" WHERE "paymentIntentId" = $1`, [w.intentId])).toBe(1);
       expect(await count(`SELECT count(*) FROM "AuditLog" WHERE action = 'MANUAL_PAYMENT_APPROVED' AND "entityId" = $1`, [w.submissionId])).toBe(1);
     });
@@ -534,6 +550,12 @@ describeDb('payment domain on a real database (requires TEST_DATABASE_URL)', () 
         { category: 'CREATOR_EARNING', total: '165000.00', entries: 2 },
         { category: 'ORDER_PAYMENT', total: '183333.33', entries: 1 },
         { category: 'PLATFORM_FEE', total: '18333.33', entries: 2 },
+        { category: 'WALLET_CREDIT', total: '165000.00', entries: 2 },
+      ]);
+      const wallets = await pool.query(`SELECT "ownerId", balance::text AS balance FROM "Wallet" WHERE "ownerId" = ANY($1) ORDER BY "Wallet"."balance" ASC`, [[ownerA, ownerB]]);
+      expect(wallets.rows).toEqual([
+        { ownerId: ownerA, balance: '30000.00' },
+        { ownerId: ownerB, balance: '135000.00' },
       ]);
       expect(await count(`SELECT count(*) FROM "Entitlement" WHERE "userId" = $1 AND status = 'ACTIVE'`, [buyer])).toBe(2);
     });
@@ -635,7 +657,7 @@ describeDb('payment domain on a real database (requires TEST_DATABASE_URL)', () 
       expect((await pool.query(`SELECT status::text FROM "Order" WHERE id = $1`, [order.id])).rows[0].status).toBe('FULFILLED');
       expect(await count(`SELECT count(*) FROM "Entitlement" WHERE "userId" = $1 AND status = 'ACTIVE'`, [w.buyer])).toBe(1);
       expect(await count(`SELECT count(*) FROM "CreatorEarning" WHERE "orderId" = $1`, [order.id])).toBe(1);
-      expect(await count(`SELECT count(*) FROM "LedgerTransaction" WHERE "orderId" = $1`, [order.id])).toBe(3);
+      expect(await count(`SELECT count(*) FROM "LedgerTransaction" WHERE "orderId" = $1`, [order.id])).toBe(4);
       expect(await count(`SELECT count(*) FROM "PaymentTransaction" WHERE "paymentIntentId" = $1`, [intentId])).toBe(1);
     });
 

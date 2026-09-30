@@ -65,8 +65,12 @@ model User {
   tenantMemberships TenantMembership[]
 
   authoredArticles Article[]                 @relation("ArticleAuthor")
+  reviewedArticles Article[]                 @relation("ArticleReviewer")
+  articleVersions  ArticleVersion[]          @relation("ArticleVersionCreator")
+  reviewedClasses  ClassProduct[]            @relation("ClassReviewer")
   taughtClasses    ClassProduct[]            @relation("ClassInstructor")
   classEnrollments ClassEnrollment[]
+  classAttendances ClassAttendance[]
   entitlements     Entitlement[]
   manualPayments   ManualPaymentSubmission[] @relation("PaymentPayer")
   creatorEarnings  CreatorEarning[]          @relation("EarningCreator")
@@ -655,14 +659,15 @@ model Notification {
 model Order {
   id     String @id @default(uuid())
   userId String
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Restrict)
 
+  /// LEGACY: single-topic shortcut kept so the current web order page keeps working. The canonical product reference is OrderItem.
   topicId String?
-  topic   Topic?  @relation(fields: [topicId], references: [id], onDelete: Cascade)
+  topic   Topic?  @relation(fields: [topicId], references: [id], onDelete: Restrict)
 
-  subtotal    Decimal? @db.Decimal(12, 2)
-  platformFee Decimal? @db.Decimal(12, 2)
-  total       Decimal? @db.Decimal(12, 2)
+  subtotal    Decimal @default(0) @db.Decimal(12, 2)
+  platformFee Decimal @default(0) @db.Decimal(12, 2)
+  total       Decimal @default(0) @db.Decimal(12, 2)
 
   items          OrderItem[]
   manualPayments ManualPaymentSubmission[]
@@ -673,11 +678,14 @@ model Order {
   ledger         LedgerTransaction[]
   paymentIntents PaymentIntent[]
 
-  amount   Float
+  /// DEPRECATED: Float money. Canonical amounts are subtotal, platformFee and total. No code reads or writes this column any more.
+  amount   Float?
   currency String      @default("IDR")
   status   OrderStatus @default(PENDING)
 
+  /// DEPRECATED: gateway checkout token. Payment state lives in PaymentIntent.
   snapToken String? @unique
+  /// DEPRECATED: use PaymentIntent.provider.
   gateway   String?
 
   paidAt    DateTime?
@@ -1472,9 +1480,15 @@ model Article {
   currency    String            @default("IDR")
   status      ContentStatus     @default(DRAFT)
   publishedVersionId String?    @unique
+  publishedVersion   ArticleVersion? @relation("ArticlePublishedVersion", fields: [publishedVersionId], references: [id], onDelete: Restrict)
   publishedAt DateTime?
+  submittedAt DateTime?
+  reviewedById String?
+  reviewedBy  User?             @relation("ArticleReviewer", fields: [reviewedById], references: [id], onDelete: Restrict)
+  reviewedAt  DateTime?
+  reviewNote  String?           @db.Text
 
-  versions     ArticleVersion[]
+  versions     ArticleVersion[] @relation("ArticleVersions")
   orderItems   OrderItem[]
   entitlements Entitlement[]
 
@@ -1484,6 +1498,7 @@ model Article {
   @@unique([tenantId, slug])
   @@index([tenantId, status])
   @@index([status, publishedAt])
+  @@index([status, submittedAt])
   @@index([authorId, status])
   @@index([categoryId])
 }
@@ -1491,14 +1506,17 @@ model Article {
 model ArticleVersion {
   id            String    @id @default(uuid())
   articleId     String
-  article       Article   @relation(fields: [articleId], references: [id], onDelete: Restrict)
+  article       Article   @relation("ArticleVersions", fields: [articleId], references: [id], onDelete: Restrict)
   versionNumber Int
   title         String
   content       String    @db.Text
   changeReason  String?
   createdById   String
+  createdBy     User      @relation("ArticleVersionCreator", fields: [createdById], references: [id], onDelete: Restrict)
   publishedAt   DateTime?
   createdAt     DateTime  @default(now())
+
+  publishedFor Article? @relation("ArticlePublishedVersion")
 
   @@unique([articleId, versionNumber])
   @@index([articleId, createdAt])
@@ -1523,6 +1541,11 @@ model ClassProduct {
   capacity        Int?
   status          ContentStatus     @default(DRAFT)
   publishedAt     DateTime?
+  submittedAt     DateTime?
+  reviewedById    String?
+  reviewedBy      User?             @relation("ClassReviewer", fields: [reviewedById], references: [id], onDelete: Restrict)
+  reviewedAt      DateTime?
+  reviewNote      String?           @db.Text
 
   sessions     ClassSession[]
   enrollments  ClassEnrollment[]
@@ -1549,10 +1572,24 @@ model ClassSession {
   capacity       Int?
   status         ClassSessionStatus @default(SCHEDULED)
 
+  attendances ClassAttendance[]
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([classProductId, startsAt])
+}
+
+model ClassAttendance {
+  id         String       @id @default(uuid())
+  sessionId  String
+  session    ClassSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  userId     String
+  user       User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  attendedAt DateTime     @default(now())
+
+  @@unique([sessionId, userId])
+  @@index([userId])
 }
 
 model ClassEnrollment {
@@ -1703,6 +1740,7 @@ model PaymentIntent {
 
   transactions      PaymentTransaction[]
   manualSubmissions ManualPaymentSubmission[]
+  refunds           Refund[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1760,7 +1798,10 @@ model CreatorEarning {
   creatorAmount Decimal       @db.Decimal(12, 2)
   currency      String        @default("IDR")
   status        EarningStatus @default(PENDING)
+  releasedAt    DateTime?
   createdAt     DateTime      @default(now())
+
+  ledger LedgerTransaction[]
 
   @@index([tenantId, status])
   @@index([creatorId, status])
@@ -1782,13 +1823,20 @@ model Wallet {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  @@unique([tenantId, currency])
+  @@unique([ownerId, tenantId, currency])
+  @@index([tenantId])
   @@index([ownerId])
+}
+
+enum LedgerDirection {
+  CREDIT
+  DEBIT
 }
 
 model LedgerTransaction {
   id             String         @id @default(uuid())
   category       LedgerCategory
+  direction      LedgerDirection
   amount         Decimal        @db.Decimal(14, 2)
   currency       String         @default("IDR")
   walletId       String?
@@ -1796,18 +1844,25 @@ model LedgerTransaction {
   orderId        String?
   order          Order?         @relation(fields: [orderId], references: [id], onDelete: Restrict)
   payoutId       String?
+  payout         PayoutRequest? @relation(fields: [payoutId], references: [id], onDelete: Restrict)
   refundId       String?
+  refund         Refund?        @relation(fields: [refundId], references: [id], onDelete: Restrict)
   earningId      String?
+  earning        CreatorEarning? @relation(fields: [earningId], references: [id], onDelete: Restrict)
   reversalOfId   String?        @unique
   reversalOf     LedgerTransaction? @relation("LedgerReversal", fields: [reversalOfId], references: [id], onDelete: Restrict)
   reversedBy     LedgerTransaction? @relation("LedgerReversal")
   idempotencyKey String         @unique
   description    String?
   createdById    String?
+  traceId        String?
   createdAt      DateTime       @default(now())
 
   @@index([walletId, createdAt])
   @@index([orderId])
+  @@index([payoutId])
+  @@index([refundId])
+  @@index([earningId])
   @@index([category, createdAt])
 }
 
@@ -1829,26 +1884,35 @@ model PayoutRequest {
   rejectionReason String?      @db.Text
   paidAt          DateTime?
 
+  ledger LedgerTransaction[]
+
   @@index([tenantId, status])
   @@index([creatorId, status])
   @@index([status, requestedAt])
 }
 
 model Refund {
-  id            String       @id @default(uuid())
-  orderId       String
-  order         Order        @relation(fields: [orderId], references: [id], onDelete: Restrict)
-  amount        Decimal      @db.Decimal(12, 2)
-  reason        String       @db.Text
-  status        RefundStatus @default(REQUESTED)
-  requestedById String
-  requestedBy   User         @relation("RefundRequester", fields: [requestedById], references: [id], onDelete: Restrict)
-  approvedById  String?
-  processedAt   DateTime?
-  evidenceUrl   Json?
-  createdAt     DateTime     @default(now())
+  id              String        @id @default(uuid())
+  orderId         String
+  order           Order         @relation(fields: [orderId], references: [id], onDelete: Restrict)
+  paymentIntentId String
+  paymentIntent   PaymentIntent @relation(fields: [paymentIntentId], references: [id], onDelete: Restrict)
+  amount          Decimal       @db.Decimal(12, 2)
+  reason          String        @db.Text
+  status          RefundStatus  @default(REQUESTED)
+  requestedById   String
+  requestedBy     User          @relation("RefundRequester", fields: [requestedById], references: [id], onDelete: Restrict)
+  approvedById    String?
+  approvedAt      DateTime?
+  rejectionReason String?       @db.Text
+  processedAt     DateTime?
+  evidenceUrl     Json?
+  createdAt       DateTime      @default(now())
+
+  ledger LedgerTransaction[]
 
   @@index([orderId])
+  @@index([paymentIntentId, status])
   @@index([status, createdAt])
 }
 

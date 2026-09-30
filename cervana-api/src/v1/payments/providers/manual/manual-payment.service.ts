@@ -5,6 +5,7 @@ import { PrismaService } from '@/common/config/prisma/prisma.service';
 import { Actor, PolicyService } from '@/common/authz/policy.service';
 import { AuditService } from '@/common/authz/audit.service';
 import { UploadsService } from '../../../uploads/uploads.service';
+import { assertOwnedUploadedFile } from '../../../uploads/uploaded-file';
 import { PaymentConfig } from '../../payment.config';
 import { PaymentService } from '../../payment.service';
 import { PaymentActorRef } from '../../payment.types';
@@ -389,25 +390,6 @@ export class ManualPaymentService {
   }
 
   private assertProof(actor: Actor, proof: { url: string; fileId: string }) {
-    let parsed: URL;
-    try {
-      parsed = new URL(proof.url);
-    } catch {
-      throw new AppError('Proof URL is invalid', 422, AppErrorCode.VALIDATION_ERROR);
-    }
-    let path = parsed.pathname;
-    try {
-      path = decodeURIComponent(path);
-    } catch {
-      path = parsed.pathname;
-    }
-    const referencesFile = path.includes(proof.fileId);
-    if (
-      parsed.protocol !== 'https:' ||
-      !referencesFile ||
-      !this.uploads.ownsFile({ id: actor.id, role: actor.role }, proof.fileId)
-    ) {
-      throw new AppError('Proof must be a file you uploaded', 422, AppErrorCode.VALIDATION_ERROR);
-    }
+    assertOwnedUploadedFile(this.uploads, actor, proof, 'Proof');
   }
 }

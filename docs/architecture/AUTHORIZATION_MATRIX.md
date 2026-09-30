@@ -10,12 +10,12 @@ Guards run in this order for every request: `JwtAuthGuard` (authentication) → 
 |---|---|---|
 | Public | No credentials | 15 |
 | Service | Signed service-to-service request | 2 |
-| Role | Global role required | 53 |
+| Role | Global role required | 57 |
 | Tenant | Membership in the named tenant | 2 |
-| Owner | Owner of the resource, or ADMIN | 65 |
+| Owner | Owner of the resource, or ADMIN | 68 |
 | Own rows | Only the caller rows; ADMIN unrestricted | 17 |
-| Authenticated | Any signed-in user, row rules in service | 33 |
-| **Total** | | **187** |
+| Authenticated | Any signed-in user, row rules in service | 34 |
+| **Total** | | **195** |
 
 ## Policy by actor (product terminology: USER = `STUDENT` in the database)
 
@@ -25,9 +25,12 @@ Guards run in this order for every request: `JwtAuthGuard` (authentication) → 
 | Change any role, activate or deactivate accounts | N | N | Y (never on self) |
 | Apply to become a teacher | Y | N | N |
 | Approve or reject a teacher application | N | N | Y (never own) |
-| Create an order for a topic | Y | Y | Y |
+| Create an order for a product (topic, article, class) | Y | Y | Y |
 | Read an order | own | own | all |
-| Approve payment, reject payment, refund | N | N | Y |
+| Submit a payment proof | own order | own order | own order |
+| Review, approve or reject a payment proof | N | N | Y |
+| Reconcile a payment, run the expiry sweep | N | N | Y |
+| Refund an order | not available (next phase) | not available | not available |
 | Cancel an order | own, while pending | own, while pending | any |
 | Enroll in a topic | free topics only | free topics only | any |
 | Read or write learning progress, attempts, chats | own | own | all |
@@ -44,6 +47,13 @@ Guards run in this order for every request: `JwtAuthGuard` (authentication) → 
 | Method | Path | Decision | Detail |
 |---|---|---|---|
 | POST | `/admin/entitlements/backfill/topic` | Role | ADMIN |
+| POST | `/admin/payments/expire-due` | Role | ADMIN |
+| POST | `/admin/payments/intents/{intentId}/reconcile` | Role | ADMIN |
+| GET | `/admin/payments/manual/submissions` | Role | ADMIN |
+| GET | `/admin/payments/manual/submissions/{id}` | Role | ADMIN |
+| POST | `/admin/payments/manual/submissions/{id}/approve` | Role | ADMIN |
+| POST | `/admin/payments/manual/submissions/{id}/reject` | Role | ADMIN |
+| POST | `/admin/payments/manual/submissions/{id}/start-review` | Role | ADMIN |
 | GET | `/admin/tenants` | Role | ADMIN |
 | POST | `/admin/tenants/{id}/activate` | Role | ADMIN |
 | POST | `/admin/tenants/{id}/suspend` | Role | ADMIN |
@@ -174,10 +184,11 @@ Guards run in this order for every request: `JwtAuthGuard` (authentication) → 
 | GET | `/orders` | Authenticated | Any signed-in user; row-level rules enforced in the service |
 | POST | `/orders` | Authenticated | Any signed-in user; row-level rules enforced in the service |
 | GET | `/orders/{id}` | Authenticated | Any signed-in user; row-level rules enforced in the service |
-| POST | `/orders/{id}/approve-payment` | Role | ADMIN |
 | POST | `/orders/{id}/cancel` | Authenticated | Any signed-in user; row-level rules enforced in the service |
-| POST | `/orders/{id}/refund` | Role | ADMIN |
-| POST | `/orders/{id}/reject-payment` | Role | ADMIN |
+| GET | `/payments/intents/{intentId}` | Owner | Owner or ADMIN of `payment-intent@param:intentId` |
+| GET | `/payments/manual/intents/{intentId}/submissions` | Owner | Owner or ADMIN of `payment-intent@param:intentId` |
+| POST | `/payments/manual/intents/{intentId}/submissions` | Owner | Owner or ADMIN of `payment-intent@param:intentId` |
+| GET | `/payments/methods` | Authenticated | Any signed-in user; row-level rules enforced in the service |
 | GET | `/personality-quiz-sse` | Authenticated | Any signed-in user; row-level rules enforced in the service |
 | POST | `/quiz/answers` | Owner | Owner or ADMIN of `quiz-attempt@body:attemptId` |
 | DELETE | `/quiz/answers/{id}` | Owner | Owner or ADMIN of `answer` |
@@ -229,4 +240,4 @@ Guards run in this order for every request: `JwtAuthGuard` (authentication) → 
 | PATCH | `/users/{id}` | Authenticated | Any signed-in user; row-level rules enforced in the service |
 | POST | `/users/{id}/activation` | Role | ADMIN |
 | POST | `/users/{id}/role` | Role | ADMIN |
-| POST | `/webhooks/stripe` | Public | No credentials |
+| POST | `/webhooks/payments/{provider}` | Public | No credentials |

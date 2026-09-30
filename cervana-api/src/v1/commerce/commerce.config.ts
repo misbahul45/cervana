@@ -10,6 +10,11 @@ export class CommerceConfig {
 
   constructor(private readonly config: ConfigService) {}
 
+  get earningHoldDays(): number {
+    const parsed = Number(this.config.get<string>('CREATOR_EARNING_HOLD_DAYS'));
+    return Number.isInteger(parsed) && parsed >= 0 && parsed <= 90 ? parsed : 0;
+  }
+
   get platformFeePercent(): Prisma.Decimal {
     const raw = this.config.get<string>('PLATFORM_FEE_PERCENT');
     if (raw === undefined || raw === '') {

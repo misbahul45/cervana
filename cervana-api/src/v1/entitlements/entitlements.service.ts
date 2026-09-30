@@ -3,18 +3,49 @@ import { EntitlementResourceType, Order, OrderItem, Prisma } from '@prisma/clien
 
 const HOUR_MS = 60 * 60 * 1000;
 
+export interface GrantedEntitlement {
+  resourceType: EntitlementResourceType;
+  resourceId: string;
+}
+
+export interface EntitledResource {
+  articleId?: string;
+  classId?: string;
+  topicId?: string;
+}
+
 @Injectable()
 export class EntitlementsService {
+  async hasActiveAccess(
+    client: Pick<Prisma.TransactionClient, 'entitlement'>,
+    userId: string,
+    resource: EntitledResource,
+    now: Date = new Date(),
+  ): Promise<boolean> {
+    const row = await client.entitlement.findFirst({
+      where: {
+        userId,
+        ...resource,
+        status: 'ACTIVE',
+        startsAt: { lte: now },
+        OR: [{ expiresAt: null }, { expiresAt: { gt: now } }],
+      },
+      select: { id: true },
+    });
+    return row !== null;
+  }
+
   async grantForOrder(
     tx: Prisma.TransactionClient,
     order: Pick<Order, 'id' | 'userId'>,
     items: OrderItem[],
     grantedAt: Date,
-  ): Promise<number> {
-    let granted = 0;
+  ): Promise<GrantedEntitlement[]> {
+    const granted: GrantedEntitlement[] = [];
     for (const item of items) {
       if (item.topicId) {
         await this.grantTopic(tx, order, item.topicId, grantedAt);
+        granted.push({ resourceType: EntitlementResourceType.TOPIC, resourceId: item.topicId });
       } else if (item.articleId) {
         await tx.entitlement.upsert({
           where: { userId_articleId: { userId: order.userId, articleId: item.articleId } },
@@ -29,6 +60,7 @@ export class EntitlementsService {
           },
           update: { orderId: order.id, status: 'ACTIVE', startsAt: grantedAt, expiresAt: null },
         });
+        granted.push({ resourceType: EntitlementResourceType.ARTICLE, resourceId: item.articleId });
       } else if (item.classId) {
         await tx.entitlement.upsert({
           where: { userId_classId: { userId: order.userId, classId: item.classId } },
@@ -43,10 +75,8 @@ export class EntitlementsService {
           },
           update: { orderId: order.id, status: 'ACTIVE', startsAt: grantedAt, expiresAt: null },
         });
-      } else {
-        continue;
+        granted.push({ resourceType: EntitlementResourceType.CLASS, resourceId: item.classId });
       }
-      granted += 1;
     }
     return granted;
   }

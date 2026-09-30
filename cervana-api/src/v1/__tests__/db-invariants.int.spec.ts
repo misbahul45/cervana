@@ -6,11 +6,14 @@ import {
   expectViolation,
   insertArticle,
   insertIntent,
+  insertLedger,
   insertOrder,
   insertPayment,
   insertTenant,
   insertUser,
   insertWallet,
+  ledgerSum,
+  walletBalance,
   withRollback,
 } from '@/test-utils/pg-fixtures';
 
@@ -163,16 +166,36 @@ describeDb('database invariants (requires TEST_DATABASE_URL)', () => {
         expect(duplicate.constraint).toBe('CreatorEarning_orderItemId_key');
       }));
 
-    it('a wallet balance can never go negative', () =>
+    it('a wallet balance is derived from the ledger and cannot be edited directly', () =>
       withRollback(pool, async (c) => {
         const user = await insertUser(c);
         const tenant = await insertTenant(c, user);
         const wallet = await insertWallet(c, user, tenant, '50.00');
-        const error = await expectViolation(c, `UPDATE "Wallet" SET balance = balance - 80 WHERE id = $1`, [wallet]);
-        expect(error.constraint).toBe('Wallet_balance_non_negative');
+        expect(await walletBalance(c, wallet)).toBe('50.00');
+        for (const sql of [
+          `UPDATE "Wallet" SET balance = balance + 1000 WHERE id = $1`,
+          `UPDATE "Wallet" SET balance = balance - 10 WHERE id = $1`,
+        ]) {
+          expect((await expectViolation(c, sql, [wallet])).message).toMatch(/only change through the ledger/);
+        }
+        expect(await walletBalance(c, wallet)).toBe('50.00');
       }));
 
-    it('two concurrent debits cannot overdraw a wallet', async () => {
+    it('a wallet balance can never go negative through the ledger', () =>
+      withRollback(pool, async (c) => {
+        const user = await insertUser(c);
+        const tenant = await insertTenant(c, user);
+        const wallet = await insertWallet(c, user, tenant, '50.00');
+        const error = await expectViolation(
+          c,
+          `INSERT INTO "LedgerTransaction" (id, category, direction, amount, currency, "walletId", "idempotencyKey") VALUES (gen_random_uuid(), 'ADJUSTMENT', 'DEBIT', 80, 'IDR', $1, 'overdraw')`,
+          [wallet],
+        );
+        expect(error.constraint).toBe('Wallet_balance_non_negative');
+        expect(await walletBalance(c, wallet)).toBe('50.00');
+      }));
+
+    it('two concurrent ledger debits cannot overdraw a wallet', async () => {
       const user = await insertUser(pool);
       const tenant = await insertTenant(pool, user);
       const wallet = await insertWallet(pool, user, tenant, '100.00');
@@ -180,7 +203,7 @@ describeDb('database invariants (requires TEST_DATABASE_URL)', () => {
         const client = await pool.connect();
         try {
           await client.query('BEGIN');
-          await client.query(`UPDATE "Wallet" SET balance = balance - 80 WHERE id = $1`, [wallet]);
+          await insertLedger(client, { category: 'ADJUSTMENT', direction: 'DEBIT', amount: 80, walletId: wallet });
           await client.query('COMMIT');
           return 'ok';
         } catch {
@@ -192,27 +215,72 @@ describeDb('database invariants (requires TEST_DATABASE_URL)', () => {
       };
       const results = await Promise.all([debit(), debit(), debit()]);
       expect(results.filter((r) => r === 'ok')).toHaveLength(1);
-      const { rows } = await pool.query(`SELECT balance::text AS balance FROM "Wallet" WHERE id = $1`, [wallet]);
-      expect(rows[0].balance).toBe('20.00');
+      expect(await walletBalance(pool, wallet)).toBe('20.00');
+      expect(await ledgerSum(pool, wallet)).toBe('20.00');
     });
+
+    it('one tenant can hold a wallet per creator, but never two for the same creator and currency', () =>
+      withRollback(pool, async (c) => {
+        const owner = await insertUser(c);
+        const teacherA = await insertUser(c);
+        const teacherB = await insertUser(c);
+        const tenant = await insertTenant(c, owner);
+        await insertWallet(c, teacherA, tenant, '0');
+        await insertWallet(c, teacherB, tenant, '0');
+        const duplicate = await expectViolation(
+          c,
+          `INSERT INTO "Wallet" (id, "ownerId", "tenantId", currency, "updatedAt") VALUES (gen_random_uuid(), $1, $2, 'IDR', now())`,
+          [teacherA, tenant],
+        );
+        expect(duplicate.constraint).toBe('Wallet_ownerId_tenantId_currency_key');
+        await c.query(`INSERT INTO "Wallet" (id, "ownerId", "tenantId", currency, "updatedAt") VALUES (gen_random_uuid(), $1, $2, 'USD', now())`, [teacherA, tenant]);
+      }));
+
+    it('a wallet cannot start with a balance, change owner, or accept a foreign currency', () =>
+      withRollback(pool, async (c) => {
+        const user = await insertUser(c);
+        const other = await insertUser(c);
+        const tenant = await insertTenant(c, user);
+        const funded = await expectViolation(
+          c,
+          `INSERT INTO "Wallet" (id, "ownerId", "tenantId", balance, currency, "updatedAt") VALUES (gen_random_uuid(), $1, $2, 10, 'IDR', now())`,
+          [user, tenant],
+        );
+        expect(funded.message).toMatch(/starts empty/);
+        const wallet = await insertWallet(c, user, tenant, '10.00');
+        expect((await expectViolation(c, `UPDATE "Wallet" SET "ownerId" = $2 WHERE id = $1`, [wallet, other])).message).toMatch(/ownership is immutable/);
+        const foreign = await expectViolation(
+          c,
+          `INSERT INTO "LedgerTransaction" (id, category, direction, amount, currency, "walletId", "idempotencyKey") VALUES (gen_random_uuid(), 'ADJUSTMENT', 'CREDIT', 5, 'USD', $1, 'usd-into-idr')`,
+          [wallet],
+        );
+        expect(foreign.message).toMatch(/currency does not match/);
+      }));
   });
 
   describe('append-only ledgers', () => {
     it('the commerce ledger cannot be edited or deleted, and amounts are positive', () =>
       withRollback(pool, async (c) => {
-        const id = randomUUID();
-        await c.query(`INSERT INTO "LedgerTransaction" (id, category, amount, "idempotencyKey") VALUES ($1, 'ORDER_PAYMENT', 100, $2)`, [id, `key-${id}`]);
+        const user = await insertUser(c);
+        const order = await insertOrder(c, user);
+        const id = await insertLedger(c, { category: 'ORDER_PAYMENT', direction: 'CREDIT', amount: 100, orderId: order });
         expect((await expectViolation(c, `UPDATE "LedgerTransaction" SET amount = 1 WHERE id = $1`, [id])).message).toMatch(/append-only/);
         expect((await expectViolation(c, `DELETE FROM "LedgerTransaction" WHERE id = $1`, [id])).message).toMatch(/append-only/);
-        const zero = await expectViolation(c, `INSERT INTO "LedgerTransaction" (id, category, amount, "idempotencyKey") VALUES (gen_random_uuid(), 'ADJUSTMENT', 0, 'zero')`);
+        const zero = await expectViolation(c, `INSERT INTO "LedgerTransaction" (id, category, direction, amount, "idempotencyKey") VALUES (gen_random_uuid(), 'ADJUSTMENT', 'CREDIT', 0, 'zero')`);
         expect(zero.constraint).toBe('LedgerTransaction_amount_positive');
       }));
 
     it('a ledger idempotency key can be used only once', () =>
       withRollback(pool, async (c) => {
         const key = `once-${randomUUID()}`;
-        await c.query(`INSERT INTO "LedgerTransaction" (id, category, amount, "idempotencyKey") VALUES (gen_random_uuid(), 'ORDER_PAYMENT', 10, $1)`, [key]);
-        const error = await expectViolation(c, `INSERT INTO "LedgerTransaction" (id, category, amount, "idempotencyKey") VALUES (gen_random_uuid(), 'ORDER_PAYMENT', 10, $1)`, [key]);
+        const user = await insertUser(c);
+        const order = await insertOrder(c, user);
+        await insertLedger(c, { category: 'ORDER_PAYMENT', direction: 'CREDIT', amount: 10, orderId: order, key });
+        const error = await expectViolation(
+          c,
+          `INSERT INTO "LedgerTransaction" (id, category, direction, amount, "orderId", "idempotencyKey") VALUES (gen_random_uuid(), 'ORDER_PAYMENT', 'CREDIT', 10, $1, $2)`,
+          [order, key],
+        );
         expect(error.constraint).toBe('LedgerTransaction_idempotencyKey_key');
       }));
 

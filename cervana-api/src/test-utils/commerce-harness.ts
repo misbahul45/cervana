@@ -7,7 +7,12 @@ import { CommerceLedgerService } from '@/v1/commerce/commerce-ledger.service';
 import { CommerceConfig } from '@/v1/commerce/commerce.config';
 import { CreatorEarningsService } from '@/v1/commerce/creator-earnings.service';
 import { CommerceFulfillmentService } from '@/v1/commerce/fulfillment/commerce-fulfillment.service';
+import { ArticleAuthoringService } from '@/v1/articles/article-authoring.service';
+import { ArticleModerationService } from '@/v1/articles/article-moderation.service';
+import { MarketplaceArticlesService } from '@/v1/articles/marketplace-articles.service';
 import { EntitlementsService } from '@/v1/entitlements/entitlements.service';
+import { LedgerService } from '@/v1/ledger/ledger.service';
+import { WalletService } from '@/v1/ledger/wallet.service';
 import { OrderCatalogService } from '@/v1/orders/order-catalog.service';
 import { OrderLifecycleService } from '@/v1/orders/order-lifecycle.service';
 import { OrdersRepo } from '@/v1/orders/orders.repo';
@@ -64,9 +69,23 @@ export function buildCommerceStack(options: CommerceStackOptions = {}) {
     audit,
   );
   const entitlements = new EntitlementsService();
-  const earnings = new CreatorEarningsService();
-  const ledger = new CommerceLedgerService();
-  const fulfillment = new CommerceFulfillmentService(bus, lifecycle, entitlements, earnings, ledger, audit);
+  const ledgerCore = new LedgerService();
+  const wallets = new WalletService(prisma, policy);
+  const earnings = new CreatorEarningsService(prisma, ledgerCore, wallets);
+  const ledger = new CommerceLedgerService(ledgerCore);
+  const fulfillment = new CommerceFulfillmentService(
+    bus,
+    lifecycle,
+    entitlements,
+    earnings,
+    ledger,
+    audit,
+    commerceConfig,
+  );
+
+  const articleAuthoring = new ArticleAuthoringService(prisma, audit, uploads);
+  const articleModeration = new ArticleModerationService(prisma, policy, audit, bus);
+  const marketplaceArticles = new MarketplaceArticlesService(prisma, entitlements);
 
   lifecycle.onModuleInit();
   fulfillment.onModuleInit();
@@ -87,6 +106,11 @@ export function buildCommerceStack(options: CommerceStackOptions = {}) {
     entitlements,
     earnings,
     ledger,
+    ledgerCore,
+    wallets,
+    articleAuthoring,
+    articleModeration,
+    marketplaceArticles,
   };
 }
 
