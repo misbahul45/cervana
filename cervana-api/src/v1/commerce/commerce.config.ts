@@ -10,6 +10,21 @@ export class CommerceConfig {
 
   constructor(private readonly config: ConfigService) {}
 
+  get refundWindowDays(): number {
+    const parsed = Number(this.config.get<string>('REFUND_WINDOW_DAYS'));
+    return Number.isInteger(parsed) && parsed >= 0 && parsed <= 365 ? parsed : 7;
+  }
+
+  get payoutMinAmount(): Prisma.Decimal {
+    const raw = this.config.get<string>('PAYOUT_MIN_AMOUNT');
+    try {
+      const parsed = new Prisma.Decimal(raw ?? '1');
+      return parsed.isNaN() || parsed.lessThanOrEqualTo(0) ? new Prisma.Decimal(1) : parsed;
+    } catch {
+      return new Prisma.Decimal(1);
+    }
+  }
+
   get earningHoldDays(): number {
     const parsed = Number(this.config.get<string>('CREATOR_EARNING_HOLD_DAYS'));
     return Number.isInteger(parsed) && parsed >= 0 && parsed <= 90 ? parsed : 0;

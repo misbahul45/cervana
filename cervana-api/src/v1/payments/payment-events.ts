@@ -42,3 +42,14 @@ export type PaymentCancelledPayload = PaymentEventBase;
 
 export const paymentEventKey = (type: string, paymentIntentId: string, discriminator?: string) =>
   discriminator ? `${type}:${paymentIntentId}:${discriminator}` : `${type}:${paymentIntentId}`;
+
+export interface RefundEventPayload {
+  refundId: string;
+  orderId: string;
+  paymentIntentId: string;
+  amount: string;
+  currency: string;
+  requestedById: string;
+}
+
+export const REFUND_AGGREGATE = 'Refund';

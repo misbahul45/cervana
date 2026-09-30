@@ -18,6 +18,7 @@ export interface ResolvedLine {
   unitPrice: Money;
   currency: string;
   isFree: boolean;
+  capacity: number | null;
 }
 
 const LEGACY_TOPIC_CURRENCY = 'IDR';
@@ -48,7 +49,7 @@ export class OrderCatalogService {
               status: ContentStatus.PUBLISHED,
               tenant: { status: TenantStatus.ACTIVE },
             },
-            select: { id: true, title: true, tenantId: true, instructorId: true, accessType: true, price: true, currency: true },
+            select: { id: true, title: true, tenantId: true, instructorId: true, accessType: true, price: true, currency: true, capacity: true },
           })
         : [],
     ]);
@@ -65,6 +66,7 @@ export class OrderCatalogService {
         unitPrice: price,
         currency: LEGACY_TOPIC_CURRENCY,
         isFree: price.lessThanOrEqualTo(0),
+        capacity: null,
       });
     }
     for (const article of articles) {
@@ -78,6 +80,7 @@ export class OrderCatalogService {
         unitPrice: price,
         currency: article.currency,
         isFree: article.accessType === ProductAccessType.FREE || price.lessThanOrEqualTo(0),
+        capacity: null,
       });
     }
     for (const product of classes) {
@@ -91,6 +94,7 @@ export class OrderCatalogService {
         unitPrice: price,
         currency: product.currency,
         isFree: product.accessType === ProductAccessType.FREE || price.lessThanOrEqualTo(0),
+        capacity: product.capacity,
       });
     }
 

@@ -79,6 +79,7 @@ export class OrdersService {
           }
 
           await this.assertNotOwned(tx, actor.id, lines);
+          for (const line of lines) await this.assertSeat(tx, actor.id, line);
 
           const duplicate = await this.findOpenDuplicate(tx, actor.id, lines);
           if (duplicate) {
@@ -268,6 +269,24 @@ export class OrdersService {
 
     if (entitlement || legacy) {
       throw new AppError('You already have access to this product', 409, AppErrorCode.ALREADY_OWNED);
+    }
+  }
+
+  private async assertSeat(tx: Prisma.TransactionClient, userId: string, line: ResolvedLine) {
+    if (line.kind !== 'CLASS' || line.capacity === null) return;
+    const [held, pending] = await Promise.all([
+      tx.classEnrollment.count({
+        where: { classProductId: line.productId, status: { in: ['ACTIVE', 'COMPLETED'] }, userId: { not: userId } },
+      }),
+      tx.orderItem.count({
+        where: {
+          classId: line.productId,
+          order: { status: OrderStatus.PENDING, expiredAt: { gt: new Date() }, userId: { not: userId } },
+        },
+      }),
+    ]);
+    if (held + pending >= line.capacity) {
+      throw new AppError('This class is full', 409, AppErrorCode.CLASS_FULL);
     }
   }
 

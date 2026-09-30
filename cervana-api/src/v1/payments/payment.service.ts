@@ -234,6 +234,56 @@ export class PaymentService {
     return { changed: true, intent: failed };
   }
 
+  async markRefundPending(
+    tx: Prisma.TransactionClient,
+    intentId: string,
+    ctx: PaymentTransitionContext,
+  ): Promise<PaymentIntent> {
+    const intent = await this.lockIntent(tx, intentId);
+    if (intent.status === PaymentIntentStatus.REFUND_PENDING) {
+      return intent;
+    }
+    return this.move(tx, intent, PaymentIntentStatus.REFUND_PENDING, ctx.actor, 'PAYMENT_INTENT_REFUND_PENDING', ctx);
+  }
+
+  async restorePaid(
+    tx: Prisma.TransactionClient,
+    intentId: string,
+    ctx: PaymentTransitionContext,
+  ): Promise<PaymentIntent> {
+    const intent = await this.lockIntent(tx, intentId);
+    if (intent.status === PaymentIntentStatus.PAID) {
+      return intent;
+    }
+    return this.move(tx, intent, PaymentIntentStatus.PAID, ctx.actor, 'PAYMENT_INTENT_REFUND_REFUSED', ctx);
+  }
+
+  async markRefunded(
+    tx: Prisma.TransactionClient,
+    intentId: string,
+    refund: { id: string; amount: Prisma.Decimal; evidenceReference: string | null },
+    ctx: PaymentTransitionContext,
+  ): Promise<PaymentIntent> {
+    const intent = await this.lockIntent(tx, intentId);
+    if (intent.status === PaymentIntentStatus.REFUNDED) {
+      return intent;
+    }
+    assertPaymentTransition(intent.status, PaymentIntentStatus.REFUNDED);
+    await tx.paymentTransaction.create({
+      data: {
+        paymentIntentId: intent.id,
+        type: PaymentTransactionType.REFUND,
+        amount: refund.amount,
+        currency: intent.currency,
+        externalReference: refund.evidenceReference,
+        providerTransactionId: `refund:${refund.id}`,
+        status: PaymentTransactionStatus.SUCCEEDED,
+        rawReference: { refundId: refund.id },
+      },
+    });
+    return this.move(tx, intent, PaymentIntentStatus.REFUNDED, ctx.actor, 'PAYMENT_INTENT_REFUNDED', ctx);
+  }
+
   async cancelForOrder(
     tx: Prisma.TransactionClient,
     orderId: string,

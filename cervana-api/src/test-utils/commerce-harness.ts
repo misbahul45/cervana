@@ -8,6 +8,13 @@ import { CommerceConfig } from '@/v1/commerce/commerce.config';
 import { CreatorEarningsService } from '@/v1/commerce/creator-earnings.service';
 import { CommerceFulfillmentService } from '@/v1/commerce/fulfillment/commerce-fulfillment.service';
 import { ArticleAuthoringService } from '@/v1/articles/article-authoring.service';
+import { PayoutsService } from '@/v1/payouts/payouts.service';
+import { RefundsService } from '@/v1/refunds/refunds.service';
+import { CommerceRefundService } from '@/v1/commerce/commerce-refund.service';
+import { ClassAuthoringService } from '@/v1/classes/class-authoring.service';
+import { ClassEnrollmentsService } from '@/v1/classes/class-enrollments.service';
+import { ClassModerationService } from '@/v1/classes/class-moderation.service';
+import { MarketplaceClassesService } from '@/v1/classes/marketplace-classes.service';
 import { ArticleModerationService } from '@/v1/articles/article-moderation.service';
 import { MarketplaceArticlesService } from '@/v1/articles/marketplace-articles.service';
 import { EntitlementsService } from '@/v1/entitlements/entitlements.service';
@@ -73,6 +80,8 @@ export function buildCommerceStack(options: CommerceStackOptions = {}) {
   const wallets = new WalletService(prisma, policy);
   const earnings = new CreatorEarningsService(prisma, ledgerCore, wallets);
   const ledger = new CommerceLedgerService(ledgerCore);
+  const classEnrollments = new ClassEnrollmentsService(prisma, audit, bus);
+  const payouts = new PayoutsService(prisma, policy, audit, bus, ledgerCore, wallets, commerceConfig, uploads);
   const fulfillment = new CommerceFulfillmentService(
     bus,
     lifecycle,
@@ -81,13 +90,21 @@ export function buildCommerceStack(options: CommerceStackOptions = {}) {
     ledger,
     audit,
     commerceConfig,
+    classEnrollments,
   );
 
   const articleAuthoring = new ArticleAuthoringService(prisma, audit, uploads);
   const articleModeration = new ArticleModerationService(prisma, policy, audit, bus);
   const marketplaceArticles = new MarketplaceArticlesService(prisma, entitlements);
+  const classAuthoring = new ClassAuthoringService(prisma, audit, uploads);
+  const classModeration = new ClassModerationService(prisma, policy, audit, bus);
+  const marketplaceClasses = new MarketplaceClassesService(prisma, entitlements);
+
+  const refunds = new RefundsService(prisma, policy, audit, bus, commerceConfig, lifecycle, payments, registry, uploads);
+  const commerceRefund = new CommerceRefundService(bus, lifecycle, ledgerCore, wallets, audit);
 
   lifecycle.onModuleInit();
+  commerceRefund.onModuleInit();
   fulfillment.onModuleInit();
 
   return {
@@ -111,6 +128,12 @@ export function buildCommerceStack(options: CommerceStackOptions = {}) {
     articleAuthoring,
     articleModeration,
     marketplaceArticles,
+    classAuthoring,
+    classModeration,
+    marketplaceClasses,
+    classEnrollments,
+    payouts,
+    refunds,
   };
 }
 

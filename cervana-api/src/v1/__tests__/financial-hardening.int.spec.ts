@@ -226,19 +226,26 @@ describeDb('financial hardening (requires TEST_DATABASE_URL)', () => {
         await refund(c, order, unpaid, buyer, 10);
       }));
 
-    it('can never add up to more than the captured amount, and a rejected refund frees the room', () =>
+    it('allow one open refund per payment and never add up to more than the captured amount', () =>
       withRollback(pool, async (c) => {
         const { buyer, order } = await seller(c);
         const admin = await insertUser(c, 'ADMIN');
         const intent = await insertIntent(c, order, 'PAID');
 
         const first = (await refund(c, order, intent, buyer, 60)).rows[0].id;
+        const second = await expectViolation(c, `INSERT INTO "Refund" (id, "orderId", "paymentIntentId", amount, reason, "requestedById") VALUES (gen_random_uuid(), $1, $2, 10, 'r', $3)`, [order, intent, buyer]);
+        expect(second.constraint).toBe('Refund_one_open_per_payment');
+
+        await c.query(
+          `UPDATE "Refund" SET status = 'PROCESSED', "approvedById" = $2, "approvedAt" = now(), "processedAt" = now(), "evidenceUrl" = '{"url":"https://example.test/e.png"}'::jsonb WHERE id = $1`,
+          [first, admin],
+        );
         const tooMuch = await expectViolation(c, `INSERT INTO "Refund" (id, "orderId", "paymentIntentId", amount, reason, "requestedById") VALUES (gen_random_uuid(), $1, $2, 60, 'r', $3)`, [order, intent, buyer]);
         expect(tooMuch.message).toMatch(/exceed the captured amount/);
-        await refund(c, order, intent, buyer, 40);
 
-        await c.query(`UPDATE "Refund" SET status = 'REJECTED', "rejectionReason" = 'not eligible' WHERE id = $1`, [first]);
-        await refund(c, order, intent, buyer, 60);
+        const rest = (await refund(c, order, intent, buyer, 40)).rows[0].id;
+        await c.query(`UPDATE "Refund" SET status = 'REJECTED', "rejectionReason" = 'not eligible' WHERE id = $1`, [rest]);
+        await refund(c, order, intent, buyer, 40);
         expect((await expectViolation(c, `UPDATE "Refund" SET status = 'APPROVED', "approvedById" = $2, "approvedAt" = now() WHERE id = $1`, [first, admin])).message).toMatch(/closed refund is immutable/);
       }));
 

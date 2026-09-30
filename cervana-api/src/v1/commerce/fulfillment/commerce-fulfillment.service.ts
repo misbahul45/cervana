@@ -2,6 +2,7 @@ import { Injectable, OnModuleInit } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { AuditService } from '@/common/authz/audit.service';
 import { DomainEventBus, PublishedDomainEvent } from '@/common/events/domain-event-bus';
+import { ClassEnrollmentsService } from '../../classes/class-enrollments.service';
 import { EntitlementsService } from '../../entitlements/entitlements.service';
 import { OrderLifecycleService } from '../../orders/order-lifecycle.service';
 import { PaymentEvents, PaymentVerifiedPayload } from '../../payments/payment-events';
@@ -28,6 +29,7 @@ export class CommerceFulfillmentService implements OnModuleInit {
     private readonly ledger: CommerceLedgerService,
     private readonly audit: AuditService,
     private readonly config: CommerceConfig,
+    private readonly classEnrollments: ClassEnrollmentsService,
   ) {}
 
   onModuleInit() {
@@ -48,6 +50,7 @@ export class CommerceFulfillmentService implements OnModuleInit {
       include: { items: true },
     });
 
+    await this.classEnrollments.enrollForOrder(tx, order, order.items, event.traceId);
     const granted = await this.entitlements.grantForOrder(tx, order, order.items, paidAt);
     const earnings = await this.earnings.recordForOrder(tx, order, order.items);
     const ledgerEntries = await this.ledger.recordOrderPayment(

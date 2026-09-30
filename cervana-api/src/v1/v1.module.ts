@@ -22,6 +22,9 @@ import { PaymentsModule } from './payments/payments.module';
 import { CommerceModule } from './commerce/commerce.module';
 import { LedgerModule } from './ledger/ledger.module';
 import { ArticlesModule } from './articles/articles.module';
+import { ClassesModule } from './classes/classes.module';
+import { PayoutsModule } from './payouts/payouts.module';
+import { RefundsModule } from './refunds/refunds.module';
 import { EventsModule } from '@/common/events/events.module';
 
 @Module({
@@ -49,6 +52,9 @@ import { EventsModule } from '@/common/events/events.module';
     PaymentsModule,
     LedgerModule,
     ArticlesModule,
+    ClassesModule,
+    PayoutsModule,
+    RefundsModule,
     CommerceModule
   ],
   exports:[
