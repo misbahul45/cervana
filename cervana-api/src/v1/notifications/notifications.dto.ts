@@ -1,3 +1,4 @@
+import { partialWithoutDefaults } from '@/common/lib/zod-partial';
 import { z } from 'zod'
 import { extendApi } from '@anatine/zod-openapi'
 
@@ -63,7 +64,7 @@ export type CreateNotificationType = z.infer<typeof CreateNotificationDto>
 
 // 🔸 Update DTO
 export const UpdateNotificationDto = extendApi(
-  baseNotificationSchema.partial(),
+  partialWithoutDefaults(baseNotificationSchema),
   {
     title: 'UpdateNotificationDto',
     example: {

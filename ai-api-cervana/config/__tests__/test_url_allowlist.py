@@ -119,3 +119,21 @@ def test_ip_literal_recognition_in_string_split(monkeypatch):
     assert al._is_ip_literal("192.168.1.1")
     assert al._is_ip_literal("::1")
     assert not al._is_ip_literal("not.an.ip")
+
+def test_cloud_metadata_and_private_ranges_are_never_reachable():
+    for allow_local in (True, False):
+        al = UrlAllowList(
+            allowed_hosts=["cdn.example.com"],
+            allowed_schemes=["https", "http"],
+            allow_local=allow_local,
+        )
+        for url in (
+            "http://169.254.169.254/latest/meta-data/",
+            "http://10.1.2.3/",
+            "http://192.168.0.10/",
+            "http://172.16.5.5/",
+            "http://[::ffff:10.0.0.5]/",
+            "http://[fd00::1]/",
+            "http://8.8.8.8/",
+        ):
+            assert not al.is_allowed(url), url

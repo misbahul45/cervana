@@ -1,3 +1,4 @@
+import { AuthenticatedOnly } from '@/common/authz/access';
 import {
   Controller,
   Post,
@@ -358,6 +359,7 @@ export class AuthController {
     summary: 'logout authentication',
     description: 'logout user account'
   })
+  @AuthenticatedOnly()
   async logout(
     @Res({ passthrough: true }) res: Response,
   ): Promise<{ message: string }> {
@@ -372,6 +374,7 @@ export class AuthController {
     description: 'Retrieve authenticated user profile information',
     dataSchema: UserProfileSchema,
   })
+  @AuthenticatedOnly()
   async getProfile(
     @GetUser() user: User,
   ): Promise<{ message: string; data: any }> {
@@ -389,6 +392,7 @@ export class AuthController {
     description: 'Verify if user is authenticated and return user data',
     dataSchema: AuthCheckResponseSchema,
   })
+  @AuthenticatedOnly()
   async checkAuth(
     @GetUser() user: User,
   ): Promise<{

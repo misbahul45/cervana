@@ -1,3 +1,4 @@
+import { partialWithoutDefaults } from '@/common/lib/zod-partial';
 import { z } from "zod";
 import { extendApi } from "@anatine/zod-openapi";
 import { JOBSTATUSTYPE, ResourceType } from "@prisma/client";
@@ -48,8 +49,7 @@ export type CreateResourceType = z.infer<typeof CreateResourceDto>;
 
 // UPDATE DTO (semua optional)
 export const UpdateResourceDto = extendApi(
-  baseResourceSchema
-    .partial()
+  partialWithoutDefaults(baseResourceSchema)
     .omit({ id: true, createdAt: true, updatedAt: true }),
   {
     title: "UpdateResourceDto",
@@ -65,3 +65,20 @@ export const UpdateResourceDto = extendApi(
 );
 
 export type UpdateResourceType = z.infer<typeof UpdateResourceDto>;
+
+
+export const InternalResourceCallbackDto = z
+  .object({
+    resourceId: z.string().uuid(),
+    content: z.string().max(100000).optional(),
+    status: JobStatusEnum.optional(),
+  })
+  .strict();
+
+export type InternalResourceCallbackType = z.infer<typeof InternalResourceCallbackDto>;
+
+export const InternalResourceCallbackQueryDto = z.object({
+  type: z.enum(["EMMBED", "EXTRACT"]).optional(),
+});
+
+export type InternalResourceCallbackQueryType = z.infer<typeof InternalResourceCallbackQueryDto>;

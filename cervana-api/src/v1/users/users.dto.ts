@@ -70,3 +70,43 @@ export const UpdateUserDto = extendApi(baseUserSchema.partial(), {
 });
 
 export type UpdateUserDtoType = z.infer<typeof UpdateUserDto>;
+
+
+export const UpdateProfileDto = extendApi(
+  z
+    .object({
+      name: z.string().min(1, "Name is required").describe("Full name of the user").optional(),
+      image: imageSchema.optional().describe("Profile image information"),
+    })
+    .strict(),
+  {
+    title: "UpdateProfileDto",
+    example: { name: "Alice Updated" },
+  }
+);
+
+export type UpdateProfileDtoType = z.infer<typeof UpdateProfileDto>;
+
+export const ChangeRoleDto = extendApi(
+  z
+    .object({
+      role: z.nativeEnum(Role).describe("New global role"),
+      reason: z.string().min(3).max(500).describe("Reason recorded in the audit log"),
+    })
+    .strict(),
+  { title: "ChangeRoleDto", example: { role: "TEACHER", reason: "Approved teacher application" } }
+);
+
+export type ChangeRoleDtoType = z.infer<typeof ChangeRoleDto>;
+
+export const SetActivationDto = extendApi(
+  z
+    .object({
+      isActive: z.boolean().describe("Whether the account can sign in"),
+      reason: z.string().min(3).max(500).describe("Reason recorded in the audit log"),
+    })
+    .strict(),
+  { title: "SetActivationDto", example: { isActive: false, reason: "Policy violation" } }
+);
+
+export type SetActivationDtoType = z.infer<typeof SetActivationDto>;

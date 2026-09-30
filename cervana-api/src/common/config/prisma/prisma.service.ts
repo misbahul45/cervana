@@ -26,12 +26,11 @@ export class PrismaService
       ],
     });
 
-    // Logging events
-    this.$on('query', (e) => {
-      console.log(`[Prisma Query] ${e.query}`);
-      console.log(`[Params] ${e.params}`);
-      console.log(`[Duration] ${e.duration}ms`);
-    });
+    if (process.env.PRISMA_LOG_QUERIES === 'true') {
+      this.$on('query', (e) => {
+        console.log(`[Prisma Query] ${e.query} (${e.duration}ms)`);
+      });
+    }
 
     this.$on('error', (e) => {
       console.error(`[Prisma Error] ${e.message}`);

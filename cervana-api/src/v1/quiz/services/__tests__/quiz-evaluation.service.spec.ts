@@ -94,16 +94,16 @@ describe('QuizEvaluationService', () => {
     it('uses lower threshold (60%) than free-text (70%)', () => {
       const r = service.evaluate({
         questionType: QuestionType.CASE_STUDY,
-        userAnswer: 'a b c',
-        correctAnswer: 'a b c d',
+        userAnswer: 'cash asset',
+        correctAnswer: 'cash asset revenue',
         points: 10,
       });
       expect(r.isCorrect).toBe(true);
       expect(r.partial).toBe(true);
       const r2 = service.evaluate({
         questionType: QuestionType.TEXT,
-        userAnswer: 'a b c',
-        correctAnswer: 'a b c d',
+        userAnswer: 'cash asset',
+        correctAnswer: 'cash asset revenue',
         points: 10,
       });
       expect(r2.isCorrect).toBe(false);

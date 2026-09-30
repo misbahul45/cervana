@@ -1,3 +1,4 @@
+import { RequireOwnership, RequireParentOwnership } from '@/v1/common/guards/ownership.decorator';
 import { Controller, Get, Post, Body, Patch, Param, Delete, Query, NotFoundException } from '@nestjs/common';
 import { ContentsService } from './contents.service';
 import { AppError, AppErrorCode } from '@/common/lib/error';
@@ -14,6 +15,7 @@ export class ContentsController {
   ) {}
 
   @Get()
+  @RequireParentOwnership('chat', 'chatId', 'query')
   findAll(
     @Query() q:ContentQuery
   ){
@@ -24,6 +26,7 @@ export class ContentsController {
   }
 
   @Get('similarity')
+  @RequireParentOwnership('chat', 'chatId', 'query')
   async findSimilar(
     @Query('chatId') chatId: string,
     @Query('query') query: string,
@@ -79,6 +82,7 @@ export class ContentsController {
   }
 
   @Post()
+  @RequireParentOwnership('chat', 'chatId')
   async create(
     @Body() createContentDto: any
   ) {
@@ -88,6 +92,7 @@ export class ContentsController {
   }
 
   @Delete(':id')
+  @RequireOwnership('content')
   remove(@Param('id') id: string) {
     return this.contentsService.remove(id);
   }

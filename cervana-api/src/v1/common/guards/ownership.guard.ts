@@ -6,12 +6,16 @@ import {
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { PrismaService } from '@/common/config/prisma/prisma.service';
+import { OWNER_RESOLVERS, OwnedResource, UNOWNED } from './ownership.registry';
 
 export const OWNERSHIP_KEY = 'ownership:resource';
 
 export interface OwnershipMetadata {
-  resource: 'chat' | 'content' | 'user-step' | 'lesson-progress' | 'message';
+  resource: OwnedResource;
   ownerField: string;
+  source?: 'param' | 'body' | 'query';
+  field?: string;
+  allowUnownedRead?: boolean;
 }
 
 @Injectable()
@@ -36,74 +40,40 @@ export class OwnershipGuard implements CanActivate {
       throw new ForbiddenException('Authentication required');
     }
 
-    const resourceId = req.params.id;
+    if (user.role === 'ADMIN') return true;
+
+    const source = metadata.source ?? 'param';
+    const field = metadata.field ?? 'id';
+    const carrier = source === 'body' ? req.body : source === 'query' ? req.query : req.params;
+    const raw = carrier?.[field];
+    const resourceId = typeof raw === 'string' ? raw : undefined;
+
     if (!resourceId) {
       throw new ForbiddenException('Resource id required');
     }
 
-    const ownerId = await this.fetchOwnerId(
-      metadata.resource,
-      resourceId,
-    );
-
-    if (!ownerId) {
+    const resolver = OWNER_RESOLVERS[metadata.resource];
+    if (!resolver) {
       throw new ForbiddenException('Resource not found');
     }
 
-    if (ownerId !== user.id && user.role !== 'ADMIN') {
+    const owner = await resolver(this.prisma, resourceId);
+
+    if (owner === null) {
+      throw new ForbiddenException('Resource not found');
+    }
+
+    if (user.role === 'ADMIN') return true;
+
+    if (owner === UNOWNED) {
+      if (metadata.allowUnownedRead && req.method === 'GET') return true;
+      throw new ForbiddenException('Not the resource owner');
+    }
+
+    if (owner !== user.id) {
       throw new ForbiddenException('Not the resource owner');
     }
 
     return true;
-  }
-
-  private async fetchOwnerId(
-    resource: OwnershipMetadata['resource'],
-    id: string,
-  ): Promise<string | null> {
-    switch (resource) {
-      case 'chat':
-        return this.fetchChatOwner(id);
-      case 'content':
-        return this.fetchContentOwner(id);
-      case 'user-step':
-        return this.fetchUserStepOwner(id);
-      case 'message':
-        return this.fetchMessageOwner(id);
-      default:
-        return null;
-    }
-  }
-
-  private async fetchChatOwner(id: string): Promise<string | null> {
-    const chat = await this.prisma.chat.findUnique({
-      where: { id },
-      select: { userStep: { select: { userId: true } } },
-    });
-    return chat?.userStep?.userId ?? null;
-  }
-
-  private async fetchContentOwner(id: string): Promise<string | null> {
-    const content = await this.prisma.content.findUnique({
-      where: { id },
-      select: { message: { select: { chat: { select: { userStep: { select: { userId: true } } } } } } },
-    });
-    return content?.message?.chat?.userStep?.userId ?? null;
-  }
-
-  private async fetchUserStepOwner(id: string): Promise<string | null> {
-    const step = await this.prisma.userStep.findUnique({
-      where: { id },
-      select: { userId: true },
-    });
-    return step?.userId ?? null;
-  }
-
-  private async fetchMessageOwner(id: string): Promise<string | null> {
-    const message = await this.prisma.chatMessage.findUnique({
-      where: { id },
-      select: { chat: { select: { userStep: { select: { userId: true } } } } },
-    });
-    return message?.chat?.userStep?.userId ?? null;
   }
 }

@@ -40,13 +40,13 @@ def extract_content(type: str, resource):
     retry_backoff=True,
     max_retries=3
 )
-def extract_task(self, type: str, resource_id: str, token: str):
+def extract_task(self, type: str, resource_id: str, acting_user_id: str):
     logging.info(f"[CELERY][EXTRACT] Start for {resource_id}")
 
     if type not in ["PDF", "IMAGE", "VIDEO"]:
         raise ValueError("Invalid type")
 
-    resource = get_resource(resource_id, token)
+    resource = get_resource(resource_id)
     if not resource:
         raise ValueError("Resource not found")
 
@@ -65,7 +65,6 @@ def extract_task(self, type: str, resource_id: str, token: str):
 
         callback_resource(
             resource_id,
-            token,
             {"resourceId": resource_id, "content": text[:200], "type_worker": "EXTRACT", "status":"SUCCESS"}
         )
 
@@ -76,7 +75,7 @@ def extract_task(self, type: str, resource_id: str, token: str):
     except Exception as e:
         logging.error(f"[CELERY][EMBEDDING][ERROR] {resource_id}: {e}")
 
-        callback_resource(resource_id, token, {"status": "FAILED", "resourceId": resource_id})
+        callback_resource(resource_id, {"status": "FAILED", "resourceId": resource_id})
 
         raise self.retry(exc=e, countdown=10)
 
@@ -88,7 +87,7 @@ def extract_task(self, type: str, resource_id: str, token: str):
     retry_backoff=True,
     max_retries=3
 )
-def embedding_task(self, resource_data: Dict[str, Any], token: str):
+def embedding_task(self, resource_data: Dict[str, Any], acting_user_id: str):
     resource_id = resource_data.get("id")
     if not resource_id:
         logging.error("[CELERY][EMBEDDING][ERROR] resource_id missing")
@@ -115,7 +114,6 @@ def embedding_task(self, resource_data: Dict[str, Any], token: str):
 
         callback_resource(
             resource_id,
-            token,
             {"resourceId": resource_id, "status": "SUCCESS", "type_worker": "EMMBED"}
         )
 
@@ -126,6 +124,6 @@ def embedding_task(self, resource_data: Dict[str, Any], token: str):
     except Exception as e:
         logging.error(f"[CELERY][EMBEDDING][ERROR] {resource_id}: {e}")
 
-        callback_resource(resource_id, token, {"status": "FAILED", "resourceId": resource_id})
+        callback_resource(resource_id, {"status": "FAILED", "resourceId": resource_id})
 
         raise self.retry(exc=e, countdown=10)

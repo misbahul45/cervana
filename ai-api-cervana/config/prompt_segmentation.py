@@ -17,11 +17,18 @@ from typing import Iterable, Mapping
 import re
 
 _INSTRUCTION_LIKE_PATTERNS = [
-    re.compile(r"ignore\s+(previous|all|above)\s+(instructions?|prompts?)", re.I),
+    re.compile(
+        r"(ignore|disregard|forget)\s+(?:(?:all|any|the|your|previous|prior|above|earlier)\s+){1,3}"
+        r"(instructions?|prompts?|rules?|directions?|polic(?:y|ies))",
+        re.I,
+    ),
     re.compile(r"disregard\s+all", re.I),
     re.compile(r"system\s*prompt", re.I),
     re.compile(r"you\s+are\s+now", re.I),
     re.compile(r"reveal\s+(your|the)\s+(prompt|instructions?)", re.I),
+    re.compile(r"assistant\s+must", re.I),
+    re.compile(r"developer\s+(message|instructions?)", re.I),
+    re.compile(r"override\s+(the\s+|your\s+|all\s+)?polic(?:y|ies)", re.I),
 ]
 
 

@@ -1,20 +1,19 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, Query } from '@nestjs/common';
 import { ChatsService } from './chats.service';
 import { CreateChatDto, CreateChatDtoType } from './chats.dto';
 import { ZodPipe } from '@/common/pipes/zod.pipe';
 import { Query as QueryInterface } from '@/common/interfaces';
 import { ApiCrudDocs } from '@/common/lib/docs';
 import { BaseChatSchema, ChatDetailSchema, ChatMessageListSchema } from '@/common/docs/chat.doc';
-import { OwnershipGuard } from '@/v1/common/guards/ownership.guard';
-import { RequireOwnership } from '@/v1/common/guards/ownership.decorator';
+import { RequireOwnership, RequireParentOwnership } from '@/v1/common/guards/ownership.decorator';
 
 @Controller('chats')
-@UseGuards(OwnershipGuard)
 export class ChatsController {
   constructor(private readonly chatsService: ChatsService) {}
 
   @Post()
   @ApiCrudDocs.create(BaseChatSchema, CreateChatDto, 'Chat')
+  @RequireParentOwnership('user-step', 'userStepId')
   create(@Body(new ZodPipe(CreateChatDto)) createChatDto: CreateChatDtoType) {
     return this.chatsService.create(createChatDto);
   }

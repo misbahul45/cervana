@@ -1,3 +1,4 @@
+import { RequireOwnership, RequireParentOwnership } from '@/v1/common/guards/ownership.decorator';
 import { Controller, Get, Post, Body, Patch, Param, Delete, Query } from '@nestjs/common';
 import { ChatMessagesService } from './chat-messages.service';
 import { CreateChatMessageDto, CreateChatMessageDtoType, UpdateChatMessageDto, UpdateChatMessageDtoType } from './chat-messages.dto';
@@ -16,6 +17,7 @@ export class ChatMessagesController {
 
   @Post()
   @ApiCrudDocs.create(BaseChatMessageSchema, CreateChatMessageDto, 'Chat Message')
+  @RequireParentOwnership('chat', 'chatId')
   async create(@Body(new ZodPipe(CreateChatMessageDto)) createChatMessageDto: CreateChatMessageDtoType) {
     const res=await this.chatMessagesService.create(createChatMessageDto);
     this.ChatMessageSseService.emitUpdate(res.data.chatId);
@@ -24,6 +26,7 @@ export class ChatMessagesController {
 
   @Patch(':id')
   @ApiCrudDocs.update(UpdateChatMessageDto, 'Chat Message')
+  @RequireOwnership('message')
   async update(@Param('id') id: string, @Body(new ZodPipe(UpdateChatMessageDto)) updateChatMessageDto: UpdateChatMessageDtoType) {
     const res=await this.chatMessagesService.update(id, updateChatMessageDto);
     this.ChatMessageSseService.emitUpdate(res.data.chatId);
@@ -32,6 +35,7 @@ export class ChatMessagesController {
 
   @Delete(':id')
   @ApiCrudDocs.delete('Chat Message')
+  @RequireOwnership('message')
   remove(@Param('id') id: string) {
     return this.chatMessagesService.remove(id);
   }

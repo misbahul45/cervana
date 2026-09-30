@@ -6,11 +6,9 @@ import { AppExceptionsFilter } from './common/exceptions/app.exceptions';
 import { ZodExceptionFilter } from './common/exceptions/zod.exception';
 import { ConfigService } from '@nestjs/config';
 import * as cookieParser from 'cookie-parser';
-import * as express from 'express';
-import { json, urlencoded } from 'express';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create(AppModule, { rawBody: true });
 
   const configService = app.get(ConfigService);
   const cookieSecret = configService.get<string>('COOKIE_SECRET') || 'your-secret-key';
@@ -47,10 +45,6 @@ async function bootstrap() {
   app.useGlobalFilters(new AppExceptionsFilter(), new ZodExceptionFilter());
 
 
-  app.use(`/api/${APP_VERSION}/webhook/stripe`, express.raw({ type: 'application/json' }));
-
-  app.use(json());
-  app.use(urlencoded({ extended: true }));
 
   app.use((req, res, next) => {
     console.log(`🛰️ [${req.method}] ${req.originalUrl}`);

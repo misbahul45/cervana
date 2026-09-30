@@ -1,3 +1,5 @@
+import { ScopeToUser } from '@/common/authz/access';
+import { RequireOwnership } from '@/v1/common/guards/ownership.decorator';
 import { Controller, Get, Post, Body, Patch, Param, Delete, Query } from '@nestjs/common';
 import { LessonProgressesService } from './lesson-progresses.service';
 import { UpdateLessonProgressType, CreateLessonProgressType } from './lesson-progresses.dto'
@@ -10,11 +12,13 @@ export class LessonProgressesController {
   constructor(private readonly lessonProgressesService: LessonProgressesService) {}
 
   @Post()
+  @ScopeToUser()
   create(@Body() createLessonProgressDto: CreateLessonProgressType) {
     return this.lessonProgressesService.create(createLessonProgressDto);
   }
 
   @Get()
+  @ScopeToUser()
   findAll(
     @GetUser() user:User,
     @Query() query:QueryInterface
@@ -23,6 +27,7 @@ export class LessonProgressesController {
   }
 
   @Get(':id')
+  @RequireOwnership('lesson-progress')
   findOne(
     @Param('id') id: string,
     @Query() query:QueryInterface
@@ -31,11 +36,13 @@ export class LessonProgressesController {
   }
 
   @Patch(':id')
+  @RequireOwnership('lesson-progress')
   update(@Param('id') id: string, @Body() updateLessonProgressDto: UpdateLessonProgressType) {
     return this.lessonProgressesService.update(id, updateLessonProgressDto);
   }
 
   @Delete(':id')
+  @RequireOwnership('lesson-progress')
   remove(@Param('id') id: string) {
     return this.lessonProgressesService.remove(id);
   }

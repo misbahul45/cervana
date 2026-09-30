@@ -1,3 +1,4 @@
+import { partialWithoutDefaults } from '@/common/lib/zod-partial';
 import z from "zod";
 import { extendApi } from "@anatine/zod-openapi";
 
@@ -35,7 +36,7 @@ export const CreateTopicDto = extendApi(baseTopicSchema, {
 
 export type CreateTopicType = z.infer<typeof CreateTopicDto>;
 
-export const UpdateTopicDto = extendApi(baseTopicSchema.partial(), {
+export const UpdateTopicDto = extendApi(partialWithoutDefaults(baseTopicSchema), {
   title: "UpdateTopicDto",
   example: {
     title: "Updated Topic Title",

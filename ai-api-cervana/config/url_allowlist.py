@@ -72,10 +72,11 @@ class UrlAllowList:
         if self._is_ip_literal(host):
             try:
                 ip = ipaddress.ip_address(host)
-                if ip.is_loopback or ip.is_private or ip.is_link_local:
-                    return self.allow_local
             except ValueError:
                 return False
+            if ip.is_loopback:
+                return self.allow_local
+            return False
 
         return False
 

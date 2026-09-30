@@ -1,3 +1,5 @@
+import { ScopeToUser } from '@/common/authz/access';
+import { RequireOwnership } from '@/v1/common/guards/ownership.decorator';
 import { Controller, Get, Post, Body, Patch, Param, Delete, Query, Req } from '@nestjs/common';
 import { PersonalityQuizzesService } from './personality-quizzes.service';
 import { CreatePersonalityQuizType, PersonalityQuizUserAttemptSchema, UpdatePersonalityQuizType } from './personality-quizzes.dto';
@@ -15,6 +17,7 @@ export class PersonalityQuizzesController {
   ) {}
 
   @Post()
+  @ScopeToUser()
   async create(
     @Body() values: CreatePersonalityQuizType,
     @GetUser() user: User
@@ -28,6 +31,7 @@ export class PersonalityQuizzesController {
   }
 
   @Patch('/submit/:id')
+  @RequireOwnership('personality-quiz')
   async submitAttempt(
     @Query() query:{
       topicId: string
@@ -52,6 +56,7 @@ export class PersonalityQuizzesController {
   }
 
   @Get()
+  @ScopeToUser()
   findAll(
     @GetUser() user: User,
     @Query() query: QueryInterface
@@ -60,11 +65,13 @@ export class PersonalityQuizzesController {
   }
 
   @Get(':id')
+  @RequireOwnership('personality-quiz')
   findOne(@Param('id') id: string, @Query() q: any) {
     return this.personalityQuizzesService.findOne(id, q);
   }
 
   @Patch(':id')
+  @RequireOwnership('personality-quiz')
   update(
     @Param('id') id: string,
     @Body() values: UpdatePersonalityQuizType
@@ -73,6 +80,7 @@ export class PersonalityQuizzesController {
   }
 
   @Delete(':id')
+  @RequireOwnership('personality-quiz')
   remove(@Param('id') id: string) {
     return this.personalityQuizzesService.remove(id);
   }

@@ -1,3 +1,6 @@
+import { ScopeToUser } from '@/common/authz/access';
+import { Roles } from '@/v1/auth/auth.decorator';
+import { Role } from '@prisma/client';
 import { Controller, Get, Delete, Query, Param } from '@nestjs/common';
 import { StreaksService } from './streaks.service';
 import { Query as QueryInterface } from '@/common/interfaces';
@@ -9,6 +12,7 @@ export class StreaksController {
   constructor(private readonly streaksService: StreaksService) {}
 
   @Get()
+  @ScopeToUser()
   findAll(@Query() q:QueryInterface) {
     if (q.userId) {
       return this.streaksService.findByUser(q.userId);
@@ -17,11 +21,13 @@ export class StreaksController {
   }
 
   @Delete(':id')
+  @Roles(Role.ADMIN)
   remove(@Param('id') id: string) {
     return this.streaksService.remove(id);
   }
 
   @Get('/latest')
+  @ScopeToUser()
   findLatestStreak(@GetUser() user:User) {
     return this.streaksService.findByUser(user.id, { page: 1, limit: 1 });
   }

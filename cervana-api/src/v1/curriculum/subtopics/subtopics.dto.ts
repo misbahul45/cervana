@@ -1,3 +1,4 @@
+import { partialWithoutDefaults } from '@/common/lib/zod-partial';
 import z from 'zod'
 import { extendApi } from '@anatine/zod-openapi'
 
@@ -26,7 +27,7 @@ export const CreateSubTopicDto = extendApi(
 export type CreateSubTopicType = z.infer<typeof CreateSubTopicDto>
 
 export const UpdateSubTopicDto = extendApi(
-  baseSubTopicSchema.partial(),
+  partialWithoutDefaults(baseSubTopicSchema),
   {
     title: 'UpdateSubTopicDto',
     example: {

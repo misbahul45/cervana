@@ -1,3 +1,4 @@
+import { partialWithoutDefaults } from '@/common/lib/zod-partial';
 import z from "zod";
 import { extendApi } from "@anatine/zod-openapi";
 import { AttemptStatus } from "@prisma/client";
@@ -41,7 +42,7 @@ export type CreateQuizAttemptType = z.infer<typeof CreateQuizAttemptDto>;
 
 // Update DTO (opsional semua field)
 export const UpdateQuizAttemptDto = extendApi(
-  baseQuizAttemptSchema.partial(),
+  partialWithoutDefaults(baseQuizAttemptSchema),
   {
     title: "UpdateQuizAttemptDto",
     example: {

@@ -71,8 +71,7 @@ export class ResourcesService {
   }
 
   callback(
-    token:string,
-    type: 'EMMBED' | 'EXTRACT',
+    type: 'EMMBED' | 'EXTRACT' | undefined,
     body: { resourceId: string; content?: string; status?: JOBSTATUSTYPE }
   ) {
     return errorHandler(async () => {
@@ -83,7 +82,7 @@ export class ResourcesService {
       await this.resourcesRepo.update(resourceId, {
         ...(body.content ? { content: content } : {}),
         ...(body.status ? { jobStatus: body.status } : {}),
-        ...(type === 'EMMBED' || type =='EXTRACT'
+        ...((type === 'EMMBED' || type === 'EXTRACT') && body.status !== 'FAILED'
           ? { isEmbedded: true, embeddingAt: new Date() }
           : {}),
       });

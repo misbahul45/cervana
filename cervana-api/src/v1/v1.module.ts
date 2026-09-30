@@ -15,6 +15,12 @@ import { EmittersModule } from './emitters/emitters.module';
 import { CategoriesModule } from './categories/categories.module';
 import { OrdersModule } from './orders/orders.module';
 import { LearnerModelModule } from './learner-model/learner-model.module';
+import { InternalModule } from './internal/internal.module';
+import { TenantsModule } from './tenants/tenants.module';
+import { EntitlementsModule } from './entitlements/entitlements.module';
+import { PaymentsModule } from './payments/payments.module';
+import { CommerceModule } from './commerce/commerce.module';
+import { EventsModule } from '@/common/events/events.module';
 
 @Module({
   imports:[
@@ -33,7 +39,13 @@ import { LearnerModelModule } from './learner-model/learner-model.module';
     EmittersModule,
     CategoriesModule,
     OrdersModule,
-    LearnerModelModule
+    LearnerModelModule,
+    InternalModule,
+    TenantsModule,
+    EntitlementsModule,
+    EventsModule,
+    PaymentsModule,
+    CommerceModule
   ],
   exports:[
     AuthModule, 

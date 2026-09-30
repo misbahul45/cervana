@@ -8,7 +8,7 @@ import { AppError } from '@/common/lib/error';
 
 describe('ContentsController - similarity', () => {
   let controller: ContentsController;
-  let prisma: { chat: jest.Mock; content: jest.Mock };
+  let prisma: { chat: { findUnique: jest.Mock }; content: { findMany: jest.Mock } };
   let contentsService: { findAll: jest.Mock; create: jest.Mock; remove: jest.Mock };
   let contentsSse: { emitUpdate: jest.Mock };
 

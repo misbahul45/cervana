@@ -1,3 +1,4 @@
+import { partialWithoutDefaults } from '@/common/lib/zod-partial';
 import z from "zod";
 import { extendApi } from "@anatine/zod-openapi";
 
@@ -53,7 +54,7 @@ export const CreateQuizDto = extendApi(
 export type CreateQuizType = z.infer<typeof CreateQuizDto>;
 
 export const UpdateQuizDto = extendApi(
-  baseQuizSchema.partial(),
+  partialWithoutDefaults(baseQuizSchema),
   {
     title: "UpdateQuizDto",
     example: {

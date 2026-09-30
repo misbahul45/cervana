@@ -1,3 +1,4 @@
+import { partialWithoutDefaults } from '@/common/lib/zod-partial';
 import z from 'zod';
 import { extendApi } from '@anatine/zod-openapi';
 
@@ -26,7 +27,7 @@ export const CreateStepDto = extendApi(
 export type CreateStepType = z.infer<typeof CreateStepDto>;
 
 export const UpdateStepDto = extendApi(
-  baseStepSchema.partial(),
+  partialWithoutDefaults(baseStepSchema),
   {
     title: 'UpdateStepDto',
     example: {

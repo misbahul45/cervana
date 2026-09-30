@@ -1,3 +1,6 @@
+import { AuthenticatedOnly } from '@/common/authz/access';
+import { Roles } from '@/v1/auth/auth.decorator';
+import { Role } from '@prisma/client';
 import { Controller, Get, Post, Body, Patch, Param, Delete, Query } from '@nestjs/common';
 import { StepsService } from './steps.service';
 import { CreateStepDto, CreateStepType, UpdateStepDto, UpdateStepType } from './steps.dto';
@@ -18,6 +21,7 @@ export class StepsController {
 
   @Post()
   @ApiCrudDocs.create(BaseStepSchema, CreateStepDto, 'Step')
+  @Roles(Role.ADMIN, Role.TEACHER)
   create(
     @GetUser() user: User,
     @Body(new ZodPipe(CreateStepDto)) createStepDto: CreateStepType
@@ -27,6 +31,7 @@ export class StepsController {
 
   @Get(':id')
   @ApiCrudDocs.findOne(StepDetailSchema, "Step")
+  @AuthenticatedOnly()
   findOne(
     @Param('id') id: string,
     @Query() query: QueryInterface  
@@ -36,18 +41,21 @@ export class StepsController {
 
   @Patch(':id')
   @ApiCrudDocs.update(UpdateStepDto, 'Step')
+  @Roles(Role.ADMIN, Role.TEACHER)
   update(@Param('id') id: string, @Body(new ZodPipe(UpdateStepDto)) updateStepDto: UpdateStepType) {
     return this.stepsService.update(id, updateStepDto);
   }
 
   @Delete(':id')
   @ApiCrudDocs.delete('Step')
+  @Roles(Role.ADMIN)
   remove(@Param('id') id: string) {
     return this.stepsService.remove(id);
   }
 
   @Get('')
   @ApiCrudDocs.findAll(StepsListSchema, "Steps", true)
+  @AuthenticatedOnly()
   findAllSubTopics(
       @Query() query: QueryInterface
   ){

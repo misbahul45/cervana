@@ -1,16 +1,24 @@
-import { Controller, Sse, MessageEvent, UseGuards } from '@nestjs/common';
+import { AuthenticatedOnly } from '@/common/authz/access';
+import { Controller, Sse, MessageEvent, UseGuards, Req } from '@nestjs/common';
 import { map, Observable } from 'rxjs';
 import { ChatMessagesSseService } from './chat-messages-sse.service';
+import { filterOwnedChat } from '../sse-filters';
+import { PrismaService } from '@/common/config/prisma/prisma.service';
 import { SseJwtGuard } from '@/v1/auth/guards/sse-jwt.guard';
 
 @Controller('chat-message-sse')
 @UseGuards(SseJwtGuard)
 export class ChatMessagesSseController {
-  constructor(private readonly sseService: ChatMessagesSseService) {}
+  constructor(
+    private readonly sseService: ChatMessagesSseService,
+    private readonly prisma: PrismaService,
+  ) {}
 
   @Sse('')
-  stream(): Observable<MessageEvent> {
+  @AuthenticatedOnly()
+  stream(@Req() req: any) {
     return this.sseService.events.pipe(
+      filterOwnedChat(this.prisma, req.user.id),
       map((data) => ({
         data,
       })),

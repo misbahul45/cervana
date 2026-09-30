@@ -1,5 +1,6 @@
 import { Test } from '@nestjs/testing';
 import { TopicMasteryBackfillService } from '../topic-mastery-backfill.service';
+import { PrismaService } from '@/common/config/prisma/prisma.service';
 
 describe('TopicMasteryBackfillService', () => {
   let service: TopicMasteryBackfillService;
@@ -21,7 +22,7 @@ describe('TopicMasteryBackfillService', () => {
     const moduleRef = await Test.createTestingModule({
       providers: [
         TopicMasteryBackfillService,
-        { provide: 'PrismaService', useValue: prisma },
+        { provide: PrismaService, useValue: prisma },
       ],
     }).compile();
     service = moduleRef.get(TopicMasteryBackfillService);
@@ -70,6 +71,7 @@ describe('TopicMasteryBackfillService', () => {
   });
 
   it('counts inserted vs skipped rows', async () => {
+    prisma.$queryRaw.mockResolvedValue(fakeRows.slice(0, 4));
     prisma.topicMasteryRecord.upsert
       .mockResolvedValueOnce({})
       .mockRejectedValueOnce(new Error('duplicate'))
@@ -83,7 +85,7 @@ describe('TopicMasteryBackfillService', () => {
 
   it('logs and continues when upsert fails', async () => {
     const loggerSpy = jest.spyOn(
-      TopicMasteryBackfillService.prototype['logger'],
+      (service as any).logger,
       'warn',
     );
     prisma.topicMasteryRecord.upsert.mockRejectedValue(new Error('boom'));

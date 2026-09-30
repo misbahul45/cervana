@@ -35,19 +35,4 @@ export class ResourcesController {
   remove(@Param('id') id: string) {
     return this.resourcesService.remove(id);
   }
-
-  @Post("callback")
-  callback(
-    @Req() req,
-    @Body() body: { resourceId: string; content?: string; status?:JOBSTATUSTYPE },
-    @Query('type') type:'EMMBED' | 'EXTRACT'
-  ) { 
-    const token =
-    req.cookies?.access_token ||
-    req.headers.authorization?.replace('Bearer ', '');
-
-
-    console.log(body)
-    return this.resourcesService.callback(token, type, body);
-  }
 }

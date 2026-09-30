@@ -1,3 +1,6 @@
+import { AuthenticatedOnly } from '@/common/authz/access';
+import { Roles } from '@/v1/auth/auth.decorator';
+import { Role } from '@prisma/client';
 import { Controller, Get, Post, Body, Patch, Param, Delete, Query } from '@nestjs/common';
 import { SubtopicsService } from './subtopics.service';
 import { Query as QueryInterface } from '@/common/interfaces';
@@ -25,6 +28,7 @@ export class SubtopicsController {
 
   @Post()
   @ApiCrudDocs.create(BaseSubTopicSchema,CreateSubTopicDto,'SubTopic')
+  @Roles(Role.ADMIN, Role.TEACHER)
   create(@Body(
     new ZodPipe(CreateSubTopicDto)
   ) createSubtopicDto: any) {
@@ -33,6 +37,7 @@ export class SubtopicsController {
 
   @Get(':id/lessons')
   @ApiCrudDocs.findAll(SubTopicsListSchema, 'Lesson', true)
+  @AuthenticatedOnly()
   findAllLesson(
     @Param('id') id: string,
     @Query() query: QueryInterface
@@ -41,6 +46,7 @@ export class SubtopicsController {
   }
 
   @Get(':id/navigation')
+  @AuthenticatedOnly()
   async findOneWithNext(
     @Param('id') id: string,
     @Query('userId') userId?: string
@@ -52,6 +58,7 @@ export class SubtopicsController {
 
   @Get(':id')
   @ApiCrudDocs.findOne(SubTopicDetailSchema, 'SubTopic')
+  @AuthenticatedOnly()
   findOne(
     @Param('id') id: string,
     @Query() query: Pick<QueryInterface, 'include'>
@@ -61,12 +68,14 @@ export class SubtopicsController {
 
   @Patch(':id')
   @ApiCrudDocs.update(UpdateSubTopicDto,'SubTopic')
+  @Roles(Role.ADMIN, Role.TEACHER)
   update(@Param('id') id: string, @Body() updateSubtopicDto: any) {
     return this.subtopicsService.update(id, updateSubtopicDto);
   }
 
   @Delete(':id')
   @ApiCrudDocs.delete('SubTopic')
+  @Roles(Role.ADMIN)
   remove(@Param('id') id: string) {
     return this.subtopicsService.remove(id);
   }

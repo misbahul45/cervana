@@ -1,3 +1,4 @@
+import { partialWithoutDefaults } from '@/common/lib/zod-partial';
 import z from "zod";
 import { extendApi } from "@anatine/zod-openapi";
 import { QuestionType } from "@prisma/client";
@@ -65,7 +66,7 @@ export type CreateQuestionType = z.infer<typeof CreateQuestionDto>;
 
 // Update DTO (opsional semua field)
 export const UpdateQuestionDto = extendApi(
-  baseQuestionSchema.partial(),
+  partialWithoutDefaults(baseQuestionSchema),
   {
     title: "UpdateQuestionDto",
     example: {

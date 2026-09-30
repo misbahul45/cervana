@@ -1,47 +1,53 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, Query, NotFoundException } from '@nestjs/common';
-import { OrdersService } from './orders.service';
-import { Query as OrdersQuery } from '@/common/interfaces';
+import { AuthenticatedOnly } from '@/common/authz/access';
+import { Body, Controller, Get, Param, ParseUUIDPipe, Post, Query } from '@nestjs/common';
+import { ZodPipe } from '@/common/pipes/zod.pipe';
+import { TraceId } from '@/common/authz/trace-id.decorator';
+import { AuthUser } from '@/common/interfaces/auth.interface';
 import { GetUser } from '../auth/auth.decorator';
-import { User } from '@prisma/client';
+import { OrdersService } from './orders.service';
+import {
+  CreateOrderRequestDto,
+  CreateOrderRequestDtoType,
+  OrderListQueryDto,
+  OrderListQueryDtoType,
+} from './orders.dto';
 
 @Controller('orders')
 export class OrdersController {
-  constructor(
-    private readonly ordersService: OrdersService,
-  ) {}
+  constructor(private readonly ordersService: OrdersService) {}
 
-@Post()
-async create(
-  @Body('topicId') topicId: string,
-  @GetUser() user: User
-) {
-
-  return this.ordersService.create({
-    topicId,
-    userId:user.id
-  });
-}
-
+  @Post()
+  @AuthenticatedOnly()
+  create(
+    @Body(new ZodPipe(CreateOrderRequestDto)) dto: CreateOrderRequestDtoType,
+    @GetUser() user: AuthUser,
+    @TraceId() traceId: string,
+  ) {
+    return this.ordersService.create(user, dto, traceId);
+  }
 
   @Get()
+  @AuthenticatedOnly()
   findAll(
-    @Query() q: OrdersQuery
+    @Query(new ZodPipe(OrderListQueryDto)) query: OrderListQueryDtoType,
+    @GetUser() user: AuthUser,
   ) {
-    return this.ordersService.findAll(q);
+    return this.ordersService.findAll(user, query);
   }
 
   @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.ordersService.findOne(id);
+  @AuthenticatedOnly()
+  findOne(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Query('include') include: string | undefined,
+    @GetUser() user: AuthUser,
+  ) {
+    return this.ordersService.findOne(user, id, include === 'topic' ? 'topic' : undefined);
   }
 
-  @Patch(':id')
-  update(@Param('id') id: string, @Body() updateOrderDto: any) {
-    return this.ordersService.update(id, updateOrderDto);
-  }
-
-  @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.ordersService.remove(id);
+  @Post(':id/cancel')
+  @AuthenticatedOnly()
+  cancel(@Param('id', ParseUUIDPipe) id: string, @GetUser() user: AuthUser, @TraceId() traceId: string) {
+    return this.ordersService.cancelOrder(user, id, traceId);
   }
 }

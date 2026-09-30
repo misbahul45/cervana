@@ -1,5 +1,13 @@
 import { Injectable } from '@nestjs/common';
-import { CreateUserTopicType, UpdateUserTopicType } from './userTopics.dto';
+import { PrismaService } from '@/common/config/prisma/prisma.service';
+import { Actor, PolicyService } from '@/common/authz/policy.service';
+import { AppErrorCode } from '@/common/lib/error';
+import {
+  CreateUserTopicType,
+  EnrollUserTopicDto,
+  UpdateLearnerProgressDto,
+  UpdateUserTopicType,
+} from './userTopics.dto';
 import { errorHandler } from '@/common/lib/utils';
 import { Query } from '@/common/interfaces';
 import { AppError } from '@/common/lib/error';
@@ -9,8 +17,50 @@ import { UserTopicsRepo } from './user-topics.repo';
 @Injectable()
 export class UserTopicsService {
   constructor(
-    private readonly userTopicService:UserTopicsRepo
+    private readonly userTopicService:UserTopicsRepo,
+    private readonly prisma: PrismaService,
+    private readonly policy: PolicyService,
   ){}
+
+  enroll(actor: Actor, values: unknown) {
+    if (this.policy.isAdmin(actor)) {
+      return this.create(values as CreateUserTopicType);
+    }
+    return errorHandler(async()=>{
+      if (Array.isArray(values)) {
+        throw new AppError('Bulk enrollment is not permitted', 400, AppErrorCode.VALIDATION_ERROR)
+      }
+      const input = EnrollUserTopicDto.parse(values)
+      const topic = await this.prisma.topic.findUnique({
+        where: { id: input.topicId },
+        select: { id: true, price: true },
+      })
+      if (!topic) {
+        throw new AppError('Topic not found', 404, AppErrorCode.NOT_FOUND)
+      }
+      if (topic.price && topic.price > 0) {
+        throw new AppError('Purchase required to access this topic', 403, AppErrorCode.FORBIDDEN)
+      }
+      const newUserTopic = await this.userTopicService.create({
+        userId: actor.id,
+        topicId: input.topicId,
+        accessType: 'FREE',
+        status: 'NOT_STARTED',
+        progressPercent: 0,
+      })
+      return{
+        message:'Successfully created userTopic',
+        data:newUserTopic
+      }
+    })
+  }
+
+  updateAs(actor: Actor, id: string, values: unknown) {
+    if (this.policy.isAdmin(actor)) {
+      return this.update(id, values as UpdateUserTopicType);
+    }
+    return this.update(id, UpdateLearnerProgressDto.parse(values) as UpdateUserTopicType);
+  }
 
   create(values: CreateUserTopicType) {
     return errorHandler(async()=>{

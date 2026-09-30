@@ -56,8 +56,22 @@ export const CreateUserTopicDto = extendApi(
 export type CreateUserTopicType = z.infer<typeof CreateUserTopicDto>;
 
 // Update DTO (opsional semua field)
+const optionalDate = z.preprocess(
+  (val) => (typeof val === "string" ? new Date(val) : val),
+  z.date().optional()
+);
+
+const userTopicUpdateFields = z.object({
+  accessType: TopicAccessTypeEnum.optional(),
+  status: LearningStatusEnum.optional(),
+  quizId: z.string().uuid().optional().nullable(),
+  progressPercent: z.number().int().min(0).max(100).optional(),
+  purchasedAt: optionalDate,
+  expiredAt: optionalDate,
+});
+
 export const UpdateUserTopicDto = extendApi(
-  baseUserTopicSchema.partial(),
+  userTopicUpdateFields,
   {
     title: "UpdateUserTopicDto",
     example: {
@@ -68,3 +82,12 @@ export const UpdateUserTopicDto = extendApi(
 );
 
 export type UpdateUserTopicType = z.infer<typeof UpdateUserTopicDto>;
+
+
+export const EnrollUserTopicDto = baseUserTopicSchema.pick({ userId: true, topicId: true });
+
+export type EnrollUserTopicType = z.infer<typeof EnrollUserTopicDto>;
+
+export const UpdateLearnerProgressDto = userTopicUpdateFields.pick({ status: true, progressPercent: true });
+
+export type UpdateLearnerProgressType = z.infer<typeof UpdateLearnerProgressDto>;

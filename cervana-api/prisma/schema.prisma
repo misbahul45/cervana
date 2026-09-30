@@ -61,6 +61,21 @@ model User {
   teacherOverridesGiven   TeacherOverride[] @relation("teacherOverridesGiven")
   teacherOverridesReceived TeacherOverride[] @relation("teacherOverridesReceived")
 
+  ownedTenants      Tenant[]           @relation("TenantOwner")
+  tenantMemberships TenantMembership[]
+
+  authoredArticles Article[]                 @relation("ArticleAuthor")
+  taughtClasses    ClassProduct[]            @relation("ClassInstructor")
+  classEnrollments ClassEnrollment[]
+  entitlements     Entitlement[]
+  manualPayments   ManualPaymentSubmission[] @relation("PaymentPayer")
+  creatorEarnings  CreatorEarning[]          @relation("EarningCreator")
+  wallets          Wallet[]                  @relation("WalletOwner")
+  payoutRequests   PayoutRequest[]           @relation("PayoutCreator")
+  refundRequests   Refund[]                  @relation("RefundRequester")
+  aiCreditWallet   AICreditWallet?
+  aiCreditLedger   AICreditLedgerEntry[]
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -163,6 +178,7 @@ model Category {
   topics    Topic[]  @relation("CategoryTopics")
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  articles Article[]
 }
 
 model Topic {
@@ -192,6 +208,8 @@ model Topic {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  entitlements Entitlement[]
+  orderItems   OrderItem[]
 }
 
 model SubTopic {
@@ -639,8 +657,21 @@ model Order {
   userId String
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  topicId String
-  topic   Topic  @relation(fields: [topicId], references: [id], onDelete: Cascade)
+  topicId String?
+  topic   Topic?  @relation(fields: [topicId], references: [id], onDelete: Cascade)
+
+  subtotal    Decimal? @db.Decimal(12, 2)
+  platformFee Decimal? @db.Decimal(12, 2)
+  total       Decimal? @db.Decimal(12, 2)
+
+  items          OrderItem[]
+  manualPayments ManualPaymentSubmission[]
+  refunds        Refund[]
+  earnings       CreatorEarning[]
+  entitlements   Entitlement[]
+  enrollments    ClassEnrollment[]
+  ledger         LedgerTransaction[]
+  paymentIntents PaymentIntent[]
 
   amount   Float
   currency String      @default("IDR")
@@ -655,7 +686,7 @@ model Order {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  @@unique([userId, topicId, status])
+  @@index([userId, topicId])
   @@index([userId])
   @@index([status])
 }
@@ -782,6 +813,11 @@ enum OrderStatus {
   PAID
   FAILED
   REFUNDED
+  CANCELLED
+  PAYMENT_SUBMITTED
+  EXPIRED
+  FULFILLED
+  REFUND_PENDING
 }
 
 enum Role {
@@ -1035,13 +1071,22 @@ model ProceduralMemory {
 // -----------------------------------------------------------------------------
 
 model LearningEvent {
-  id          String    @id @default(uuid())
-  userId      String
-  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  eventType   String
-  payload     Json
-  createdAt   DateTime  @default(now())
+  id             String   @id @default(uuid())
+  userId         String
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  eventType      String
+  payload        Json
+  tenantId       String?
+  entityType     String?
+  entityId       String?
+  occurredAt     DateTime @default(now())
+  idempotencyKey String?
+  createdAt      DateTime @default(now())
+
+  @@unique([userId, idempotencyKey])
   @@index([userId, eventType, createdAt])
+  @@index([entityType, entityId])
+  @@index([tenantId, eventType, occurredAt])
 }
 
 model Episode {
@@ -1211,4 +1256,646 @@ model TeacherOverride {
   afterValue      Json
   reason          String    @db.Text
   createdAt       DateTime  @default(now())
+}
+
+model AuditLog {
+  id         String   @id @default(uuid())
+  actorId    String?
+  actorRole  Role?
+  tenantId   String?
+  action     String
+  entityType String
+  entityId   String
+  before     Json?
+  after      Json?
+  reason     String?  @db.Text
+  traceId    String?
+  createdAt  DateTime @default(now())
+
+  @@index([entityType, entityId])
+  @@index([actorId, createdAt])
+  @@index([tenantId, createdAt])
+  @@index([action, createdAt])
+}
+
+enum TenantStatus {
+  ACTIVE
+  SUSPENDED
+  ARCHIVED
+}
+
+enum TenantRole {
+  OWNER
+  MANAGER
+  TEACHER
+  EDITOR
+}
+
+enum MembershipStatus {
+  ACTIVE
+  INVITED
+  SUSPENDED
+  REMOVED
+}
+
+model Tenant {
+  id          String       @id @default(uuid())
+  name        String
+  slug        String       @unique
+  description String?      @db.Text
+  logo        Json?
+  status      TenantStatus @default(ACTIVE)
+  ownerId     String
+  owner       User         @relation("TenantOwner", fields: [ownerId], references: [id], onDelete: Restrict)
+
+  memberships TenantMembership[]
+  settings    TenantSettings?
+  articles    Article[]
+  classes     ClassProduct[]
+  entitlements Entitlement[]
+  orderItems  OrderItem[]
+  earnings    CreatorEarning[]
+  wallets     Wallet[]
+  payouts     PayoutRequest[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status])
+  @@index([ownerId])
+}
+
+model TenantMembership {
+  id       String           @id @default(uuid())
+  tenantId String
+  tenant   Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  userId   String
+  user     User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role     TenantRole
+  status   MembershipStatus @default(ACTIVE)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([tenantId, userId])
+  @@index([userId, status])
+  @@index([tenantId, status])
+}
+
+model TenantSettings {
+  id              String @id @default(uuid())
+  tenantId        String @unique
+  tenant          Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  defaultCurrency String @default("IDR")
+  payoutInfo      Json?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+enum ProductAccessType {
+  FREE
+  PAID
+}
+
+enum ContentStatus {
+  DRAFT
+  PENDING_REVIEW
+  PUBLISHED
+  REJECTED
+  SUSPENDED
+  ARCHIVED
+}
+
+enum ClassFormat {
+  LIVE
+  RECORDED
+  HYBRID
+}
+
+enum ClassDifficulty {
+  BEGINNER
+  INTERMEDIATE
+  ADVANCED
+}
+
+enum ClassSessionStatus {
+  SCHEDULED
+  LIVE
+  COMPLETED
+  CANCELLED
+}
+
+enum EnrollmentStatus {
+  ACTIVE
+  COMPLETED
+  CANCELLED
+}
+
+enum EntitlementResourceType {
+  ARTICLE
+  CLASS
+  TOPIC
+}
+
+enum EntitlementStatus {
+  ACTIVE
+  EXPIRED
+  REVOKED
+}
+
+enum ManualPaymentStatus {
+  SUBMITTED
+  UNDER_REVIEW
+  APPROVED
+  REJECTED
+}
+
+enum EarningStatus {
+  PENDING
+  AVAILABLE
+  PAID_OUT
+  REVERSED
+}
+
+enum PayoutStatus {
+  REQUESTED
+  UNDER_REVIEW
+  APPROVED
+  PAID
+  REJECTED
+  CANCELLED
+}
+
+enum RefundStatus {
+  REQUESTED
+  APPROVED
+  PROCESSED
+  REJECTED
+}
+
+enum LedgerCategory {
+  ORDER_PAYMENT
+  PLATFORM_FEE
+  CREATOR_EARNING
+  WALLET_CREDIT
+  PAYOUT
+  REFUND
+  ADJUSTMENT
+}
+
+enum AICreditEntryType {
+  PURCHASE
+  EARN
+  SPEND
+  BONUS
+  EXPIRE
+  REFUND
+  ADJUSTMENT
+  REVERSAL
+}
+
+model Article {
+  id          String            @id @default(uuid())
+  tenantId    String
+  tenant      Tenant            @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  authorId    String
+  author      User              @relation("ArticleAuthor", fields: [authorId], references: [id], onDelete: Restrict)
+  title       String
+  slug        String
+  excerpt     String?           @db.Text
+  coverImage  Json?
+  categoryId  String?
+  category    Category?         @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  accessType  ProductAccessType @default(FREE)
+  price       Decimal?          @db.Decimal(12, 2)
+  currency    String            @default("IDR")
+  status      ContentStatus     @default(DRAFT)
+  publishedVersionId String?    @unique
+  publishedAt DateTime?
+
+  versions     ArticleVersion[]
+  orderItems   OrderItem[]
+  entitlements Entitlement[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([tenantId, slug])
+  @@index([tenantId, status])
+  @@index([status, publishedAt])
+  @@index([authorId, status])
+  @@index([categoryId])
+}
+
+model ArticleVersion {
+  id            String    @id @default(uuid())
+  articleId     String
+  article       Article   @relation(fields: [articleId], references: [id], onDelete: Restrict)
+  versionNumber Int
+  title         String
+  content       String    @db.Text
+  changeReason  String?
+  createdById   String
+  publishedAt   DateTime?
+  createdAt     DateTime  @default(now())
+
+  @@unique([articleId, versionNumber])
+  @@index([articleId, createdAt])
+}
+
+model ClassProduct {
+  id              String            @id @default(uuid())
+  tenantId        String
+  tenant          Tenant            @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  instructorId    String
+  instructor      User              @relation("ClassInstructor", fields: [instructorId], references: [id], onDelete: Restrict)
+  title           String
+  slug            String
+  description     String?           @db.Text
+  coverImage      Json?
+  accessType      ProductAccessType @default(FREE)
+  price           Decimal?          @db.Decimal(12, 2)
+  currency        String            @default("IDR")
+  format          ClassFormat       @default(LIVE)
+  difficulty      ClassDifficulty   @default(BEGINNER)
+  durationMinutes Int?
+  capacity        Int?
+  status          ContentStatus     @default(DRAFT)
+  publishedAt     DateTime?
+
+  sessions     ClassSession[]
+  enrollments  ClassEnrollment[]
+  orderItems   OrderItem[]
+  entitlements Entitlement[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([tenantId, slug])
+  @@index([tenantId, status])
+  @@index([status, publishedAt])
+  @@index([instructorId, status])
+}
+
+model ClassSession {
+  id             String             @id @default(uuid())
+  classProductId String
+  classProduct   ClassProduct       @relation(fields: [classProductId], references: [id], onDelete: Cascade)
+  startsAt       DateTime
+  endsAt         DateTime
+  meetingUrl     String?
+  recordingUrl   String?
+  capacity       Int?
+  status         ClassSessionStatus @default(SCHEDULED)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([classProductId, startsAt])
+}
+
+model ClassEnrollment {
+  id             String           @id @default(uuid())
+  classProductId String
+  classProduct   ClassProduct     @relation(fields: [classProductId], references: [id], onDelete: Restrict)
+  userId         String
+  user           User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  orderId        String?
+  order          Order?           @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  status         EnrollmentStatus @default(ACTIVE)
+  enrolledAt     DateTime         @default(now())
+  completedAt    DateTime?
+
+  @@unique([classProductId, userId])
+  @@index([userId, status])
+}
+
+model OrderItem {
+  id         String        @id @default(uuid())
+  orderId    String
+  order      Order         @relation(fields: [orderId], references: [id], onDelete: Restrict)
+  tenantId   String?
+  tenant     Tenant?       @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  articleId  String?
+  article    Article?      @relation(fields: [articleId], references: [id], onDelete: Restrict)
+  classId    String?
+  classProduct ClassProduct? @relation(fields: [classId], references: [id], onDelete: Restrict)
+  topicId    String?
+  topic      Topic?        @relation(fields: [topicId], references: [id], onDelete: Restrict)
+  quantity   Int           @default(1)
+  unitPrice  Decimal       @db.Decimal(12, 2)
+  totalPrice Decimal       @db.Decimal(12, 2)
+  platformFee Decimal      @default(0) @db.Decimal(12, 2)
+
+  earning CreatorEarning?
+
+  createdAt DateTime @default(now())
+
+  @@index([orderId])
+  @@index([articleId])
+  @@index([classId])
+  @@index([topicId])
+  @@index([tenantId])
+}
+
+model Entitlement {
+  id           String                  @id @default(uuid())
+  userId       String
+  user         User                    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tenantId     String?
+  tenant       Tenant?                 @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  resourceType EntitlementResourceType
+  articleId    String?
+  article      Article?                @relation(fields: [articleId], references: [id], onDelete: Restrict)
+  classId      String?
+  classProduct ClassProduct?           @relation(fields: [classId], references: [id], onDelete: Restrict)
+  topicId      String?
+  topic        Topic?                  @relation(fields: [topicId], references: [id], onDelete: Restrict)
+  orderId      String?
+  order        Order?                  @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  status       EntitlementStatus       @default(ACTIVE)
+  startsAt     DateTime                @default(now())
+  expiresAt    DateTime?
+  createdAt    DateTime                @default(now())
+
+  @@unique([userId, articleId])
+  @@unique([userId, classId])
+  @@unique([userId, topicId])
+  @@index([userId, status])
+  @@index([tenantId, status])
+  @@index([orderId])
+}
+
+model ManualPaymentSubmission {
+  id              String              @id @default(uuid())
+  orderId         String
+  order           Order               @relation(fields: [orderId], references: [id], onDelete: Restrict)
+  paymentIntentId String
+  paymentIntent   PaymentIntent       @relation(fields: [paymentIntentId], references: [id], onDelete: Restrict)
+  payerId         String
+  payer           User                @relation("PaymentPayer", fields: [payerId], references: [id], onDelete: Restrict)
+  paymentMethod   String
+  amount          Decimal             @db.Decimal(12, 2)
+  referenceNumber String?
+  proofUrl        Json
+  note            String?             @db.Text
+  status          ManualPaymentStatus @default(SUBMITTED)
+  submittedAt     DateTime            @default(now())
+  reviewedById    String?
+  reviewedAt      DateTime?
+  rejectionReason String?             @db.Text
+
+  @@index([orderId])
+  @@index([paymentIntentId, status])
+  @@index([status, submittedAt])
+  @@index([payerId, status])
+}
+
+enum PaymentProvider {
+  MANUAL
+  STRIPE
+  MIDTRANS
+  XENDIT
+  OTHER
+}
+
+enum PaymentIntentStatus {
+  CREATED
+  PENDING
+  SUBMITTED
+  PROCESSING
+  PAID
+  FAILED
+  EXPIRED
+  CANCELLED
+  REFUND_PENDING
+  REFUNDED
+}
+
+enum PaymentTransactionType {
+  AUTHORIZATION
+  CAPTURE
+  SETTLEMENT
+  REFUND
+  REVERSAL
+  ADJUSTMENT
+}
+
+enum PaymentTransactionStatus {
+  PENDING
+  SUCCEEDED
+  FAILED
+}
+
+model PaymentIntent {
+  id                String              @id @default(uuid())
+  orderId           String
+  order             Order               @relation(fields: [orderId], references: [id], onDelete: Restrict)
+  provider          PaymentProvider     @default(MANUAL)
+  providerPaymentId String?
+  amount            Decimal             @db.Decimal(12, 2)
+  currency          String              @default("IDR")
+  status            PaymentIntentStatus @default(CREATED)
+  expiresAt         DateTime
+  metadata          Json?
+  paidAt            DateTime?
+
+  transactions      PaymentTransaction[]
+  manualSubmissions ManualPaymentSubmission[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([provider, providerPaymentId])
+  @@index([orderId, status])
+  @@index([status, expiresAt])
+}
+
+model PaymentTransaction {
+  id                    String                   @id @default(uuid())
+  paymentIntentId       String
+  paymentIntent         PaymentIntent            @relation(fields: [paymentIntentId], references: [id], onDelete: Restrict)
+  type                  PaymentTransactionType
+  amount                Decimal                  @db.Decimal(12, 2)
+  currency              String                   @default("IDR")
+  externalReference     String?
+  providerTransactionId String?
+  status                PaymentTransactionStatus @default(SUCCEEDED)
+  rawReference          Json?
+  createdAt             DateTime                 @default(now())
+
+  @@unique([paymentIntentId, type, providerTransactionId])
+  @@index([paymentIntentId, createdAt])
+}
+
+model DomainEvent {
+  id            String   @id @default(uuid())
+  type          String
+  aggregateType String
+  aggregateId   String
+  dedupeKey     String   @unique
+  payload       Json
+  tenantId      String?
+  actorId       String?
+  traceId       String?
+  occurredAt    DateTime @default(now())
+
+  @@index([type, occurredAt])
+  @@index([aggregateType, aggregateId])
+}
+
+model CreatorEarning {
+  id            String        @id @default(uuid())
+  tenantId      String
+  tenant        Tenant        @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  creatorId     String
+  creator       User          @relation("EarningCreator", fields: [creatorId], references: [id], onDelete: Restrict)
+  orderId       String
+  order         Order         @relation(fields: [orderId], references: [id], onDelete: Restrict)
+  orderItemId   String        @unique
+  orderItem     OrderItem     @relation(fields: [orderItemId], references: [id], onDelete: Restrict)
+  grossAmount   Decimal       @db.Decimal(12, 2)
+  platformFee   Decimal       @db.Decimal(12, 2)
+  creatorAmount Decimal       @db.Decimal(12, 2)
+  currency      String        @default("IDR")
+  status        EarningStatus @default(PENDING)
+  createdAt     DateTime      @default(now())
+
+  @@index([tenantId, status])
+  @@index([creatorId, status])
+  @@index([orderId])
+}
+
+model Wallet {
+  id       String   @id @default(uuid())
+  ownerId  String
+  owner    User     @relation("WalletOwner", fields: [ownerId], references: [id], onDelete: Restrict)
+  tenantId String
+  tenant   Tenant   @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  balance  Decimal  @default(0) @db.Decimal(14, 2)
+  currency String   @default("IDR")
+
+  ledger  LedgerTransaction[]
+  payouts PayoutRequest[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([tenantId, currency])
+  @@index([ownerId])
+}
+
+model LedgerTransaction {
+  id             String         @id @default(uuid())
+  category       LedgerCategory
+  amount         Decimal        @db.Decimal(14, 2)
+  currency       String         @default("IDR")
+  walletId       String?
+  wallet         Wallet?        @relation(fields: [walletId], references: [id], onDelete: Restrict)
+  orderId        String?
+  order          Order?         @relation(fields: [orderId], references: [id], onDelete: Restrict)
+  payoutId       String?
+  refundId       String?
+  earningId      String?
+  reversalOfId   String?        @unique
+  reversalOf     LedgerTransaction? @relation("LedgerReversal", fields: [reversalOfId], references: [id], onDelete: Restrict)
+  reversedBy     LedgerTransaction? @relation("LedgerReversal")
+  idempotencyKey String         @unique
+  description    String?
+  createdById    String?
+  createdAt      DateTime       @default(now())
+
+  @@index([walletId, createdAt])
+  @@index([orderId])
+  @@index([category, createdAt])
+}
+
+model PayoutRequest {
+  id              String       @id @default(uuid())
+  creatorId       String
+  creator         User         @relation("PayoutCreator", fields: [creatorId], references: [id], onDelete: Restrict)
+  tenantId        String
+  tenant          Tenant       @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  walletId        String
+  wallet          Wallet       @relation(fields: [walletId], references: [id], onDelete: Restrict)
+  amount          Decimal      @db.Decimal(14, 2)
+  destinationInfo Json
+  status          PayoutStatus @default(REQUESTED)
+  requestedAt     DateTime     @default(now())
+  reviewedById    String?
+  reviewedAt      DateTime?
+  evidenceUrl     Json?
+  rejectionReason String?      @db.Text
+  paidAt          DateTime?
+
+  @@index([tenantId, status])
+  @@index([creatorId, status])
+  @@index([status, requestedAt])
+}
+
+model Refund {
+  id            String       @id @default(uuid())
+  orderId       String
+  order         Order        @relation(fields: [orderId], references: [id], onDelete: Restrict)
+  amount        Decimal      @db.Decimal(12, 2)
+  reason        String       @db.Text
+  status        RefundStatus @default(REQUESTED)
+  requestedById String
+  requestedBy   User         @relation("RefundRequester", fields: [requestedById], references: [id], onDelete: Restrict)
+  approvedById  String?
+  processedAt   DateTime?
+  evidenceUrl   Json?
+  createdAt     DateTime     @default(now())
+
+  @@index([orderId])
+  @@index([status, createdAt])
+}
+
+model AICreditPackage {
+  id           String  @id @default(uuid())
+  name         String
+  credits      Int
+  price        Decimal @db.Decimal(12, 2)
+  currency     String  @default("IDR")
+  bonusCredits Int     @default(0)
+  active       Boolean @default(true)
+  sortOrder    Int     @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([active, sortOrder])
+}
+
+model AICreditWallet {
+  id                String @id @default(uuid())
+  userId            String @unique
+  user              User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  balance           Int    @default(0)
+  reserved          Int    @default(0)
+  lifetimeEarned    Int    @default(0)
+  lifetimePurchased Int    @default(0)
+  lifetimeSpent     Int    @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model AICreditLedgerEntry {
+  id             String            @id @default(uuid())
+  userId         String
+  user           User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type           AICreditEntryType
+  amount         Int
+  balanceAfter   Int
+  sourceType     String
+  sourceId       String?
+  idempotencyKey String
+  metadata       Json?
+  createdAt      DateTime          @default(now())
+
+  @@unique([userId, idempotencyKey])
+  @@index([userId, createdAt])
+  @@index([sourceType, sourceId])
 }

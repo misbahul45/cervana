@@ -1,14 +1,17 @@
 import { Module } from '@nestjs/common';
-import { OrdersService } from './orders.service';
+import { PrismaModule } from '@/common/config/prisma/prisma.module';
+import { CommerceCoreModule } from '../commerce/commerce-core.module';
+import { PaymentsModule } from '../payments/payments.module';
+import { OrderCatalogService } from './order-catalog.service';
+import { OrderLifecycleService } from './order-lifecycle.service';
 import { OrdersController } from './orders.controller';
 import { OrdersRepo } from './orders.repo';
-import { PrismaModule } from '@/common/config/prisma/prisma.module';
-import { TopicsModule } from '../curriculum/topics/topics.module';
-import { UserTopicsModule } from '../learning/user-topics/user-topics.module';
+import { OrdersService } from './orders.service';
 
 @Module({
-  imports:[PrismaModule, TopicsModule, UserTopicsModule],
+  imports: [PrismaModule, PaymentsModule, CommerceCoreModule],
   controllers: [OrdersController],
-  providers: [OrdersService, OrdersRepo],
+  providers: [OrdersService, OrdersRepo, OrderCatalogService, OrderLifecycleService],
+  exports: [OrderLifecycleService],
 })
 export class OrdersModule {}

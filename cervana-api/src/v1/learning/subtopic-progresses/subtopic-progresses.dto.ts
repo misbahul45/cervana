@@ -1,3 +1,4 @@
+import { partialWithoutDefaults } from '@/common/lib/zod-partial';
 import z from "zod";
 import { extendApi } from "@anatine/zod-openapi";
 
@@ -45,7 +46,7 @@ export const CreateSubTopicProgressDto = extendApi(
 
 export type CreateSubTopicProgressType = z.infer<typeof CreateSubTopicProgressDto>;
 
-export const UpdateSubTopicProgressDto = extendApi(baseSubTopicProgressSchema.partial(), {
+export const UpdateSubTopicProgressDto = extendApi(partialWithoutDefaults(baseSubTopicProgressSchema), {
   title: "UpdateSubTopicProgressDto",
   example: {
     progress: 75.3,

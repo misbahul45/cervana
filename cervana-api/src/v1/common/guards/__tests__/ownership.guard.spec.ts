@@ -156,9 +156,9 @@ describe('OwnershipGuard', () => {
     it('rejects with resource-not-found', async () => {
       jest
         .spyOn(reflector, 'getAllAndOverride')
-        .mockReturnValue({ resource: 'lesson-progress' as any, ownerField: 'userId' });
+        .mockReturnValue({ resource: 'no-such-resource' as any, ownerField: 'userId' });
       await expect(
-        guard.canActivate(mockCtx({ id: 'u-1' }, { id: 'lp-1' })),
+        guard.canActivate(mockCtx({ id: 'u-1' }, { id: 'x-1' })),
       ).rejects.toThrow(/Resource not found/);
     });
   });

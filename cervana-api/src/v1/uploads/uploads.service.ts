@@ -15,6 +15,13 @@ export class UploadsService {
     });
   }
 
+  ownsFile(actor: { id: string; role: string; image?: { fileId?: string } | null }, fileId: string): boolean {
+    if (actor.role === 'ADMIN') return true;
+    if (!fileId) return false;
+    if (actor.image?.fileId && actor.image.fileId === fileId) return true;
+    return fileId.startsWith(`images/${actor.id}-`) || fileId.startsWith(`pdf/${actor.id}-`);
+  }
+
   async uploadFile(
     userId: string,
     file: Express.Multer.File,

@@ -12,39 +12,36 @@ import whisper
 from youtube_transcript_api import YouTubeTranscriptApi
 
 from config.envs import ENVS
+from config.service_auth import send_signed
 from v1.resources.dto import ResourceBase, ResourceBody
 
 
-def get_resource(id: str, token: str) -> ResourceBase:
-    url = f"{ENVS['NEST_API']}/material/resources/{id}"
-    headers = {"Authorization": f"Bearer {token}"}
+def get_resource(id: str) -> ResourceBase:
+    url = f"{ENVS['NEST_API']}/internal/resources/{id}"
     logging.info(f"[RESOURCE][GET] {url}")
 
-    res = requests.get(url, headers=headers, timeout=15)
-
-
+    res = send_signed("GET", url)
     res.raise_for_status()
     data = res.json()["data"]
     return ResourceBase(**data)
 
 
-def callback_resource(id: str, token: str, body: ResourceBody | None = None):
-    url = f"{ENVS['NEST_API']}/material/resources/callback"
-
-    params = {}
-    if body and "type_worker" in body:
-        params["type"] = body["type_worker"]
+def callback_resource(id: str, body: ResourceBody | None = None):
+    url = f"{ENVS['NEST_API']}/internal/resources/callback"
 
     payload = {"resourceId": id}
+    params = {}
     if body:
+        body = dict(body)
+        worker_type = body.pop("type_worker", None)
+        if worker_type:
+            params["type"] = worker_type
         payload.update(body)
-
-    headers = {"Authorization": f"Bearer {token}"}
 
     logging.info(f"[CALLBACK][{id}] Sending data")
 
     try:
-        res = requests.post(url, headers=headers, json=payload, params=params, timeout=15)
+        res = send_signed("POST", url, json_body=payload, params=params or None)
         res.raise_for_status()
         return res.status_code
 

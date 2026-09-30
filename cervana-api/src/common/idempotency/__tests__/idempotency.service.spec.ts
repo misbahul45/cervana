@@ -1,3 +1,4 @@
+import { createHash } from 'crypto';
 import { BadRequestException } from '@nestjs/common';
 import { IdempotencyService, IDEMPOTENCY_WINDOW_MS } from '../idempotency.service';
 
@@ -48,7 +49,7 @@ describe('IdempotencyService', () => {
 
       const r = await service.execute(makeCtx({ key: undefined }), work);
 
-      expect(work).toHaveBeenCalledOnce();
+      expect(work).toHaveBeenCalledTimes(1);
       expect(r.replayed).toBe(false);
       expect(r.body).toEqual({ ok: true });
       expect(prisma.idempotencyKey.create).not.toHaveBeenCalled();
@@ -60,7 +61,7 @@ describe('IdempotencyService', () => {
       const work = jest.fn();
 
       await expect(
-        service.execute(makeCtx({ user: null }), work),
+        service.execute(makeCtx({ key: 'k-1', user: null }), work),
       ).rejects.toThrow(BadRequestException);
 
       expect(work).not.toHaveBeenCalled();
@@ -74,7 +75,7 @@ describe('IdempotencyService', () => {
         work,
       );
 
-      expect(work).toHaveBeenCalledOnce();
+      expect(work).toHaveBeenCalledTimes(1);
       expect(r.replayed).toBe(false);
       expect(prisma.idempotencyKey.create).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -100,7 +101,9 @@ describe('IdempotencyService', () => {
         userId: 'u-1',
         path: '/test',
         method: 'POST',
-        requestHash: expect.any(String),
+        requestHash: createHash('sha256')
+          .update(JSON.stringify({ body: { foo: 'bar' }, params: {} }))
+          .digest('hex'),
         responseJson: JSON.stringify(cachedBody),
         statusCode: 201,
         createdAt: new Date(),
@@ -156,7 +159,7 @@ describe('IdempotencyService', () => {
       const r = await service.execute(makeCtx({ key: 'k-1' }), work);
 
       expect(prisma.idempotencyKey.delete).toHaveBeenCalled();
-      expect(work).toHaveBeenCalledOnce();
+      expect(work).toHaveBeenCalledTimes(1);
       expect(r.replayed).toBe(false);
     });
   });

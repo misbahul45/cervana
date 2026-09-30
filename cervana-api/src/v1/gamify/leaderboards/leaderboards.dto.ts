@@ -1,3 +1,4 @@
+import { partialWithoutDefaults } from '@/common/lib/zod-partial';
 import { z } from 'zod'
 import { extendApi } from '@anatine/zod-openapi'
 
@@ -23,7 +24,7 @@ export const CreateLeaderboardScoreDto = extendApi(baseLeaderboardScoreSchema, {
 })
 export type CreateLeaderboardScoreType = z.infer<typeof CreateLeaderboardScoreDto>
 
-export const UpdateLeaderboardScoreDto = extendApi(baseLeaderboardScoreSchema.partial(), {
+export const UpdateLeaderboardScoreDto = extendApi(partialWithoutDefaults(baseLeaderboardScoreSchema), {
   title: 'UpdateLeaderboardScoreDto',
   example: {
     score: 2000,
