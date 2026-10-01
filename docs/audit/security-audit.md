@@ -2,7 +2,7 @@
 
 > **Status**: `stable` · **Owner**: `security` · **Last reviewed**: `2026-09-30`
 >
-> How Cervana protects against (or fails to protect against) the three AI-specific injection attacks: prompt injection, memory poisoning, and RAG poisoning.
+> How ReduCera protects against (or fails to protect against) the three AI-specific injection attacks: prompt injection, memory poisoning, and RAG poisoning.
 
 ---
 
@@ -33,19 +33,19 @@ Searching for places where untrusted text is concatenated with system instructio
 
 | File | Pattern | Trust level of input |
 |---|---|---|
-| [`v1/learning/content_pipeline.py:108-114`](../../ai-api-cervana/v1/learning/content_pipeline.py) | `rag = "\n".join([r["text"] for r in rag_results])` | untrusted (RAG corpus) |
-| [`v1/learning/content_pipeline.py:121-128`](../../ai-api-cervana/v1/learning/content_pipeline.py) | `tool_web_search(query, limit=5)` returns Tavily results | untrusted (any public URL) |
-| [`v1/learning/service.py:148-153`](../../ai-api-cervana/v1/learning/service.py) | user `query` is concatenated directly into the prompt | untrusted (learner) |
-| [`v1/users_steps/generate_user_steps_pipeline.py:84-95`](../../ai-api-cervana/v1/users_steps/generate_user_steps_pipeline.py) | `memory_manager.retrieve_as_string(...)` concatenated | untrusted (memory could be poisoned) |
-| [`v1/users_steps/generate_quiz_pipeline.py:53-54`](../../ai-api-cervana/v1/users_steps/generate_quiz_pipeline.py) | `summary` is LLM-generated; then retrieved from RAG | semi-trusted |
-| [`v1/users_steps/generate_user_steps_pipeline.py:73-78`](../../ai-api-cervana/v1/users_steps/generate_user_steps_pipeline.py) | `personality_quiz_result` (LLM output) concatenated | semi-trusted |
+| [`v1/learning/content_pipeline.py:108-114`](../../services/ai-api/v1/learning/content_pipeline.py) | `rag = "\n".join([r["text"] for r in rag_results])` | untrusted (RAG corpus) |
+| [`v1/learning/content_pipeline.py:121-128`](../../services/ai-api/v1/learning/content_pipeline.py) | `tool_web_search(query, limit=5)` returns Tavily results | untrusted (any public URL) |
+| [`v1/learning/service.py:148-153`](../../services/ai-api/v1/learning/service.py) | user `query` is concatenated directly into the prompt | untrusted (learner) |
+| [`v1/users_steps/generate_user_steps_pipeline.py:84-95`](../../services/ai-api/v1/users_steps/generate_user_steps_pipeline.py) | `memory_manager.retrieve_as_string(...)` concatenated | untrusted (memory could be poisoned) |
+| [`v1/users_steps/generate_quiz_pipeline.py:53-54`](../../services/ai-api/v1/users_steps/generate_quiz_pipeline.py) | `summary` is LLM-generated; then retrieved from RAG | semi-trusted |
+| [`v1/users_steps/generate_user_steps_pipeline.py:73-78`](../../services/ai-api/v1/users_steps/generate_user_steps_pipeline.py) | `personality_quiz_result` (LLM output) concatenated | semi-trusted |
 
 ### 2.2 Defense today
 
 Searching for any input segmentation:
 
 ```bash
-grep -rn "untrusted\|trusted_boundary\|fence\|<retrieved>\|<user_input>" ai-api-cervana/ --include="*.py"
+grep -rn "untrusted\|trusted_boundary\|fence\|<retrieved>\|<user_input>" services/ai-api/ --include="*.py"
 → 0 results
 ```
 
@@ -76,7 +76,7 @@ Three layers, in order:
 
 1. **Input segmentation** — wrap untrusted content in XML fences:
    ```
-   <retrieved_documents source="cervana-embedding" trust="untrusted">
+   <retrieved_documents source="reducera-embedding" trust="untrusted">
    ...content...
    </retrieved_documents>
    ```
@@ -96,7 +96,7 @@ Target: Phase 5 (Agent Integration) per [`phased-roadmap.md`](../03-plans/phased
 
 ### 3.1 Write path
 
-Every `tool_memory_upsert` call writes to Qdrant `cervana-memory`. The current code:
+Every `tool_memory_upsert` call writes to Qdrant `reducera-memory`. The current code:
 
 ```python
 # utils/tools/memory.py:40-55
@@ -135,15 +135,15 @@ Target: Phase 2 (Memory) per [`phased-roadmap.md`](../03-plans/phased-roadmap.md
 
 ### 4.1 Ingestion path
 
-`Resource` upload flow ([`resources.controller.ts:12-19`](../../cervana-api/src/v1/material/resources/resources.controller.ts)):
+`Resource` upload flow ([`resources.controller.ts:12-19`](../../services/api/src/v1/material/resources/resources.controller.ts)):
 
 1. Tutor (TEACHER role) creates `Resource` with `file.url` (any URL).
 2. `addKnowledgeJob` queues extraction.
 3. Celery `extract_task` runs → `extract_pdf(url)` downloads from `url`.
-4. `EmbeddingPipeline.upsert_document` chunks + embeds + writes to `cervana-embedding`.
+4. `EmbeddingPipeline.upsert_document` chunks + embeds + writes to `reducera-embedding`.
 
 ```python
-# ai-api-cervana/v1/resources/service.py:115-127
+# services/ai-api/v1/resources/service.py:115-127
 def extract_pdf(url):
     response = requests.get(url.strip(), timeout=20)
     ...
@@ -166,7 +166,7 @@ A malicious tutor can:
 
 `Resource` upload:
 
-- Scheme check: only `https://` from a domain allow-list (e.g., `cervana-cdn.example.com`).
+- Scheme check: only `https://` from a domain allow-list (e.g., `reducera-cdn.example.com`).
 - Size cap: 50 MB.
 - Content-Type check: `application/pdf`.
 - Quarantine: new resources are NOT searchable until a human reviewer (TEACHER or ADMIN) marks them `published`.

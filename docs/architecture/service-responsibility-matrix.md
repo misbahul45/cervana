@@ -33,9 +33,9 @@ The **Application API** (`api` service, NestJS, port 3002) is the source of trut
 | Score / isCorrect | ✅ | ❌ | ❌ | ❌ | api | Postgres | api only |
 | Learner Model (mastery, misconception) | ✅ | R (context) | ❌ | ❌ | api | Postgres | api only |
 | Memory schema (episodic / semantic / procedural) | ✅ | R + W (via api) | ❌ | ❌ | api | Postgres + Qdrant | api owns schema; ai writes via api |
-| Memory embeddings (Qdrant `cervana-memory`) | ❌ | ✅ | ❌ | ❌ | ai-api | Qdrant | ai-api only |
+| Memory embeddings (Qdrant `reducera-memory`) | ❌ | ✅ | ❌ | ❌ | ai-api | Qdrant | ai-api only |
 | RAG corpus (curriculum materials) | ✅ ingest | R + W (embed) | ✅ extract_task | ✅ | api metadata + ai embeddings | Postgres metadata + Qdrant vectors | api writes metadata; ai writes vectors |
-| RAG retrieval | ❌ | ✅ | ❌ | ❌ | ai-api | Qdrant `cervana-embedding` | ai-api only |
+| RAG retrieval | ❌ | ✅ | ❌ | ❌ | ai-api | Qdrant `reducera-embedding` | ai-api only |
 | LLM calls (chat, generation) | ❌ | ✅ | ❌ | ❌ | ai-api | n/a (provider) | ai-api only |
 | Adaptive Policy | ✅ | ❌ | ❌ | ❌ | api | Postgres (`PolicyVersion`) | api only |
 | AI Tool Orchestration | ❌ | ✅ | ✅ | ❌ | ai-api | LangGraph + Celery | ai-api only |
@@ -95,8 +95,8 @@ These violate the table above and are tracked as findings:
 
 | # | Violation | Evidence | Severity |
 |---|---|---|---|
-| B-01 | `cervana-api/src/common/lib/embeding.ts` calls LLM provider directly | Source | CRITICAL — must migrate to ai-api |
-| B-02 | `ai-api-cervana` calls `/chat/contents/similarity` which does not exist | Source | HIGH — endpoint missing |
+| B-01 | `services/api/src/common/lib/embeding.ts` calls LLM provider directly | Source | CRITICAL — must migrate to ai-api |
+| B-02 | `services/ai-api` calls `/chat/contents/similarity` which does not exist | Source | HIGH — endpoint missing |
 | B-03 | `contents.repo.ts:80` queries `content_embeddings` raw SQL | Source | CRITICAL — table does not exist in schema |
 | B-04 | `addContentEmbeddingJob` queues to `content` queue with no processor | Source | HIGH |
 | B-05 | `tool_memory_upsert` writes to Qdrant from ai-api without write policy | Source | HIGH |
@@ -174,14 +174,14 @@ Distinct from `CourseProduct` which is human-authored learning content.
 CI should fail if any of these appear in code:
 
 ```
-# In cervana-api/
-grep -rn "openai|anthropic|google" cervana-api/src --include="*.ts"
-grep -rn "QdrantClient" cervana-api/src --include="*.ts"
+# In services/api/
+grep -rn "openai|anthropic|google" services/api/src --include="*.ts"
+grep -rn "QdrantClient" services/api/src --include="*.ts"
 
-# In ai-api-cervana/
-grep -rn "DATABASE_URL" ai-api-cervana/
-grep -rn "import.*prisma" ai-api-cervana/
-grep -rn "createPool\|pg\b\|createEngine" ai-api-cervana/
+# In services/ai-api/
+grep -rn "DATABASE_URL" services/ai-api/
+grep -rn "import.*prisma" services/ai-api/
+grep -rn "createPool\|pg\b\|createEngine" services/ai-api/
 ```
 
 Any non-empty result is a violation.

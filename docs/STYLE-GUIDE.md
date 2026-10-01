@@ -60,7 +60,7 @@ These labels are used identically across all docs. Never invent synonyms.
 
 | Label | Meaning | When to use |
 |---|---|---|
-| `implemented` | Code exists, runs, and is wired end-to-end. | `cervana-api/src/v1/auth/jwt.guard.ts` is `implemented`. |
+| `implemented` | Code exists, runs, and is wired end-to-end. | `services/api/src/v1/auth/jwt.guard.ts` is `implemented`. |
 | `partial` | Some pieces work; the rest are missing or broken. | RAG retrieval is `partial` (works in 2 flows, broken in 1). |
 | `scaffolded` | Structure exists (table, endpoint, model) but no real behavior. | `Achievement` model is `scaffolded` — no evaluator awards it. |
 | `referenced` | Name appears in docs, env, or schema; no behavior. | `notes.md` claims a daily-stats cron that is `referenced` but `not implemented`. |
@@ -146,7 +146,7 @@ Where `NN-MM` is the inclusive line range.
 
 ### 4.2 Acceptable evidence sources
 
-1. **Repository files**: `cervana-api/src/v1/chat/contents/contents.repo.ts:80-86`.
+1. **Repository files**: `services/api/src/v1/chat/contents/contents.repo.ts:80-86`.
 2. **External docs**: link to URL + retrieval date.
 3. **Database objects**: `prisma/schema.prisma:312-326` or `prisma/migrations/20251202032210_final_db/migration.sql`.
 4. **Configuration**: `.env.example:69` or `docker-compose.yml:48-65`.
@@ -169,7 +169,7 @@ Without:
 
 ```markdown
 The agent uses dynamic planning.
-Evidence: `grep add_conditional_edges ai-api-cervana/` → 0 results.
+Evidence: `grep add_conditional_edges services/ai-api/` → 0 results.
 ```
 
 ---
@@ -292,7 +292,7 @@ See [`data-model.md`](./02-architecture/data-model.md).
 For external files:
 
 ```markdown
-Schema: `cervana-api/prisma/schema.prisma:312-326`.
+Schema: `services/api/prisma/schema.prisma:312-326`.
 ```
 
 ### 8.2 Anchor links

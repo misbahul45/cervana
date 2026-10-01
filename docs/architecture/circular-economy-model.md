@@ -2,13 +2,13 @@
 
 > **Status**: `planned` · **Owner**: `product-architect` · **Last reviewed**: `2026-09-30`
 >
-> How Cervana is structured as a circular learning economy, with explicit value flows, KPIs, and the boundaries between economic, knowledge, and AI-credit circularity.
+> How ReduCera is structured as a circular learning economy, with explicit value flows, KPIs, and the boundaries between economic, knowledge, and AI-credit circularity.
 
 ---
 
 ## 1. North star
 
-Cervana is not only an AI tutor. It is a **learning marketplace + creator economy + AI agent infrastructure** organized as a **circular learning economy**:
+ReduCera is not only an AI tutor. It is a **learning marketplace + creator economy + AI agent infrastructure** organized as a **circular learning economy**:
 
 ```
                      LEARNER
@@ -145,7 +145,7 @@ with provenance tracked. The original resource is not duplicated — it is refer
 
 ### 2.6 What is NOT circular
 
-- **Physical-material circularity**: Cervana is a digital learning platform. Environmental-impact metrics are out of scope unless a separate product lifecycle boundary is introduced (it is not).
+- **Physical-material circularity**: ReduCera is a digital learning platform. Environmental-impact metrics are out of scope unless a separate product lifecycle boundary is introduced (it is not).
 - **Engagement-metric circularity**: page views, click counts, notification opens are **not** circularity evidence. They are anti-patterns.
 
 ---
@@ -201,7 +201,7 @@ The five flows the system must instrument:
 
 ## 4. Two-product surface
 
-Cervana exposes two product surfaces on the marketplace. They share the commerce pipeline but have distinct schemas.
+ReduCera exposes two product surfaces on the marketplace. They share the commerce pipeline but have distinct schemas.
 
 ### 4.1 Course product (human-authored)
 

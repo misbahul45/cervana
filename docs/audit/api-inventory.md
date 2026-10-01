@@ -1,4 +1,4 @@
-# API Inventory — Cervana NestJS API
+# API Inventory — ReduCera NestJS API
 
 > **Status**: `stable` · **Owner**: `architect` · **Last reviewed**: `2026-09-30`
 >
@@ -8,7 +8,7 @@
 
 ## 1. Scope
 
-This document lists every `@Controller`, `@Get`, `@Post`, `@Patch`, `@Delete` declaration in [`cervana-api/src/v1/`](../../cervana-api/src/v1/) plus the auth controller. SSE controllers are listed at the end but not analyzed in depth (they are transport-level only).
+This document lists every `@Controller`, `@Get`, `@Post`, `@Patch`, `@Delete` declaration in [`services/api/src/v1/`](../../services/api/src/v1/) plus the auth controller. SSE controllers are listed at the end but not analyzed in depth (they are transport-level only).
 
 Counts (verified by `grep` 2026-09-30):
 - 41 `@Controller` declarations.
@@ -36,7 +36,7 @@ Counts (verified by `grep` 2026-09-30):
 | GET | `/auth/profile` | authenticated | – | – |
 | GET | `/auth/check` | authenticated | – | – |
 
-Source: [`auth.controller.ts`](../../cervana-api/src/v1/auth/auth.controller.ts).
+Source: [`auth.controller.ts`](../../services/api/src/v1/auth/auth.controller.ts).
 
 **Observations**:
 - Auth has rate-limiting on all sensitive endpoints. Good.
@@ -52,7 +52,7 @@ Source: [`auth.controller.ts`](../../cervana-api/src/v1/auth/auth.controller.ts)
 | PATCH | `/users/:id` | authenticated | none | ❌ no ownership check; user A could patch user B |
 | DELETE | `/users/:id` | authenticated | none | ❌ no ownership check |
 
-Source: [`users.controller.ts`](../../cervana-api/src/v1/users/users.controller.ts).
+Source: [`users.controller.ts`](../../services/api/src/v1/users/users.controller.ts).
 
 **Problem class**: missing ownership check across the entire controller.
 
@@ -83,7 +83,7 @@ Source: [`users.controller.ts`](../../cervana-api/src/v1/users/users.controller.
 | DELETE | `/steps/:id` | authenticated | none | ❌ no role check |
 | GET | `/steps` | public | none | – |
 
-Sources: [`topics/topics.controller.ts`](../../cervana-api/src/v1/curriculum/topics/topics.controller.ts), [`subtopics/subtopics.controller.ts`](../../cervana-api/src/v1/curriculum/subtopics/subtopics.controller.ts), [`lessons/lessons.controller.ts`](../../cervana-api/src/v1/curriculum/lessons/lessons.controller.ts), [`steps/steps.controller.ts`](../../cervana-api/src/v1/curriculum/steps/steps.controller.ts).
+Sources: [`topics/topics.controller.ts`](../../services/api/src/v1/curriculum/topics/topics.controller.ts), [`subtopics/subtopics.controller.ts`](../../services/api/src/v1/curriculum/subtopics/subtopics.controller.ts), [`lessons/lessons.controller.ts`](../../services/api/src/v1/curriculum/lessons/lessons.controller.ts), [`steps/steps.controller.ts`](../../services/api/src/v1/curriculum/steps/steps.controller.ts).
 
 **Problem class**: only `/topics` has role checks. `subtopics`, `lessons`, `steps` are entirely role-less. `POST /steps` even injects `user.id` from `req.user` — meaning any authenticated user can claim authorship of a step they did not create.
 
@@ -97,7 +97,7 @@ Sources: [`topics/topics.controller.ts`](../../cervana-api/src/v1/curriculum/top
 | DELETE | `/resources/:id` | TEACHER | `Roles(Role.TEACHER)` | – |
 | POST | `/resources/callback` | AI worker | none | 🟡 trust boundary; anyone can call |
 
-Source: [`resources.controller.ts`](../../cervana-api/src/v1/material/resources/resources.controller.ts).
+Source: [`resources.controller.ts`](../../services/api/src/v1/material/resources/resources.controller.ts).
 
 **Problem class**: Materials are restricted to TEACHER only. Learners cannot read resources via the API. This is a serious gap because the learning experience depends on materials being served to learners — currently they must be served through some other channel (e.g., bundled into chat `Content`).
 
@@ -126,7 +126,7 @@ Source: [`resources.controller.ts`](../../cervana-api/src/v1/material/resources/
 | PATCH | `/questions/:id` | authenticated | none | ❌ no role check |
 | DELETE | `/questions/:id` | authenticated | none | ❌ no role check |
 
-Sources: [`quiz/quizzes/quizzes.controller.ts`](../../cervana-api/src/v1/quiz/quizzes/quizzes.controller.ts), [`quiz/quiz-attempts/quiz-attempts.controller.ts`](../../cervana-api/src/v1/quiz/quiz-attempts/quiz-attempts.controller.ts), [`quiz/answers/answers.controller.ts`](../../cervana-api/src/v1/quiz/answers/answers.controller.ts), [`quiz/questions/questions.controller.ts`](../../cervana-api/src/v1/quiz/questions/questions.controller.ts).
+Sources: [`quiz/quizzes/quizzes.controller.ts`](../../services/api/src/v1/quiz/quizzes/quizzes.controller.ts), [`quiz/quiz-attempts/quiz-attempts.controller.ts`](../../services/api/src/v1/quiz/quiz-attempts/quiz-attempts.controller.ts), [`quiz/answers/answers.controller.ts`](../../services/api/src/v1/quiz/answers/answers.controller.ts), [`quiz/questions/questions.controller.ts`](../../services/api/src/v1/quiz/questions/questions.controller.ts).
 
 **Critical issue**: **`Answer.isCorrect` and `QuizAttempt.score` are never set** by any service. The learner submits an answer but no scoring logic runs. See [`docs/01-audit/system-audit.md` §17.4](../system-audit.md#174-quiz-evaluation-is-missing).
 
@@ -170,7 +170,7 @@ Sources: [`quiz/quizzes/quizzes.controller.ts`](../../cervana-api/src/v1/quiz/qu
 | PATCH | `/learning/learning-styles/:id` | authenticated | none | ❌ no ownership check |
 | DELETE | `/learning/learning-styles/:id` | authenticated | none | ❌ no ownership check |
 
-Sources: [`learning/user-topics/`](../../cervana-api/src/v1/learning/user-topics/), [`learning/lesson-progresses/`](../../cervana-api/src/v1/learning/lesson-progresses/), [`learning/step-progresses/`](../../cervana-api/src/v1/learning/step-progresses/), [`learning/subtopic-progresses/`](../../cervana-api/src/v1/learning/subtopic-progresses/), [`learning/user-steps/`](../../cervana-api/src/v1/learning/user-steps/), [`learning/personality-quizzes/`](../../cervana-api/src/v1/learning/personality-quizzes/), [`learning/learning-styles/`](../../cervana-api/src/v1/learning/learning-styles/).
+Sources: [`learning/user-topics/`](../../services/api/src/v1/learning/user-topics/), [`learning/lesson-progresses/`](../../services/api/src/v1/learning/lesson-progresses/), [`learning/step-progresses/`](../../services/api/src/v1/learning/step-progresses/), [`learning/subtopic-progresses/`](../../services/api/src/v1/learning/subtopic-progresses/), [`learning/user-steps/`](../../services/api/src/v1/learning/user-steps/), [`learning/personality-quizzes/`](../../services/api/src/v1/learning/personality-quizzes/), [`learning/learning-styles/`](../../services/api/src/v1/learning/learning-styles/).
 
 **Problem class**: progress endpoints have **no role check at all**. Authenticated students can patch any other student's progress by UUID.
 
@@ -189,7 +189,7 @@ Sources: [`learning/user-topics/`](../../cervana-api/src/v1/learning/user-topics
 | POST | `/contents` | AI worker | none | 🟡 trust boundary |
 | DELETE | `/contents/:id` | authenticated | none | ❌ no ownership check |
 
-Sources: [`chat/chats/chats.controller.ts`](../../cervana-api/src/v1/chat/chats/chats.controller.ts), [`chat/chat-messages/chat-messages.controller.ts`](../../cervana-api/src/v1/chat/chat-messages/chat-messages.controller.ts), [`chat/contents/contents.controller.ts`](../../cervana-api/src/v1/chat/contents/contents.controller.ts).
+Sources: [`chat/chats/chats.controller.ts`](../../services/api/src/v1/chat/chats/chats.controller.ts), [`chat/chat-messages/chat-messages.controller.ts`](../../services/api/src/v1/chat/chat-messages/chat-messages.controller.ts), [`chat/contents/contents.controller.ts`](../../services/api/src/v1/chat/contents/contents.controller.ts).
 
 **Problem class**: chat ownership is not checked. Combined with chat IDs being UUIDs, this is a UUID-guessing vulnerability.
 
@@ -205,7 +205,7 @@ Sources: [`chat/chats/chats.controller.ts`](../../cervana-api/src/v1/chat/chats/
 | POST | `/categories/:categoryId/topics/:topicId` | TEACHER | `Roles(TEACHER)` | – |
 | DELETE | `/categories/:categoryId/topics/:topicId` | TEACHER | `Roles(TEACHER)` | – |
 
-Source: [`categories.controller.ts`](../../cervana-api/src/v1/categories/categories.controller.ts).
+Source: [`categories.controller.ts`](../../services/api/src/v1/categories/categories.controller.ts).
 
 ### 2.9 Teacher applications
 
@@ -217,7 +217,7 @@ Source: [`categories.controller.ts`](../../cervana-api/src/v1/categories/categor
 | PATCH | `/applications/:id` | authenticated | none | 🟡 should be admin only |
 | DELETE | `/applications/:id` | authenticated | none | ❌ should be admin only |
 
-Source: [`teacher/applications/applications.controller.ts`](../../cervana-api/src/v1/teacher/applications/applications.controller.ts).
+Source: [`teacher/applications/applications.controller.ts`](../../services/api/src/v1/teacher/applications/applications.controller.ts).
 
 **Problem class**: PII exposure risk — applicants' personal data (bio, CV URL, expertise) accessible to any authenticated user.
 
@@ -246,7 +246,7 @@ Same pattern as §2.9 — these are sub-entities of `TeacherApplication` and sho
 | PATCH | `/themes/:id` | authenticated | none | ❌ no role check |
 | DELETE | `/themes/:id` | authenticated | none | ❌ no role check |
 
-Sources: [`gamify/daily-logs/`](../../cervana-api/src/v1/gamify/daily-logs/), [`gamify/streaks/`](../../cervana-api/src/v1/gamify/streaks/), [`gamify/leaderboards/`](../../cervana-api/src/v1/gamify/leaderboards/), [`gamify/themes/`](../../cervana-api/src/v1/gamify/themes/).
+Sources: [`gamify/daily-logs/`](../../services/api/src/v1/gamify/daily-logs/), [`gamify/streaks/`](../../services/api/src/v1/gamify/streaks/), [`gamify/leaderboards/`](../../services/api/src/v1/gamify/leaderboards/), [`gamify/themes/`](../../services/api/src/v1/gamify/themes/).
 
 ### 2.12 Orders
 
@@ -259,7 +259,7 @@ Sources: [`gamify/daily-logs/`](../../cervana-api/src/v1/gamify/daily-logs/), [`
 | DELETE | `/orders/:id` | authenticated | none | ❌ no role check |
 | POST | `/webhooks/stripe` | Stripe (no auth) | – | 🟡 relies on Stripe signature |
 
-Source: [`orders/orders.controller.ts`](../../cervana-api/src/v1/orders/orders.controller.ts).
+Source: [`orders/orders.controller.ts`](../../services/api/src/v1/orders/orders.controller.ts).
 
 ### 2.13 Notifications
 
@@ -271,7 +271,7 @@ Source: [`orders/orders.controller.ts`](../../cervana-api/src/v1/orders/orders.c
 | PATCH | `/notifications/:id` | authenticated | none |
 | DELETE | `/notifications/:id` | authenticated | none |
 
-Source: [`notifications/notifications.controller.ts`](../../cervana-api/src/v1/notifications/notifications.controller.ts).
+Source: [`notifications/notifications.controller.ts`](../../services/api/src/v1/notifications/notifications.controller.ts).
 
 ### 2.14 Uploads
 
@@ -279,7 +279,7 @@ Source: [`notifications/notifications.controller.ts`](../../cervana-api/src/v1/n
 |---|---|---|---|
 | POST | `/uploads` | authenticated | none |
 
-Source: [`uploads/uploads.controller.ts`](../../cervana-api/src/v1/uploads/uploads.controller.ts).
+Source: [`uploads/uploads.controller.ts`](../../services/api/src/v1/uploads/uploads.controller.ts).
 
 ### 2.15 SSE (Server-Sent Events)
 

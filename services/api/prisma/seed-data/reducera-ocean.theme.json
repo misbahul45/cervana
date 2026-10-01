@@ -1,0 +1,66 @@
+{
+  "slug": "reducera-ocean",
+  "title": "Samudra",
+  "description": "Laut sebagai dunia belajar: perairan dangkal untuk memahami, palung untuk menantang diri.",
+  "primary": "#0B7285",
+  "secondary": "#1C5D99",
+  "tertiary": "#C2410C",
+  "quaternary": "#DDF3F4",
+  "mood": ["calm", "analytical", "welcoming"],
+  "tokens": {
+    "light": {
+      "bg": "#F2FAFB",
+      "surface": "#FFFFFF",
+      "fg": "#0A2533",
+      "muted": "#3F5B69",
+      "border": "#B7D9E1",
+      "borderStrong": "#5B8896",
+      "primary": "#0B7285",
+      "primaryFg": "#FFFFFF",
+      "secondary": "#1C5D99",
+      "secondaryFg": "#FFFFFF",
+      "accent": "#C2410C",
+      "focus": "#0B5FA8",
+      "foam": "#DDF3F4",
+      "sand": "#E9DDB8"
+    },
+    "dark": {
+      "bg": "#04202D",
+      "surface": "#0A3145",
+      "fg": "#E6F7FA",
+      "muted": "#A5CBD6",
+      "border": "#2A6178",
+      "borderStrong": "#4C8BA3",
+      "primary": "#3CC8DA",
+      "primaryFg": "#03202B",
+      "secondary": "#6FA8F0",
+      "secondaryFg": "#04182B",
+      "accent": "#FF9A76",
+      "focus": "#7DD3FC",
+      "foam": "#0F4A61",
+      "sand": "#3A4A52"
+    }
+  },
+  "atmosphere": {
+    "particles": { "enabled": true, "density": 0.3 },
+    "motion": { "intensity": 0.25 },
+    "lighting": { "intensity": 0.55 },
+    "waves": true,
+    "caustics": true
+  },
+  "variants": {
+    "PRACTICE": {
+      "atmosphere": { "particles": { "enabled": true, "density": 0.2 }, "motion": { "intensity": 0.15 }, "lighting": { "intensity": 0.45 }, "waves": false }
+    },
+    "CHALLENGE": {
+      "atmosphere": { "particles": { "enabled": true, "density": 0.1 }, "motion": { "intensity": 0.1 }, "lighting": { "intensity": 0.3 }, "waves": false },
+      "tokens": {
+        "light": { "muted": "#33505E", "borderStrong": "#3F6C7B" },
+        "dark": { "muted": "#BFE0E9", "borderStrong": "#6FAFC7" }
+      }
+    },
+    "EXAM": {
+      "atmosphere": { "particles": { "enabled": false, "density": 0 }, "motion": { "intensity": 0 }, "lighting": { "intensity": 0 }, "waves": false, "caustics": false }
+    }
+  }
+}

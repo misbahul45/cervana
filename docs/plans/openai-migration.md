@@ -1,14 +1,16 @@
 # OpenAI Migration Plan
 
-> **Status**: `planned` · **Owner**: `ml-lead` · **Last reviewed**: `2026-09-30`
+> **Status**: `superseded` · **Owner**: `ml-lead` · **Last reviewed**: `2026-09-30`
 >
 > Replace `ChatGoogleGenerativeAI` + `GeminiEmbedding` with `langchain-openai` ChatOpenAI + OpenAIEmbeddings, fully env-driven.
+>
+> Implemented differently on 2026-09-30: the LLM is `ChatOpenAI` with two modes (`OPENAI_MODEL_FLASH`, `OPENAI_MODEL_THINKING`) behind one gateway (`OPENAI_API_KEY`, `OPENAI_BASE_URL`); embeddings are computed by Hugging Face Inference (`HF_TOKEN`, `HF_EMBEDDING_MODEL`, `HF_EMBEDDING_URL`, `EMBEDDING_DIM`), not `OpenAIEmbeddings`. There is no `LLM_PROVIDER` switch. Source of truth: `services/ai-api/config/providers.py` and `AGENTS.md` ("AI providers"). The rest of this document is kept for archaeology.
 
 ---
 
 ## 1. Objective
 
-Switch Cervana's AI service from Gemini to an OpenAI-compatible provider, with model name, API URL, embedding model, and embedding dimension all controlled by environment variables. This decouples the application from any single provider and enables swapping for cost, latency, or capability reasons.
+Switch ReduCera's AI service from Gemini to an OpenAI-compatible provider, with model name, API URL, embedding model, and embedding dimension all controlled by environment variables. This decouples the application from any single provider and enables swapping for cost, latency, or capability reasons.
 
 ---
 
@@ -16,11 +18,11 @@ Switch Cervana's AI service from Gemini to an OpenAI-compatible provider, with m
 
 Files affected:
 
-- `ai-api-cervana/pyproject.toml`
-- `ai-api-cervana/config/envs.py`
-- `ai-api-cervana/config/embedding_pipeline.py`
-- `ai-api-cervana/config/memory_embedding.py`
-- `ai-api-cervana/v1/users_steps/generate_quiz_pipeline.py`
+- `services/ai-api/pyproject.toml`
+- `services/ai-api/config/envs.py`
+- `services/ai-api/config/embedding_pipeline.py`
+- `services/ai-api/config/memory_embedding.py`
+- `services/ai-api/v1/users_steps/generate_quiz_pipeline.py`
 - `.env.example`, `.env.prod.example`
 - `docker-compose.yml`, `docker-compose.prod.yml`
 
@@ -50,10 +52,10 @@ Add or update:
 
 ## 4. Target architecture
 
-### 4.1 Pattern: factory in `ai-api-cervana/config/llm_factory.py`
+### 4.1 Pattern: factory in `services/ai-api/config/llm_factory.py`
 
 ```
-ai-api-cervana/
+services/ai-api/
 ├── config/
 │   ├── llm_factory.py          ← NEW: factory for LLM + embeddings
 │   ├── embedding_pipeline.py   ← CHANGED: use factory
@@ -96,10 +98,10 @@ def get_embedding_model() -> OpenAIEmbeddings:
 
 ## 5. Qdrant migration consideration
 
-The current collection `cervana-embedding` is created with `size=768`:
+The current collection `reducera-embedding` is created with `size=768`:
 
 ```python
-# ai-api-cervana/config/embedding_pipeline.py:60-63
+# services/ai-api/config/embedding_pipeline.py:60-63
 qdrant_client.create_collection(
     collection_name=COLLECTION_NAME,
     vectors_config=VectorParams(size=768, distance=Distance.COSINE),
@@ -127,7 +129,7 @@ Validation behavior:
 
 ### Step 1 — Dependencies (15 minutes)
 
-- Add `langchain-openai>=0.2.0` to `ai-api-cervana/pyproject.toml`.
+- Add `langchain-openai>=0.2.0` to `services/ai-api/pyproject.toml`.
 - Optionally remove `langchain-google-genai` and `llama-index-embeddings-gemini` (verify no other usage first).
 - Add `tiktoken>=0.7` for token counting.
 
@@ -180,7 +182,7 @@ curl -X POST http://localhost/ai/v1/users-steps/generate ...
 curl -X POST http://localhost/ai/v1/learning/generate-material ...
 
 # Verify Qdrant:
-curl http://localhost:6333/collections/cervana-embedding
+curl http://localhost:6333/collections/reducera-embedding
 # Expected: { "size": 768, "distance": "Cosine" }
 ```
 

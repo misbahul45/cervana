@@ -1,33 +1,33 @@
-name: cervana
+name: reducera
 
 services:
   postgres:
     image: postgres:15-alpine
-    container_name: cervana_postgres
+    container_name: reducera_postgres
     restart: unless-stopped
     env_file:
       - .env
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
-      POSTGRES_DB: ${POSTGRES_DB:-cervana}
+      POSTGRES_DB: ${POSTGRES_DB:-reducera}
       PGDATA: /var/lib/postgresql/data/pgdata
     volumes:
       - postgres_data:/var/lib/postgresql/data
     ports:
       - "${POSTGRES_PORT:-5433}:5432"
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-cervana}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-reducera}"]
       interval: 10s
       timeout: 5s
       retries: 5
       start_period: 10s
     networks:
-      - cervana_network
+      - reducera_network
 
   redis:
     image: redis:7-alpine
-    container_name: cervana_redis
+    container_name: reducera_redis
     restart: unless-stopped
     env_file:
       - .env
@@ -43,11 +43,11 @@ services:
       retries: 5
       start_period: 5s
     networks:
-      - cervana_network
+      - reducera_network
 
   qdrant:
     image: qdrant/qdrant:v1.12.4
-    container_name: cervana_qdrant
+    container_name: reducera_qdrant
     restart: unless-stopped
     env_file:
       - .env
@@ -62,18 +62,18 @@ services:
       retries: 3
       start_period: 30s
     networks:
-      - cervana_network
+      - reducera_network
 
   api:
     build:
-      context: ./cervana-api
+      context: ./services/api
       dockerfile: Dockerfile
-    container_name: cervana_api
+    container_name: reducera_api
     restart: unless-stopped
     env_file:
       - .env
     environment:
-      DATABASE_URL: ${DATABASE_URL:-postgresql://cervana_prod:change_me_strong_random_password_min_24_chars@postgres:5432/cervana}
+      DATABASE_URL: ${DATABASE_URL:-postgresql://reducera_prod:change_me_strong_random_password_min_24_chars@postgres:5432/reducera}
       REDIS_HOST: ${REDIS_HOST:-redis}
       REDIS_PORT: ${REDIS_PORT_INTERNAL:-6379}
       PORT: 3002
@@ -81,6 +81,7 @@ services:
       API_INTERNAL_URL: ${API_INTERNAL_URL:-http://api:3002}
       FRONTEND_URL: ${FRONTEND_URL}
       ADMIN_URL: ${ADMIN_URL}
+      CORS_EXTRA_ORIGINS: ${CORS_EXTRA_ORIGINS:-}
       COOKIE_SECRET: ${COOKIE_SECRET}
       JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET}
       INTERNAL_AI_API_SECRET: ${INTERNAL_AI_API_SECRET}
@@ -120,13 +121,13 @@ services:
       retries: 3
       start_period: 40s
     networks:
-      - cervana_network
+      - reducera_network
 
   ai-api:
     build:
-      context: ./ai-api-cervana
+      context: ./services/ai-api
       dockerfile: Dockerfile
-    container_name: cervana_ai_api
+    container_name: reducera_ai_api
     restart: unless-stopped
     env_file:
       - .env
@@ -140,11 +141,18 @@ services:
       CELERY_RESULT_BACKEND: ${CELERY_RESULT_BACKEND:-redis://redis:6379/0}
       QDRANT_URL: ${QDRANT_URL:-http://qdrant:6333}
       QDRANT_API_KEY: ${QDRANT_API_KEY}
-      QDRANT_COLLECTION: ${QDRANT_COLLECTION:-cervana-embedding}
-      QDRANT_MEMORY_COLLECTION: ${QDRANT_MEMORY_COLLECTION:-cervana-memory}
-      GEMINI_API_KEY: ${GEMINI_API_KEY}
+      QDRANT_COLLECTION: ${QDRANT_COLLECTION:-reducera-embedding}
+      QDRANT_MEMORY_COLLECTION: ${QDRANT_MEMORY_COLLECTION:-reducera-memory}
       OPENAI_API_KEY: ${OPENAI_API_KEY}
-      EMBEDDING_MODEL: ${EMBEDDING_MODEL:-models/text-embedding-004}
+      OPENAI_BASE_URL: ${OPENAI_BASE_URL:-https://api.openai.com/v1}
+      OPENAI_MODEL_FLASH: ${OPENAI_MODEL_FLASH:-gpt-4.1-mini}
+      OPENAI_MODEL_THINKING: ${OPENAI_MODEL_THINKING:-gpt-5-mini}
+      OPENAI_MAX_TOKENS: ${OPENAI_MAX_TOKENS:-8192}
+      OPENAI_THINKING_MAX_TOKENS: ${OPENAI_THINKING_MAX_TOKENS:-16000}
+      OPENAI_FLASH_TEMPERATURE: ${OPENAI_FLASH_TEMPERATURE:-}
+      HF_EMBEDDING_MODEL: ${HF_EMBEDDING_MODEL:-BAAI/bge-m3}
+      HF_EMBEDDING_URL: ${HF_EMBEDDING_URL:-}
+      EMBEDDING_DIM: ${EMBEDDING_DIM:-1024}
       TAVILY_API_KEY: ${TAVILY_API_KEY}
       RESOURCE_ALLOWLIST_HOSTS: ${RESOURCE_ALLOWLIST_HOSTS:-}
       RESOURCE_ALLOWLIST_SCHEMES: ${RESOURCE_ALLOWLIST_SCHEMES:-https}
@@ -153,13 +161,10 @@ services:
       AI_API_RATE_BURST: ${AI_API_RATE_BURST:-10}
       WEB_URL: ${WEB_URL:-http://web:3000}
       ADMIN_URL: ${ADMIN_URL}
-      HF_HOME: /home/cervana/.cache/huggingface
       HF_TOKEN: ${HF_TOKEN}
       NODE_ENV: ${NODE_ENV:-production}
     ports:
       - "${AI_API_PORT:-3003}:3003"
-    volumes:
-      - hf_cache:/home/cervana/.cache/huggingface
     depends_on:
       redis:
         condition: service_healthy
@@ -174,13 +179,13 @@ services:
       retries: 3
       start_period: 60s
     networks:
-      - cervana_network
+      - reducera_network
 
   web:
     build:
-      context: ./web-cervana
+      context: ./apps/web
       dockerfile: Dockerfile
-    container_name: cervana_web
+    container_name: reducera_web
     restart: unless-stopped
     env_file:
       - .env
@@ -205,11 +210,11 @@ services:
       retries: 3
       start_period: 30s
     networks:
-      - cervana_network
+      - reducera_network
 
   nginx:
     image: nginx:1.27-alpine
-    container_name: cervana_nginx
+    container_name: reducera_nginx
     restart: unless-stopped
     env_file:
       - .env
@@ -217,8 +222,8 @@ services:
       - "${NGINX_HTTP_PORT:-80}:80"
       - "${NGINX_HTTPS_PORT:-443}:443"
     volumes:
-      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
-      - ./nginx/conf.d:/etc/nginx/conf.d:ro
+      - ./infra/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./infra/nginx/conf.d:/etc/nginx/conf.d:ro
       - nginx_logs:/var/log/nginx
     depends_on:
       web:
@@ -233,21 +238,19 @@ services:
       timeout: 5s
       retries: 3
     networks:
-      - cervana_network
+      - reducera_network
 
 networks:
-  cervana_network:
+  reducera_network:
     driver: bridge
-    name: cervana_network
+    name: reducera_network
 
 volumes:
   postgres_data:
-    name: cervana_postgres_data
+    name: reducera_postgres_data
   redis_data:
-    name: cervana_redis_data
+    name: reducera_redis_data
   qdrant_data:
-    name: cervana_qdrant_data
-  hf_cache:
-    name: cervana_hf_cache
+    name: reducera_qdrant_data
   nginx_logs:
-    name: cervana_nginx_logs
+    name: reducera_nginx_logs

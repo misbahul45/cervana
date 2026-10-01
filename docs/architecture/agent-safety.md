@@ -2,13 +2,13 @@
 
 > **Status**: `planned` · **Owner**: `security` · **Last reviewed**: `2026-09-30`
 >
-> Explicit safety, permission, and audit contract for every AI agent in Cervana. Production tools are classified; financial and external actions require deterministic policy validation.
+> Explicit safety, permission, and audit contract for every AI agent in ReduCera. Production tools are classified; financial and external actions require deterministic policy validation.
 
 ---
 
 ## 1. Purpose
 
-An AI agent that can call arbitrary tools is a **production risk**. The Cervana platform treats every AI agent as a least-privileged actor with:
+An AI agent that can call arbitrary tools is a **production risk**. The ReduCera platform treats every AI agent as a least-privileged actor with:
 
 - Declared tool allow-list.
 - Declared permission scope.

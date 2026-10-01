@@ -1,14 +1,14 @@
 ---
-name: cervana-agents
-description: Operating rules for Cervana Docker, deployment, environment, and code conventions
+name: reducera-agents
+description: Operating rules for ReduCera Docker, deployment, environment, and code conventions
 metadata:
-  owner: cervana
+  owner: reducera
   scope: project
   language: en
   authority: governing-policy
 ---
 
-# CERVANA Agent Operating Rules
+# REDUCERA Agent Operating Rules
 
 ## Environment Variables
 
@@ -20,20 +20,20 @@ metadata:
 - Rotate `COOKIE_SECRET`, `JWT_ACCESS_SECRET`, `JWT_REFRESH_SECRET` for every environment.
 - Generate secrets with `openssl rand -base64 48` or `python3 -c "import secrets; print(secrets.token_urlsafe(48))"`.
 - Service-to-service URLs use Docker service names (`postgres`, `redis`, `api`, `ai-api`, `qdrant`, `celery-worker`).
-- Browser-facing URLs (`NUXT_PUBLIC_*`, `PUBLIC_*`) use public host (`http://localhost` or `https://cervana.example.com`).
+- Browser-facing URLs (`NUXT_PUBLIC_*`, `PUBLIC_*`) use public host (`http://localhost` or `https://reducera.example.com`).
 
 ## Service Naming Convention
 
 | Service | Compose Name | Container Name | Internal Port | Host Port (dev) | Image (prod) |
 |---|---|---|---|---|---|
-| PostgreSQL | `postgres` | `cervana_postgres` | 5432 | 5433 | `postgres:15-alpine` |
-| Redis | `redis` | `cervana_redis` | 6379 | 6380 | `redis:7-alpine` |
-| Qdrant | `qdrant` | `cervana_qdrant` | 6333 | 6333 | `qdrant/qdrant:v1.12.4` |
-| NestJS API | `api` | `cervana_api` | 3002 | 3002 | `cervana/api:<tag>` |
-| FastAPI AI | `ai-api` | `cervana_ai_api` | 3003 | 3003 | `cervana/ai-api:<tag>` |
-| Celery Worker | `celery-worker` | `cervana_celery_worker` | — | — | `cervana/ai-api:<tag>` |
-| Nuxt Web | `web` | `cervana_web` | 3000 | 3000 | `cervana/web:<tag>` |
-| Nginx | `nginx` | `cervana_nginx` | 80, 443 | 80, 443 | `nginx:1.27-alpine` |
+| PostgreSQL | `postgres` | `reducera_postgres` | 5432 | 5433 | `postgres:15-alpine` |
+| Redis | `redis` | `reducera_redis` | 6379 | 6380 | `redis:7-alpine` |
+| Qdrant | `qdrant` | `reducera_qdrant` | 6333 | 6333 | `qdrant/qdrant:v1.12.4` |
+| NestJS API | `api` | `reducera_api` | 3002 | 3002 | `reducera/api:<tag>` |
+| FastAPI AI | `ai-api` | `reducera_ai_api` | 3003 | 3003 | `reducera/ai-api:<tag>` |
+| Celery Worker | `celery-worker` | `reducera_celery_worker` | — | — | `reducera/ai-api:<tag>` |
+| Nuxt Web | `web` | `reducera_web` | 3000 | 3000 | `reducera/web:<tag>` |
+| Nginx | `nginx` | `reducera_nginx` | 80, 443 | 80, 443 | `nginx:1.27-alpine` |
 
 ## Docker Compose Rules
 
@@ -43,7 +43,7 @@ metadata:
 - Never expose service ports directly to the host in `docker-compose.prod.yml`. Use `expose` only.
 - Only `nginx` exposes ports to the host.
 - Use named volumes for persistent data. Never use bind mounts for database or model data.
-- Networks: `cervana_network` for dev (single), `cervana_backend` + `cervana_frontend` for prod (split).
+- Networks: `reducera_network` for dev (single), `reducera_backend` + `reducera_frontend` for prod (split).
 - Logging driver: `json-file` with `max-size: 20m` and `max-file: 5`.
 - Production compose must declare `deploy.resources.limits` for memory and CPU.
 - Production must use image references (`image:`) not just `build:` for runtime rollback.
@@ -52,7 +52,7 @@ metadata:
 
 - Use multi-stage builds. Final stage named `runner`.
 - Use `dumb-init` or `tini` as `ENTRYPOINT` for proper signal handling.
-- Run as non-root user (`USER cervana`) in the runtime stage.
+- Run as non-root user (`USER reducera`) in the runtime stage.
 - Pin base image to a specific minor version (e.g. `node:20-alpine` not `node:latest`).
 - Use `--mount=type=cache,target=/root/.local/share/pnpm/store` for pnpm layer caching.
 - Copy only build artifacts (`dist`, `.output`, `build`) to the runtime stage.
@@ -70,6 +70,15 @@ metadata:
 - Use environment variables for all deployment-specific values.
 - Never commit secrets, tokens, API keys, or passwords to the repository.
 
+## Web Rendering Rules
+
+- `apps/web` renders on the server (`ssr: true`). Every page must put its meaningful content and its theme in the first HTML response.
+- During render, never use `Math.random()`, `Date.now()`, `window`, `document` or `localStorage`; derive decorative values from stable inputs. Browser-only code belongs in `onMounted` or `<ClientOnly>`.
+- Server-side requests use the internal URLs (`API_URL_INTERNAL`, `AI_API_INTERNAL_URL`), never the public `NUXT_PUBLIC_*` URLs, because `localhost` inside the web container is the container itself.
+- Never enable `swr`, `isr` or `prerender` on a page that renders user state; the Nitro cache key ignores cookies and would serve one user's page to another. Cache data payloads that are not user specific instead, with a short timeout and a bundled fallback so rendering never waits on a slow upstream.
+- The theme must render from static CSS when the API is unreachable, and the color scheme is stored in a cookie so the server renders the right class.
+- Load below-the-fold sections with lazy hydration and avoid duplicate requests: one key per dataset, hydrated from the server payload.
+
 ## Network Architecture
 
 - Browser → Nginx (port 80/443).
@@ -81,14 +90,14 @@ metadata:
 
 ## Service Ownership & Cross-Service Boundaries
 
-The Cervana platform follows a strict service-ownership model. Each service has exactly one primary domain. Boundaries are not negotiable; if a feature appears to require breaking one, the correct response is to add a new endpoint on the owner service, not to bypass the boundary.
+The ReduCera platform follows a strict service-ownership model. Each service has exactly one primary domain. Boundaries are not negotiable; if a feature appears to require breaking one, the correct response is to add a new endpoint on the owner service, not to bypass the boundary.
 
 ### Ownership table
 
 | Service | Sole owner of | May call | Must NOT |
 |---|---|---|---|
 | `api` (NestJS :3002) | PostgreSQL via Prisma; Redis (BullMQ queues); SSE bus; auth + authorization | PostgreSQL; Redis; `ai-api` over HTTP | LLM provider APIs directly; Qdrant client directly; any database other than its own Prisma connection |
-| `ai-api` (FastAPI :3003) | Qdrant collections (`cervana-embedding`, `cervana-memory`); LLM provider clients; Tavily client | Qdrant; LLM providers; Tavily; `api` over HTTP | Direct PostgreSQL/Prisma access; `DATABASE_URL` env var; any DB connection string |
+| `ai-api` (FastAPI :3003) | Qdrant collections (`reducera-embedding`, `reducera-memory`); LLM provider clients; Tavily client | Qdrant; LLM providers; Tavily; `api` over HTTP | Direct PostgreSQL/Prisma access; `DATABASE_URL` env var; any DB connection string |
 | `celery-worker` | inherits `ai-api` rules | same as `ai-api` | Direct PostgreSQL/Prisma access |
 | `web` (Nuxt :3000) | – | `api` and `ai-api` via Nginx | Anything else |
 | `nginx` | – | All upstream services | – |
@@ -98,7 +107,7 @@ The Cervana platform follows a strict service-ownership model. Each service has 
 1. **If `ai-api` needs DB data**, call `api` over HTTP with the original user's bearer token forwarded. Example: `requests.get(f"{ENVS['NEST_API']}/learning/user-steps/{id}", headers={"Authorization": f"Bearer {token}"})`.
 2. **If `api` needs AI capabilities** (embedding, generation, RAG, agent pipeline, structured-output), call `ai-api` over HTTP. Example: `POST /ai/v1/resources/extract?type=PDF&resource_id=...`.
 3. **Never** inject `DATABASE_URL` into `ai-api`'s environment. If the AI service needs data, it asks the API.
-4. **Never** inject `OPENAI_API_KEY`, `GEMINI_API_KEY`, or any LLM credential into `api`'s environment. If the API needs AI, it asks the AI service.
+4. **Never** inject `OPENAI_API_KEY`, `OPENAI_BASE_URL`, `HF_TOKEN`, or any LLM or embedding credential into `api`'s environment. If the API needs AI, it asks the AI service.
 5. **Service-to-service calls must forward the original user's auth token** so `api` can enforce ownership checks. Internal calls are not a privilege escalation.
 6. **Read-only DB projections** that `ai-api` legitimately needs (lesson, step, topic, learning style, personality quiz) are exposed as `api` endpoints and consumed over HTTP — never bypassed via direct DB access.
 7. **No shared Prisma client, no shared SQLAlchemy, no shared migration tool.** Each service owns its own data layer.
@@ -122,21 +131,32 @@ If you find code that violates these rules, refactor in this order:
 4. Verify the new path with a smoke test against the deployed stack.
 5. Update tests and documentation.
 
-**Known violation at audit time (2026-09-30)**:
+**Open violations**: none.
 
-- `cervana-api/src/common/lib/embeding.ts` — `splitAndEmbedding()` calls Gemini directly via `axios.post(...generativelanguage.googleapis.com...)`. Migrate to `ai-api` as `POST /ai/v1/embeddings/text` that accepts `{ texts: string[] }` and returns `number[][]`. Replace the call site in `api` with an HTTP POST to the new endpoint. Do this before adding any new LLM-dependent feature in `api`.
+**Resolved 2026-09-30**: `services/api/src/common/lib/embeding.ts` (Gemini via `axios`) had no callers and was deleted together with the unused `@langchain/*`, `langchain` and `axios` dependencies of `api`. The unused `@google/generative-ai` dependency was removed from `apps/web`.
+
+### AI providers
+
+- LLM calls use one OpenAI-compatible endpoint (the project uses the Flaz gateway, `https://ai.flaz.id/v1`, with a single key) through `langchain-openai`: `OPENAI_API_KEY`, `OPENAI_BASE_URL`.
+- The LLM has two modes. **Flash** (`OPENAI_MODEL_FLASH`, `OPENAI_MAX_TOKENS`, optional `OPENAI_FLASH_TEMPERATURE`) is the fast default, `pipeline.llm`: tutor streaming, summaries, chat replies, quiz generation. **Thinking** (`OPENAI_MODEL_THINKING`, `OPENAI_THINKING_MAX_TOKENS`) is a reasoning model, `pipeline.llm_thinking`: lesson content generation and learning-path planning; it never sends a temperature. `EmbeddingPipeline.llm_prompt` picks the mode from `enable_thinking`. Reasoning tokens count against the token budget, so the thinking budget is larger.
+- Model choice is measured, not guessed: see the benchmark in `docs/plans/reducera-v1-execution-plan.md` (section 3.4) and the scripts in `infra/scripts/llm-bench/`. Re-run them before changing a model.
+- Embeddings are computed remotely by Hugging Face Inference: `HF_TOKEN`, `HF_EMBEDDING_MODEL`, `HF_EMBEDDING_URL` (with a `{model}` placeholder), `EMBEDDING_DIM`. No embedding model runs inside a container.
+- Only `ai-api` and `celery-worker` receive these variables. Gemini is not used anywhere.
+- Changing `HF_EMBEDDING_MODEL` or `EMBEDDING_DIM` invalidates stored vectors. Point `QDRANT_COLLECTION` and `QDRANT_MEMORY_COLLECTION` at new names and re-embed; `ai-api` refuses to start when an existing collection has a different vector size.
+- A developer's personal `HF_TOKEN` lives only in the git-ignored root `.env` and is removed when the work ends.
 
 ### Detection
 
 When reviewing code or CI, the following grep patterns indicate a violation that must be fixed before merge:
 
 ```
-grep -rn "prisma\."            ai-api-cervana/   # direct DB access from ai-api
-grep -rn "DATABASE_URL"        ai-api-cervana/   # DB env var leaking into ai-api
-grep -rn "import.*prisma"      ai-api-cervana/   # shared ORM import
-grep -rn "openai|anthropic|google" cervana-api/   # direct LLM provider call from api
-grep -rn "qdrant_client|QdrantClient" cervana-api/ # direct Qdrant access from api
-grep -rn "ChatOpenAI|ChatGoogleGenerativeAI|ChatAnthropic" cervana-api/
+grep -rn "prisma\."            services/ai-api/   # direct DB access from ai-api
+grep -rn "DATABASE_URL"        services/ai-api/   # DB env var leaking into ai-api
+grep -rn "import.*prisma"      services/ai-api/   # shared ORM import
+grep -rn "openai|anthropic|google" services/api/   # direct LLM provider call from api
+grep -rn "qdrant_client|QdrantClient" services/api/ # direct Qdrant access from api
+grep -rn "ChatOpenAI|ChatGoogleGenerativeAI|ChatAnthropic" services/api/
+grep -rniE "GEMINI_API_KEY|generativelanguage|google.generativeai|langchain_google|GeminiEmbedding|ChatGoogleGenerativeAI" --exclude-dir=node_modules --exclude-dir=.venv --exclude-dir=__tests__ --exclude=*lock* services/ apps/ .env.example docker-compose.yml docker-compose.prod.yml
 ```
 
 Any non-empty result is a violation and must be resolved before merge.
@@ -157,7 +177,7 @@ Any non-empty result is a violation and must be resolved before merge.
 - Never edit files inside a running container. Edit on host then rebuild.
 - Never use `latest` tag for production images.
 - Never bypass healthcheck with `condition: service_started` for critical dependencies.
-- Never commit `.env`, `nginx/certs/`, or `qdrant/storage/`.
+- Never commit `.env`, `infra/nginx/certs/`, or `infra/qdrant/storage/`.
 - Never expose Postgres, Redis, or Qdrant ports to the host in production.
 - Never run containers as root in production.
 
@@ -169,10 +189,33 @@ Any non-empty result is a violation and must be resolved before merge.
 - `curl http://localhost/nginx-health` returns 200.
 - `curl http://localhost/api/v1/docs` returns Swagger UI.
 - Frontend loads at `http://localhost/`.
+- Web changes pass the Playwright matrix in "Web verification (Playwright MCP)".
+- Structural claims (callers, boundaries, removed code) are backed by `codebase-memory-mcp` evidence, see "Code audit (codebase-memory-mcp)".
+
+## Code audit (codebase-memory-mcp)
+
+- Audit with the `codebase-memory-mcp` graph before claiming anything about structure, callers or service boundaries. The project is listed by `list_projects` (currently `home-misbahul45-code-reducera`, root `/home/misbahul45/code/reducera`).
+- Order: `index_status` and `check_index_coverage` for every cited path, then `search_graph` to find symbols, `trace_path` (direction `inbound`) for callers, `get_code_snippet` for source, `search_code` for graph-ranked text search.
+- Re-run `index_repository` with `repo_path` set to the repo root after moves, renames or large changes, and confirm freshness with `check_index_coverage` (`freshness: metadata_match`).
+- The graph is best-effort. `parse_partial` files, dynamic imports and calls through instance attributes are blind spots: confirm every zero-caller or "does not exist" claim with `grep` and cite both.
+- Record in the report which files were checked by graph, which by grep, and any coverage gaps.
+
+## Web verification (Playwright MCP)
+
+Any change under `apps/web`, or any change that alters what the web renders, is verified in a real browser through the `playwright` MCP. `pnpm build` alone is not enough.
+
+1. Start the full stack with `docker compose up -d --build` (a web-only run floods the console with `ERR_CONNECTION_REFUSED` from the missing `api`) and confirm the URL answers.
+2. Drive it with `browser_navigate`, `browser_snapshot` (prefer the accessibility snapshot for assertions), `browser_take_screenshot`, `browser_resize`, `browser_emulate_media` (`colorScheme`, `reducedMotion`), `browser_press_key`, `browser_console_messages` and `browser_network_requests`.
+3. Minimum matrix for each changed page: viewports 375x812, 768x1024 and 1280x800; color scheme light and dark; `reducedMotion: reduce` once.
+4. Pass criteria: zero console errors; no failed requests to `api` or `ai-api` apart from the expected 401 before login; no horizontal scroll; `<html lang>` set, a `main` landmark and a level-1 heading in the snapshot; every interactive control reachable with Tab and a visible focus ring; body text contrast at least 4.5:1 (3:1 for large text and UI boundaries), measured with `browser_evaluate` on computed styles; with reduced motion, decorative animation is off.
+5. Pages behind login: sign in through the UI with a seeded test account. Never paste real credentials or store session data in the repo.
+6. Always pass `filename` as `.playwright-mcp/<name>.png`. A bare filename lands in the repo root as an untracked file. The folder is git-ignored; never commit its contents.
+7. A change that is meant to alter the look needs a before and after screenshot of the same page, viewport and color scheme, and the report states what visibly changed. "The build passes" is not evidence of a visual change.
+8. Report page, viewport, color scheme and result for each check. A skipped check is reported as skipped.
 
 ## Git Operations
 
-- The repository uses a **single root `.git`**. Never initialize or clone git inside service subdirectories (`cervana-api/`, `ai-api-cervana/`, `web-cervana/`).
+- The repository uses a **single root `.git`**. Never initialize or clone git inside service subdirectories (`services/api/`, `services/ai-api/`, `apps/web/`).
 - **Never run `git add`.** Staging is the owner's responsibility.
 - **Never run `git commit`.** Committing is the owner's responsibility.
 - **Never run `git push`, `git pull --rebase`, `git merge`, `git rebase`, `git reset --hard`, or `git stash drop` without explicit instruction.**

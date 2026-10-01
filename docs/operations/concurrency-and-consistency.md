@@ -2,7 +2,7 @@
 
 > **Status**: `planned` · **Owner**: `architect` · **Last reviewed**: `2026-09-30`
 >
-> Where Cervana has race conditions, what consistency guarantees are required, and how to enforce them.
+> Where ReduCera has race conditions, what consistency guarantees are required, and how to enforce them.
 
 ---
 
@@ -26,7 +26,7 @@ This audit inventories every place where:
 
 ### 2.1 Streak increment
 
-[`streaks.repo.ts:136-171`](../../cervana-api/src/v1/gamify/streaks/streaks.repo.ts)
+[`streaks.repo.ts:136-171`](../../services/api/src/v1/gamify/streaks/streaks.repo.ts)
 
 ```typescript
 async incrementOrReset(userId, activityType) {
@@ -55,7 +55,7 @@ await prisma.streakHistory.upsert({
 
 ### 2.2 Daily activity log
 
-[`daily-activity.interceptor.ts:13-49`](../../cervana-api/src/common/interceptors/daily-activity.interceptor.ts)
+[`daily-activity.interceptor.ts:13-49`](../../services/api/src/common/interceptors/daily-activity.interceptor.ts)
 
 ```typescript
 const existingLog = await this.dailyLogRepo.findToday(userId, start, end);
@@ -73,7 +73,7 @@ The `@@index([userId, date])` is **not** a unique constraint. Both inserts succe
 
 ### 2.3 Leaderboard score
 
-[`leaderboards.repo.ts:151-174`](../../cervana-api/src/v1/gamify/leaderboards/leaderboards.repo.ts)
+[`leaderboards.repo.ts:151-174`](../../services/api/src/v1/gamify/leaderboards/leaderboards.repo.ts)
 
 ```typescript
 async incrementScore(userId, leaderboardType, incrementBy) {
@@ -94,13 +94,13 @@ async incrementScore(userId, leaderboardType, incrementBy) {
 
 **Race**: two concurrent calls can both observe `findFirst === null` and both create. Two rows for the same `(userId, scope, ...)` violate the `@@unique` constraint.
 
-`@@unique([userId, scope, categoryId, topicId, subTopicId])` (from migration [`20251202230940_final_db/migration.sql`](../../cervana-api/prisma/migrations/20251202230940_final_db/migration.sql)) prevents one duplicate; but if two requests race past `findFirst`, both attempt to create, the second raises `P2002`.
+`@@unique([userId, scope, categoryId, topicId, subTopicId])` (from migration [`20251202230940_final_db/migration.sql`](../../services/api/prisma/migrations/20251202230940_final_db/migration.sql)) prevents one duplicate; but if two requests race past `findFirst`, both attempt to create, the second raises `P2002`.
 
 **Fix**: same upsert pattern.
 
 ### 2.4 Personality quiz double-submit
 
-[`personality-quizzes.service.ts:168`](../../cervana-api/src/v1/learning/personality-quizzes/personality-quizzes.service.ts)
+[`personality-quizzes.service.ts:168`](../../services/api/src/v1/learning/personality-quizzes/personality-quizzes.service.ts)
 
 After `submitAttempt` succeeds, the service enqueues `addUserStepsJob`. If the user double-clicks Submit, two POSTs to `/submit/:id` both succeed and both enqueue. The Celery worker generates user-steps twice.
 
@@ -180,7 +180,7 @@ If the second call fails (network error), the message status says `COMPLETED` bu
 
 ### 4.2 Order: queue user-steps then run generation
 
-[`knowledge.processor.ts`](../../cervana-api/src/v1/queue/queues/knowledge.processor.ts) calls `ai-api /resources/extract` then `ai-api /resources/embedding`. If extract succeeds but embedding fails (e.g., Qdrant down), the Celery task retries; but `ai-api` has already extracted once and is idempotent only via `extract_task` (3× backoff). The api side has no idempotency.
+[`knowledge.processor.ts`](../../services/api/src/v1/queue/queues/knowledge.processor.ts) calls `ai-api /resources/extract` then `ai-api /resources/embedding`. If extract succeeds but embedding fails (e.g., Qdrant down), the Celery task retries; but `ai-api` has already extracted once and is idempotent only via `extract_task` (3× backoff). The api side has no idempotency.
 
 **Fix**: each AI service endpoint must accept an `Idempotency-Key`. The Application API stores `(key, response)` for 24h.
 

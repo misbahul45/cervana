@@ -139,7 +139,7 @@ Phases defined in [`phased-roadmap.md`](./03-plans/phased-roadmap.md).
 
 | ID | Task | Priority | Status | Plan doc |
 |---|---|---|---|---|
-| PL-01 | Switch LLM from Gemini to langchain-openai (env-driven) | P1 | [ ] | [openai-migration.md](./03-plans/openai-migration.md) |
+| PL-01 | Switch LLM from Gemini to langchain-openai (env-driven) | P1 | [x] | [openai-migration.md](./03-plans/openai-migration.md) |
 | PL-02 | Implement `AdaptiveTutor` DSPy program | P2 | [ ] | [dspy-integration.md](./03-plans/dspy-integration.md) |
 | PL-03 | Add episode log + decision trace | P1 | [ ] | [target-state.md §4.9](./02-architecture/target-state.md) |
 | PL-04 | Build prompt registry with versioning | P1 | [ ] | [self-improving-llm.md §Layer 3](./03-plans/self-improving-llm.md) |
@@ -164,7 +164,7 @@ Phases defined in [`phased-roadmap.md`](./03-plans/phased-roadmap.md).
 | Q-04 | Optimization cadence: nightly (recommended) or weekly? | ops | [self-improving-llm.md §Layer 4](./03-plans/self-improving-llm.md) | _pending_ |
 | Q-05 | Frozen benchmark size: 50 (floor), 200 (comfortable), or larger? | research lead | [dspy-integration.md §5](./03-plans/dspy-integration.md) | _pending_ |
 | Q-06 | DSPy optimizer order: BootstrapFewShot → MIPRO → GEPA? | ML lead | [dspy-integration.md §7](./03-plans/dspy-integration.md) | _pending_ |
-| Q-07 | LLM provider: OpenAI (recommended) vs keep Gemini vs both behind `LLM_PROVIDER`? | product | [openai-migration.md §2](./03-plans/openai-migration.md) | _pending_ |
+| Q-07 | LLM provider: OpenAI (recommended) vs keep Gemini vs both behind `LLM_PROVIDER`? | product | [openai-migration.md §2](./03-plans/openai-migration.md) | decided 2026-09-30: OpenAI-compatible LLM, Hugging Face embeddings, no Gemini, no `LLM_PROVIDER` |
 | Q-08 | Qdrant embedding dimension: keep 768 (backward-compatible) vs migrate to 1536 (more accurate)? | architect | [openai-migration.md §5](./03-plans/openai-migration.md) | _pending_ |
 
 ---

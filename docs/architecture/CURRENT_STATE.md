@@ -3,16 +3,16 @@
 > **Phase 1 has since changed much of this. See [PHASE_1_REPORT](./PHASE_1_REPORT.md); this file describes the code as it was before Phase 1.** Corrections found later are listed in section 19.
 >
 > Phase 0 audit of the actual source tree. Audit date: 2026-09-30. Ground truth is code; existing docs were treated as input only.
-> Method: file/route/schema inspection, `pnpm test`, `tsc --noEmit`, plus the `codebase-memory-mcp` graph (project `home-misbahul45-code-cervana`, 4,526 nodes / 14,740 edges) for caller/writer tracing, cross-checked with grep. Graph limits: 5 files parse-partial (`topic-mastery-backfill.service.ts` line 18, nginx and SQL configs, one CSS file); graph `Route` nodes are HTTP client calls, not server routes, so the API route inventory comes from controllers. Not verified at runtime: Docker stack, Postgres migrations, AI service tests (see §14).
-> Detection greps from `AGENTS.md` were re-run: the only LLM call in `cervana-api` is `common/lib/embeding.ts` (other hits are Google OAuth); `ai-api` has no `DATABASE_URL` in compose or code.
+> Method: file/route/schema inspection, `pnpm test`, `tsc --noEmit`, plus the `codebase-memory-mcp` graph (project `home-misbahul45-code-reducera`, 4,526 nodes / 14,740 edges) for caller/writer tracing, cross-checked with grep. Graph limits: 5 files parse-partial (`topic-mastery-backfill.service.ts` line 18, nginx and SQL configs, one CSS file); graph `Route` nodes are HTTP client calls, not server routes, so the API route inventory comes from controllers. Not verified at runtime: Docker stack, Postgres migrations, AI service tests (see §14).
+> Detection greps from `AGENTS.md` were re-run: the only LLM call in `services/api` is `common/lib/embeding.ts` (other hits are Google OAuth); `ai-api` has no `DATABASE_URL` in compose or code.
 
 ## 1. Directory map
 
 | Path | Role |
 |---|---|
-| `cervana-api/` | NestJS 11 API, Prisma 7 schema (1214 lines, 6 migrations), `src/v1/*` feature modules, `src/common/*` |
-| `ai-api-cervana/` | FastAPI app (`main.py`), `v1/{learning,resources,users_steps}`, `config/`, `utils/tools/` |
-| `web-cervana/` | Nuxt 4 app: pages `(auth)`, `learn/*`, `my-learning/*`; Pinia stores `auth`, `learning`; `services/*` API clients |
+| `services/api/` | NestJS 11 API, Prisma 7 schema (1214 lines, 6 migrations), `src/v1/*` feature modules, `src/common/*` |
+| `services/ai-api/` | FastAPI app (`main.py`), `v1/{learning,resources,users_steps}`, `config/`, `utils/tools/` |
+| `apps/web/` | Nuxt 4 app: pages `(auth)`, `learn/*`, `my-learning/*`; Pinia stores `auth`, `learning`; `services/*` API clients |
 | `nginx/`, `postgres/`, `qdrant/` | infra config |
 | `docker-compose.yml`, `docker-compose.prod.yml` | dev / prod stacks |
 | `docs/` | planning docs; audit/plans/operations dirs renamed in working tree (uncommitted) |
@@ -21,7 +21,7 @@ No admin frontend exists (README and `ADMIN_URL` env refer to one that is absent
 
 ## 2. Tech stack
 
-NestJS 11, Prisma 7 + `@prisma/adapter-pg`, Zod 4 DTOs (`ZodPipe`), BullMQ + ioredis, Socket.IO and SSE controllers, Passport (JWT, Google), Arcjet `shield`, Cloudinary uploads, Resend email. Python 3.11, FastAPI, Celery, LangChain/LangGraph, LlamaIndex, Qdrant, Gemini (`langchain-google-genai`, `llama-index-embeddings-gemini`), Tavily, Whisper. Nuxt 4, Nuxt UI, Pinia, TanStack Query.
+NestJS 11, Prisma 7 + `@prisma/adapter-pg`, Zod 4 DTOs (`ZodPipe`), BullMQ + ioredis, Socket.IO and SSE controllers, Passport (JWT, Google), Arcjet `shield`, Cloudinary uploads, Resend email. Python 3.11, FastAPI, Celery, LangChain/LangGraph, LlamaIndex, Qdrant, `langchain-openai` (OpenAI-compatible LLM), Hugging Face Inference (embeddings), Tavily, Whisper. Nuxt 4, Nuxt UI, Pinia, TanStack Query.
 
 ## 3. Database model (Prisma)
 
@@ -74,7 +74,7 @@ Single global role on `User`. No tenant role, no membership, no tenant context o
 - `ai-api` exposes 3 routers under `/ai/v1`: `learning` (`/generate-material`, `/chat`), `users-steps` (`/generate-question`, `/generate`), `resources` (`/extract`, `/embedding/{id}`).
 - Endpoints read `Authorization` header, strip `Bearer`, and forward the raw token to `api` via `requests` (`NEST_API`). The AI service never validates the token itself; it depends on `api` rejecting bad tokens on the forwarded call. There is no service identity.
 - No DB access from `ai-api`: no `DATABASE_URL`, no Prisma/SQLAlchemy found. Boundary is respected in this direction.
-- LLM calls live in `ai-api` (Gemini). Known violation in the other direction: `cervana-api/src/common/lib/embeding.ts` calls Gemini via `axios` (already recorded in `AGENTS.md`).
+- LLM calls live in `ai-api` through an OpenAI-compatible endpoint; embeddings are computed by Hugging Face Inference (`services/ai-api/config/providers.py`). The former direct Gemini call in `api` was deleted on 2026-09-30.
 - Pipelines: `content_pipeline.py`, `generate_quiz_pipeline.py`, `generate_user_steps_pipeline.py` (LangChain/LangGraph). There is no agent runtime, tool registry, step/tool-call budget, or credit reservation.
 - `main.py` spawns a Celery worker via `subprocess.Popen` on FastAPI startup; the dev compose has no `celery-worker`; the prod compose has one. Two execution models.
 - `main.py` CORS uses `ADMIN_URL`/`WEB_URL` only.
@@ -85,9 +85,9 @@ Single global role on `User`. No tenant role, no membership, no tenant context o
 
 ## 11. Memory
 
-- Qdrant collection `cervana-memory` via `MemoryManager` (`config/memory_embedding.py`) with `userId` and `memory_type` metadata filters (per-user isolation at retrieval).
+- Qdrant collection `reducera-memory` via `MemoryManager` (`config/memory_embedding.py`) with `userId` and `memory_type` metadata filters (per-user isolation at retrieval).
 - `utils/tools/memory.py`: `tool_semantic_search` filters by lessonId after retrieving by user; a fallback variant returns cross-lesson items (logs a warning).
-- Prisma has typed memory tables (`Episodic`, `SemanticLearner`, `Procedural`) with `MemoryStatus`. Nothing writes them: the only Prisma write to any learner-model/AI table in `cervana-api/src` is `topicMasteryRecord.upsert` in `topic-mastery-backfill.service.ts` (graph query plus grep). No write policy and no TTL job exist.
+- Prisma has typed memory tables (`Episodic`, `SemanticLearner`, `Procedural`) with `MemoryStatus`. Nothing writes them: the only Prisma write to any learner-model/AI table in `services/api/src` is `topicMasteryRecord.upsert` in `topic-mastery-backfill.service.ts` (graph query plus grep). No write policy and no TTL job exist.
 `config/prompt_segmentation.py` provides prompt segmentation (`segment_retrieved`, `build_segmented_prompt`, used by `content_pipeline.generate_material`) and an instruction-injection detector (`looks_like_instruction`, `find_instruction_injection`, with tests). The detector has no production caller: it is not applied to memory writes or retrieved chunks.
 
 ## 12. Gamification
@@ -107,9 +107,9 @@ Single global role on `User`. No tenant role, no membership, no tenant context o
 
 | Check | Result |
 |---|---|
-| `pnpm test` in `cervana-api` | 8 suites: 1 passed, 7 failed; 17 tests pass, 1 fails. Four suites (`ownership.guard`, `topic-mastery-backfill`, `streak.service`, `daily-activity.interceptor`) fail with `Cannot find module '@/…'` because the jest config in `package.json` has no `moduleNameMapper` for the `@/*` alias. `contents.controller.spec.ts` fails type-checking of its mocks; `idempotency.service.spec.ts` fails for a cause not yet diagnosed. `quiz-evaluation.service.spec.ts` has one real assertion failure (case-study threshold 60% vs free-text 70%). Only `roles.guard.spec.ts` passes. |
-| `tsc --noEmit` in `cervana-api` | Fails only in `prisma/seed.ts` (4 errors) and in `contents.controller.spec.ts` mock typings. Application source under `src/` has no type errors. |
-| `pytest` in `ai-api-cervana` | Not run. `pytest` not installed (`uv run pytest` fails: dev dependency group not synced; no `.venv`). Tests exist: `tests/test_main.py`, `config/__tests__/*` (4 files), `utils/tools/__tests__/test_memory.py`. |
+| `pnpm test` in `services/api` | 8 suites: 1 passed, 7 failed; 17 tests pass, 1 fails. Four suites (`ownership.guard`, `topic-mastery-backfill`, `streak.service`, `daily-activity.interceptor`) fail with `Cannot find module '@/…'` because the jest config in `package.json` has no `moduleNameMapper` for the `@/*` alias. `contents.controller.spec.ts` fails type-checking of its mocks; `idempotency.service.spec.ts` fails for a cause not yet diagnosed. `quiz-evaluation.service.spec.ts` has one real assertion failure (case-study threshold 60% vs free-text 70%). Only `roles.guard.spec.ts` passes. |
+| `tsc --noEmit` in `services/api` | Fails only in `prisma/seed.ts` (4 errors) and in `contents.controller.spec.ts` mock typings. Application source under `src/` has no type errors. |
+| `pytest` in `services/ai-api` | Not run. `pytest` not installed (`uv run pytest` fails: dev dependency group not synced; no `.venv`). Tests exist: `tests/test_main.py`, `config/__tests__/*` (4 files), `utils/tools/__tests__/test_memory.py`. |
 | `nest build`, `nuxt build`, Docker stack, migrations on clean DB | Not run in this phase. |
 | Web tests | None defined. |
 
@@ -127,8 +127,8 @@ Single global role on `User`. No tenant role, no membership, no tenant context o
 
 - Two Celery start paths (subprocess in `main.py`, dedicated service in prod compose).
 - Two learner-state homes: `User` counters/`StreakHistory` vs new `LearnerGoal`/mastery tables; `LearningStyleProfile` and `PersonalityQuiz` vs `LearningPreference`.
-- `Content` embeddings (Postgres `Content`) vs Qdrant `cervana-embedding`.
-- Embedding by Gemini in both `api` (`embeding.ts`) and `ai-api`.
+- `Content` embeddings (Postgres `Content`) vs Qdrant `reducera-embedding`.
+- Embedding runs only in `ai-api`, via Hugging Face Inference (`BAAI/bge-m3`, 1024-dim by default).
 
 ## 17. Legacy modules and security gaps that block the V1 plan
 
@@ -143,7 +143,7 @@ Single global role on `User`. No tenant role, no membership, no tenant context o
 | S7 | RAG has no publication/tenant filter; forwarded user JWT is the only AI→API auth. | Medium (grows with marketplace) |
 | S8 | Memory fallback returns cross-lesson items. | Low |
 | S9 | `docker-compose.yml` gives `api` a `DATABASE_URL` default containing a literal placeholder password (`change_me_strong_random_password_min_24_chars`); `AGENTS.md` forbids hard-coded secrets in compose. | Low |
-| S10 | Browser calls `ai-api` directly through Nginx with the user's JWT (`web-cervana/app/lib/ai.ts`, `NUXT_PUBLIC_AI_URL`) and `ai-api` does not verify tokens itself. Any new agent endpoint must verify auth before spending credits. | Medium |
+| S10 | Browser calls `ai-api` directly through Nginx with the user's JWT (`apps/web/app/lib/ai.ts`, `NUXT_PUBLIC_AI_URL`) and `ai-api` does not verify tokens itself. Any new agent endpoint must verify auth before spending credits. | Medium |
 
 ## 18. Migration matrix (legacy → target)
 
@@ -177,7 +177,7 @@ Single global role on `User`. No tenant role, no membership, no tenant context o
 - **`POST /learning/user-topics` let a learner grant themselves any paid topic**, and `UpdateUserTopicDto` also accepted `userId` and `topicId`.
 - **SSE**: `SseJwtGuard` verified with `JWT_SECRET` (not configured anywhere) and every stream broadcast all users' events.
 - **`PrismaService` logged query parameters**; `ai-api` printed JWTs and queued them in Celery arguments.
-- **The dev database** (`cervana`) is empty, has 58 tables and no `_prisma_migrations` table, so `migrate deploy` needs a baseline first.
+- **The dev database** (`reducera`) is empty, has 58 tables and no `_prisma_migrations` table, so `migrate deploy` needs a baseline first.
 - **`schema.prisma` and the SQL migrations had drifted** (foreign keys without `ON UPDATE CASCADE`, missing index); reconciled by the first Phase 1 migration.
 - **`docker-compose.yml`** contains a default `DATABASE_URL` with a placeholder password (unchanged).
 
@@ -186,5 +186,5 @@ Single global role on `User`. No tenant role, no membership, no tenant context o
 - **Payment is now its own domain.** `PaymentIntent`, `PaymentTransaction`, `ManualPaymentSubmission` (linked to the intent) and `DomainEvent` sit between the order and everything that reacts to a paid order. The order-level `approve-payment`, `reject-payment` and `refund` of Phase 1 are gone; see [PAYMENT_ARCHITECTURE](./PAYMENT_ARCHITECTURE.md) and [PHASE_3_REPORT](./PHASE_3_REPORT.md). The row for `Order` and `Stripe webhook` in section 18 is superseded: the webhook route is now `POST /webhooks/payments/:provider` and answers `501`.
 - **`ManualPaymentSubmission`, `CreatorEarning`, `LedgerTransaction` and `Wallet` were empty tables** until this phase. Approval now writes the first three; wallets and payouts are still unused.
 - **Legacy `Order` unique index `(userId, topicId, status)` was a latent bug**: a user could not have two cancelled orders for the same topic. Dropped; duplicate open orders are prevented in the order-creation transaction.
-- **The web order page** (`web-cervana/app/pages/learn/topics/[identifier]/order.vue`) only displays status, amount, gateway and paid date. There is no checkout, proof upload or admin queue in the UI.
+- **The web order page** (`apps/web/app/pages/learn/topics/[identifier]/order.vue`) only displays status, amount, gateway and paid date. There is no checkout, proof upload or admin queue in the UI.
 - **Zod 4 `z.string().url()` accepts `javascript:` and `data:` URLs.** Any DTO that stores a URL should also constrain the scheme.

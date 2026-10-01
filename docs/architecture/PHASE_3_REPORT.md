@@ -1,6 +1,6 @@
 # Phase 3 report: provider-agnostic payment, manual provider first
 
-> Date: 2026-09-30. Scope: `cervana-api` (payments, orders, commerce, entitlements, events), migrations, compose and env templates, docs.
+> Date: 2026-09-30. Scope: `services/api` (payments, orders, commerce, entitlements, events), migrations, compose and env templates, docs.
 > Phase 2 (article and class services) was not started; orders can already sell articles and classes, but the tests create them with SQL.
 > `AGENTS.md` was not modified. Nothing was staged or committed by me.
 > Related: [PAYMENT_ARCHITECTURE](./PAYMENT_ARCHITECTURE.md), [ADR-008](../decisions/ADR-008-payment-provider-abstraction.md), [AUTHORIZATION_MATRIX](./AUTHORIZATION_MATRIX.md), [PHASE_1_REPORT](./PHASE_1_REPORT.md).
@@ -92,7 +92,7 @@ What the payment tests cover: order creation and pricing from the database; dupl
 
 Mutation check: removing the row locks makes both concurrency tests fail, so they do detect the defect they claim to.
 
-Not run this phase: the Python test suite (no change in `ai-api-cervana`), the web UI, and the Docker stack (only `docker compose config` for dev and prod, both valid).
+Not run this phase: the Python test suite (no change in `services/ai-api`), the web UI, and the Docker stack (only `docker compose config` for dev and prod, both valid).
 
 ## 7. Known gaps
 
@@ -115,7 +115,7 @@ Not run this phase: the Python test suite (no change in `ai-api-cervana`), the w
 1. Add to the root `.env`: `MANUAL_PAYMENT_ACCOUNTS` (JSON, real bank details), and optionally `PAYMENT_PROVIDER`, `PAYMENT_INTENT_TTL_MINUTES`, `PLATFORM_FEE_PERCENT`, `MANUAL_PAYMENT_MAX_SUBMISSIONS`. Without accounts, creating a paid order answers `503`.
 2. Confirm the platform fee (default 10%) and the payment window (default 24 h).
 3. Apply the two new migrations after baselining, as described in section 5 of the Phase 1 report.
-4. Scratch databases in the local container: `cervana_phase3_clean` (all migrations, contains test rows), `cervana_phase1_legacy` (migrated to head), `cervana_phase1_clean` (holds a failed migration record from the guard firing on leftover test rows; safe to drop). Drop them when done.
+4. Scratch databases in the local container: `reducera_phase3_clean` (all migrations, contains test rows), `reducera_phase1_legacy` (migrated to head), `reducera_phase1_clean` (holds a failed migration record from the guard firing on leftover test rows; safe to drop). Drop them when done.
 5. Stage and commit the remaining files: `.env.example`, both compose files, `AUTHORIZATION_MATRIX.md`, `CLAUDE.md`, `CURRENT_STATE.md`, `PHASE_1_REPORT.md`, and the three new documents. The code of this phase is already in commit `edb5f42`.
 
 ## 9. Recommended next phase

@@ -18,26 +18,26 @@ A formal tool-calling framework is **not** required for the current architecture
 
 | Tool | Module | Permission | Side effects | Failure mode | Notes |
 |---|---|---|---|---|---|
-| `EmbeddingPipeline.retrieve(query, metadata_filter, top_k)` | [`config/embedding_pipeline.py:231`](../../ai-api-cervana/config/embedding_pipeline.py) | R | none | Qdrant down → exception → caller swallows | `metadata_filter` exists but never populated |
-| `MemoryManager.upsert(user_id, text, memory_type, metadata)` | [`config/memory_embedding.py:65`](../../ai-api-cervana/config/memory_embedding.py) | W | writes to Qdrant `cervana-memory` | Qdrant down → exception | No write policy |
-| `MemoryManager.retrieve(user_id, top_k, memory_type)` | [`config/memory_embedding.py:90`](../../ai-api-cervana/config/memory_embedding.py) | R | none | Qdrant down → empty list | Includes user-filter at filter level |
-| `MemoryManager.retrieve_as_string(...)` | [`config/memory_embedding.py:128`](../../ai-api-cervana/config/memory_embedding.py) | R | none | inherits | Returns concatenated text |
-| `tool_semantic_search(userId, lessonId, top_k)` | [`utils/tools/memory.py:13`](../../ai-api-cervana/utils/tools/memory.py) | R | none | Qdrant down → empty list | ⚠ cross-lesson fallback bug |
-| `tool_memory_upsert(userId, lessonId, text)` | [`utils/tools/memory.py:40`](../../ai-api-cervana/utils/tools/memory.py) | W | writes to Qdrant | Qdrant down → logged error, swallowed | No policy |
-| `tool_memory_read(userId, lessonId, limit)` | [`utils/tools/memory.py:58`](../../ai-api-cervana/utils/tools/memory.py) | R | none | inherits | Sorted by timestamp |
-| `tool_web_search(query, limit)` | [`utils/tools/web_search.py:11`](../../ai-api-cervana/utils/tools/web_search.py) | R + EXTERNAL HTTP | calls Tavily API | network failure → "" returned | No domain allow-list |
-| `EmbeddingPipeline.llm.invoke(...)` (direct LLM call) | multiple files | COMPUTATION | external HTTP to Gemini/OpenAI | network or rate-limit → exception | Not a "tool" but acts as one |
-| `get_lesson(lessonId, token)` | [`v1/users_steps/service.py`](../../ai-api-cervana/v1/users_steps/service.py) | R | HTTP to NestJS | 4xx/5xx → `raise_for_status` | Forwarded bearer token |
+| `EmbeddingPipeline.retrieve(query, metadata_filter, top_k)` | [`config/embedding_pipeline.py:231`](../../services/ai-api/config/embedding_pipeline.py) | R | none | Qdrant down → exception → caller swallows | `metadata_filter` exists but never populated |
+| `MemoryManager.upsert(user_id, text, memory_type, metadata)` | [`config/memory_embedding.py:65`](../../services/ai-api/config/memory_embedding.py) | W | writes to Qdrant `reducera-memory` | Qdrant down → exception | No write policy |
+| `MemoryManager.retrieve(user_id, top_k, memory_type)` | [`config/memory_embedding.py:90`](../../services/ai-api/config/memory_embedding.py) | R | none | Qdrant down → empty list | Includes user-filter at filter level |
+| `MemoryManager.retrieve_as_string(...)` | [`config/memory_embedding.py:128`](../../services/ai-api/config/memory_embedding.py) | R | none | inherits | Returns concatenated text |
+| `tool_semantic_search(userId, lessonId, top_k)` | [`utils/tools/memory.py:13`](../../services/ai-api/utils/tools/memory.py) | R | none | Qdrant down → empty list | ⚠ cross-lesson fallback bug |
+| `tool_memory_upsert(userId, lessonId, text)` | [`utils/tools/memory.py:40`](../../services/ai-api/utils/tools/memory.py) | W | writes to Qdrant | Qdrant down → logged error, swallowed | No policy |
+| `tool_memory_read(userId, lessonId, limit)` | [`utils/tools/memory.py:58`](../../services/ai-api/utils/tools/memory.py) | R | none | inherits | Sorted by timestamp |
+| `tool_web_search(query, limit)` | [`utils/tools/web_search.py:11`](../../services/ai-api/utils/tools/web_search.py) | R + EXTERNAL HTTP | calls Tavily API | network failure → "" returned | No domain allow-list |
+| `EmbeddingPipeline.llm.invoke(...)` (direct LLM call) | multiple files | COMPUTATION | external HTTP to the OpenAI-compatible LLM | network or rate-limit → exception | Not a "tool" but acts as one |
+| `get_lesson(lessonId, token)` | [`v1/users_steps/service.py`](../../services/ai-api/v1/users_steps/service.py) | R | HTTP to NestJS | 4xx/5xx → `raise_for_status` | Forwarded bearer token |
 | `get_step(stepId, token)` | same | R | HTTP to NestJS | same | – |
 | `get_topic(topicId, token)` | same | R | HTTP to NestJS | same | – |
 | `get_learning_style(learningStyleId, token)` | same | R | HTTP to NestJS | same | – |
 | `get_personality_quiz(lessonId, userId, token)` | same | R | HTTP to NestJS | same | – |
 | `get_steps(lessonId, token)` | same | R | HTTP to NestJS | same | – |
-| `create_content_material(payload, token)` | [`v1/learning/service.py:78`](../../ai-api-cervana/v1/learning/service.py) | W | HTTP to NestJS | same | – |
-| `create_message_chat(payload, token)` | [`v1/learning/service.py:23`](../../ai-api-cervana/v1/learning/service.py) | W | HTTP to NestJS | same | – |
-| `update_message_chat(messageId, token, payload)` | [`v1/learning/service.py:13`](../../ai-api-cervana/v1/learning/service.py) | W | HTTP to NestJS | same | – |
-| `query_content_history(chatId, q, token)` | [`v1/learning/service.py:32`](../../ai-api-cervana/v1/learning/service.py) | R | HTTP to NestJS | endpoint missing → `if except: return []` | ⚠ BROKEN |
-| `create_personality_quiz(payload, token)` | [`v1/users_steps/service.py`](../../ai-api-cervana/v1/users_steps/service.py) | W | HTTP to NestJS | same | – |
+| `create_content_material(payload, token)` | [`v1/learning/service.py:78`](../../services/ai-api/v1/learning/service.py) | W | HTTP to NestJS | same | – |
+| `create_message_chat(payload, token)` | [`v1/learning/service.py:23`](../../services/ai-api/v1/learning/service.py) | W | HTTP to NestJS | same | – |
+| `update_message_chat(messageId, token, payload)` | [`v1/learning/service.py:13`](../../services/ai-api/v1/learning/service.py) | W | HTTP to NestJS | same | – |
+| `query_content_history(chatId, q, token)` | [`v1/learning/service.py:32`](../../services/ai-api/v1/learning/service.py) | R | HTTP to NestJS | endpoint missing → `if except: return []` | ⚠ BROKEN |
+| `create_personality_quiz(payload, token)` | [`v1/users_steps/service.py`](../../services/ai-api/v1/users_steps/service.py) | W | HTTP to NestJS | same | – |
 
 ---
 

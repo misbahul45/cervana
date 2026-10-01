@@ -2,7 +2,7 @@
 
 > **Status**: `stable` · **Owner**: `architect` · **Last reviewed**: `2026-09-30`
 >
-> Whether Cervana's two-service architecture actually maintains the boundary between **Application API (source of truth)** and **FastAPI AI (intelligence)**. This audit deepens findings from [`system-audit.md`](./system-audit.md) along the axes of *business-logic location*, *tool permissions*, *concurrency*, *cache safety*, and *prompt-injection defense*.
+> Whether ReduCera's two-service architecture actually maintains the boundary between **Application API (source of truth)** and **FastAPI AI (intelligence)**. This audit deepens findings from [`system-audit.md`](./system-audit.md) along the axes of *business-logic location*, *tool permissions*, *concurrency*, *cache safety*, and *prompt-injection defense*.
 
 ---
 
@@ -36,11 +36,11 @@ Findings are evidence-cited. Companion docs cover specific angles.
 
 | Service | Runtime | Port | Owns | Direct dependencies | Evidence |
 |---|---|---:|---|---|---|
-| `cervana-api` (Application API) | NestJS 11 + Prisma 7 | 3002 | Postgres, Redis (cache + queue), auth | `npm run build` | [`cervana-api/src/main.ts`](../../cervana-api/src/main.ts) |
-| `ai-api-cervana` (AI Service) | FastAPI + LangChain + LangGraph + Celery | 3003 | Qdrant collections, LLM provider, Tavily | [`ai-api-cervana/main.py`](../../ai-api-cervana/main.py) |
+| `services/api` (Application API) | NestJS 11 + Prisma 7 | 3002 | Postgres, Redis (cache + queue), auth | `npm run build` | [`services/api/src/main.ts`](../../services/api/src/main.ts) |
+| `services/ai-api` (AI Service) | FastAPI + LangChain + LangGraph + Celery | 3003 | Qdrant collections, LLM provider, Tavily | [`services/ai-api/main.py`](../../services/ai-api/main.py) |
 | `celery-worker` | Celery 5.5 | – | Embedding + LangGraph pipelines | [`docker-compose.prod.yml:236-266`](../../docker-compose.prod.yml) |
-| `web` | Nuxt 4 | 3000 | – | [`web-cervana/app/pages/`](../../web-cervana/app/pages/) |
-| `nginx` | Nginx 1.27 | 80/443 | – | [`nginx/nginx.conf`](../../nginx/nginx.conf) |
+| `web` | Nuxt 4 | 3000 | – | [`apps/web/app/pages/`](../../apps/web/app/pages/) |
+| `nginx` | Nginx 1.27 | 80/443 | – | [`infra/nginx/nginx.conf`](../../infra/nginx/nginx.conf) |
 | Postgres | PG 15 | 5432 (internal) | DB | [`docker-compose.yml:4-26`](../../docker-compose.yml) |
 | Redis | Redis 7 | 6379 (internal) | Cache + queue + broker | – |
 | Qdrant | Qdrant v1.12.4 | 6333 (internal) | Vector DB | – |
@@ -53,7 +53,7 @@ Capabilities and their correct owner, with current reality:
 
 | Capability | Correct owner | Current owner | Status | Evidence |
 |---|---|---|---|---|
-| Authentication | Application API | Application API | ✅ | [`auth.controller.ts`](../../cervana-api/src/v1/auth/auth.controller.ts) |
+| Authentication | Application API | Application API | ✅ | [`auth.controller.ts`](../../services/api/src/v1/auth/auth.controller.ts) |
 | Authorization (RBAC) | Application API | Application API | 🟡 partial (only `categories` + `resources` use `@Roles`) | See [`api-inventory.md`](./api-inventory.md) |
 | Authorization (ownership) | Application API | ❌ not enforced | ❌ | See [`api-inventory.md` §3.2](./api-inventory.md) |
 | User profile | Application API | Application API | ✅ | – |
@@ -66,7 +66,7 @@ Capabilities and their correct owner, with current reality:
 | Score / `isCorrect` | Application API | ❌ never set | ❌ | – |
 | Learning event | Application API | 🟡 partial | – |
 | Learner model (mastery, misconception) | Application API | ❌ not implemented | ❌ | – |
-| Memory (long-term) | AI Service | AI Service | 🟡 partial (Qdrant cervana-memory) | – |
+| Memory (long-term) | AI Service | AI Service | 🟡 partial (Qdrant reducera-memory) | – |
 | Memory schema authority | Application API | ❌ no schema | ❌ | – |
 | RAG corpus (curriculum) | AI Service | AI Service | ✅ | – |
 | RAG retrieval | AI Service | AI Service | ✅ | – |
@@ -113,12 +113,12 @@ Mapping current tables:
 | `Notification` | Application API | RAW DOMAIN | – |
 | `Order` | Application API | RAW DOMAIN | – |
 | `Theme`, `ThemeIcon` | Application API | RAW DOMAIN (visual config) | – |
-| Qdrant `cervana-embedding` | AI Service | EXTERNAL KNOWLEDGE | – |
-| Qdrant `cervana-memory` | AI Service | AI-DERIVED (learner state) | – |
+| Qdrant `reducera-embedding` | AI Service | EXTERNAL KNOWLEDGE | – |
+| Qdrant `reducera-memory` | AI Service | AI-DERIVED (learner state) | – |
 
 **Observation**: the system has only two states — RAW DOMAIN and AI-DERIVED (and even AI-DERIVED is minimal). There is **no AI EXPERIMENTAL STATE** at all. When DSPy is introduced, it must write candidate artifacts only into AI EXPERIMENTAL STATE, never into RAW DOMAIN.
 
-The `content_embeddings` raw SQL query in [`contents.repo.ts:80`](../../cervana-api/src/v1/chat/contents/contents.repo.ts) reads from a table that does not exist in the Prisma schema. This is either dead code or pre-existing AI EXPERIMENTAL STATE; either way it must be reconciled.
+The `content_embeddings` raw SQL query in [`contents.repo.ts:80`](../../services/api/src/v1/chat/contents/contents.repo.ts) reads from a table that does not exist in the Prisma schema. This is either dead code or pre-existing AI EXPERIMENTAL STATE; either way it must be reconciled.
 
 ---
 
@@ -129,16 +129,16 @@ CRITICAL RULE: the AI service must not connect directly to Postgres.
 Verification:
 
 ```bash
-grep -rn "DATABASE_URL\|prisma\|createPool\|pg\b" ai-api-cervana/ \
+grep -rn "DATABASE_URL\|prisma\|createPool\|pg\b" services/ai-api/ \
   --include="*.py" 2>/dev/null | grep -v __pycache__
 → 0 results
 ```
 
-The AI service does **not** import Prisma, SQLAlchemy, or any DB driver. All DB data is fetched via HTTP to the Application API using the user's bearer token (e.g., [`ai-api-cervana/v1/learning/service.py:13-86`](../../ai-api-cervana/v1/learning/service.py)).
+The AI service does **not** import Prisma, SQLAlchemy, or any DB driver. All DB data is fetched via HTTP to the Application API using the user's bearer token (e.g., [`services/ai-api/v1/learning/service.py:13-86`](../../services/ai-api/v1/learning/service.py)).
 
 **Verdict**: ✅ DB ownership is respected. The AI service is correctly isolated from Postgres.
 
-However, the Application API has one violation: [`cervana-api/src/common/lib/embeding.ts`](../../cervana-api/src/common/lib/embeding.ts) calls Gemini directly for embeddings. This is "AI logic in API layer" and must be migrated to the AI service per [`service-boundaries.md`](../03-plans/service-boundaries.md) §Migration.
+At audit time the Application API had one violation: `services/api/src/common/lib/embeding.ts` called Gemini directly for embeddings ("AI logic in API layer"). Resolved 2026-09-30: the file had no callers (graph `trace_path` inbound and `grep` both empty) and was deleted, together with the unused LLM dependencies of `api`.
 
 ---
 
@@ -150,14 +150,14 @@ Searching for rules that should be code:
 
 | Prompt hint | Business rule being asked of LLM | Where it should live | Risk |
 |---|---|---|---|
-| [`v1/learning/content_pipeline.py:148-152`](../../ai-api-cervana/v1/learning/content_pipeline.py) | Prompt says "if outside scope, respond with 'Maaf...' " | Should be a deterministic scope check before LLM call | high — LLM may ignore |
-| [`v1/users_steps/generate_user_steps_pipeline.py:344-352`](../../ai-api-cervana/v1/users_steps/generate_user_steps_pipeline.py) | LLM is told "OUTPUT MUST be JSON ONLY" and given a strict schema; no code validation before passing to `api` | Should be a JSON-schema validator on the LLM output before downstream use | high — empty `QuizResponse` is the fallback |
-| [`v1/users_steps/service.py:114-118`](../../ai-api-cervana/v1/users_steps/service.py) | `tool_memory_upsert` always writes regardless of content quality | Should be a write-policy gate based on extraction rules | medium — Qdrant memory will fill with low-value entries |
-| [`v1/users_steps/service.py:25-33`](../../ai-api-cervana/v1/users_steps/service.py) | `tool_semantic_search` falls back to top-5 unfiltered memory if lesson-scoped is empty | Should be a fallback decision, not silent | high — cross-lesson leak documented elsewhere |
-| [`v1/learning/content_pipeline.py:71`](../../ai-api-cervana/v1/learning/content_pipeline.py) | "use Indonesian, professional" — language is a UI contract | Should be a structured output schema with `language` field | low |
-| [`v1/learning/content_pipeline.py:177-205`](../../ai-api-cervana/v1/learning/content_pipeline.py) | "Panjang: 300-700 kata" — length is a UX constraint | Should be enforced via token-count validation | low |
-| [`v1/users_steps/generate_quiz_pipeline.py:60-141`](../../ai-api-cervana/v1/users_steps/generate_quiz_pipeline.py) | LLM is told "Material-Bound" but only by prompt | Should be a content filter on retrieved chunks before injection | medium — LLM may hallucinate beyond scope |
-| [`v1/learning/workers.py:73-80`](../../ai-api-cervana/v1/learning/workers.py) | "citatetions: []" hard-coded — citations are presented as if real but are empty | Should fail-fast if no citations were retrieved | critical — false-grounding risk |
+| [`v1/learning/content_pipeline.py:148-152`](../../services/ai-api/v1/learning/content_pipeline.py) | Prompt says "if outside scope, respond with 'Maaf...' " | Should be a deterministic scope check before LLM call | high — LLM may ignore |
+| [`v1/users_steps/generate_user_steps_pipeline.py:344-352`](../../services/ai-api/v1/users_steps/generate_user_steps_pipeline.py) | LLM is told "OUTPUT MUST be JSON ONLY" and given a strict schema; no code validation before passing to `api` | Should be a JSON-schema validator on the LLM output before downstream use | high — empty `QuizResponse` is the fallback |
+| [`v1/users_steps/service.py:114-118`](../../services/ai-api/v1/users_steps/service.py) | `tool_memory_upsert` always writes regardless of content quality | Should be a write-policy gate based on extraction rules | medium — Qdrant memory will fill with low-value entries |
+| [`v1/users_steps/service.py:25-33`](../../services/ai-api/v1/users_steps/service.py) | `tool_semantic_search` falls back to top-5 unfiltered memory if lesson-scoped is empty | Should be a fallback decision, not silent | high — cross-lesson leak documented elsewhere |
+| [`v1/learning/content_pipeline.py:71`](../../services/ai-api/v1/learning/content_pipeline.py) | "use Indonesian, professional" — language is a UI contract | Should be a structured output schema with `language` field | low |
+| [`v1/learning/content_pipeline.py:177-205`](../../services/ai-api/v1/learning/content_pipeline.py) | "Panjang: 300-700 kata" — length is a UX constraint | Should be enforced via token-count validation | low |
+| [`v1/users_steps/generate_quiz_pipeline.py:60-141`](../../services/ai-api/v1/users_steps/generate_quiz_pipeline.py) | LLM is told "Material-Bound" but only by prompt | Should be a content filter on retrieved chunks before injection | medium — LLM may hallucinate beyond scope |
+| [`v1/learning/workers.py:73-80`](../../services/ai-api/v1/learning/workers.py) | "citatetions: []" hard-coded — citations are presented as if real but are empty | Should fail-fast if no citations were retrieved | critical — false-grounding risk |
 
 **Verdict**: at least 4 cases (out-of-scope, citations, JSON schema, memory fallback) embed business rules in prompts. Each must be migrated to deterministic code.
 
@@ -170,8 +170,8 @@ Classifying existing AI state:
 | State | Where | Storage | Owner |
 |---|---|---|---|
 | Conversation (per request) | In-memory | Python dict | AI Service |
-| Memory (long-term) | Qdrant `cervana-memory` | Vector DB | AI Service |
-| Embeddings (RAG) | Qdrant `cervana-embedding` | Vector DB | AI Service |
+| Memory (long-term) | Qdrant `reducera-memory` | Vector DB | AI Service |
+| Embeddings (RAG) | Qdrant `reducera-embedding` | Vector DB | AI Service |
 | Memory of previous prompt versions | none | – | ❌ not implemented |
 | Memory of policy versions | none | – | ❌ not implemented |
 | Optimizer state | none | – | ❌ not implemented |
@@ -209,7 +209,7 @@ For every API endpoint that ai-api calls into api, classify:
 - **Error contract**: every call uses `raise_for_status`. There is no domain error mapping. When the user-facing API returns 500, the AI worker does not know if it is transient or permanent.
 - **Trace ID**: not propagated. The Application API has no `X-Trace-Id` header, the AI service does not emit one.
 
-**Critical gap**: the `if except: return []` in [`learning/service.py:32-51`](../../ai-api-cervana/v1/learning/service.py) silently masks errors. The tutor pipeline continues with empty chat history.
+**Critical gap**: the `if except: return []` in [`learning/service.py:32-51`](../../services/ai-api/v1/learning/service.py) silently masks errors. The tutor pipeline continues with empty chat history.
 
 ---
 
@@ -219,11 +219,11 @@ The "agents" use these tools (read or write to what):
 
 | Tool | Where defined | Purpose | Permissions | Side effects |
 |---|---|---|---|---|
-| `EmbeddingPipeline.retrieve` | [`config/embedding_pipeline.py:231-255`](../../ai-api-cervana/config/embedding_pipeline.py) | Vector search over `cervana-embedding` | R | none |
-| `tool_web_search` | [`utils/tools/web_search.py`](../../ai-api-cervana/utils/tools/web_search.py) | Tavily search | R | external HTTP to Tavily |
-| `MemoryManager.upsert` | [`config/memory_embedding.py:65-88`](../../ai-api-cervana/config/memory_embedding.py) | Insert into `cervana-memory` | W | writes to vector store |
-| `MemoryManager.retrieve` | [`config/memory_embedding.py:90-126`](../../ai-api-cervana/config/memory_embedding.py) | Retrieve from `cervana-memory` | R | none |
-| REST GETs (lesson, step, etc.) | [`v1/users_steps/service.py`](../../ai-api-cervana/v1/users_steps/service.py) | Read learner state from api | R | none |
+| `EmbeddingPipeline.retrieve` | [`config/embedding_pipeline.py:231-255`](../../services/ai-api/config/embedding_pipeline.py) | Vector search over `reducera-embedding` | R | none |
+| `tool_web_search` | [`utils/tools/web_search.py`](../../services/ai-api/utils/tools/web_search.py) | Tavily search | R | external HTTP to Tavily |
+| `MemoryManager.upsert` | [`config/memory_embedding.py:65-88`](../../services/ai-api/config/memory_embedding.py) | Insert into `reducera-memory` | W | writes to vector store |
+| `MemoryManager.retrieve` | [`config/memory_embedding.py:90-126`](../../services/ai-api/config/memory_embedding.py) | Retrieve from `reducera-memory` | R | none |
+| REST GETs (lesson, step, etc.) | [`v1/users_steps/service.py`](../../services/ai-api/v1/users_steps/service.py) | Read learner state from api | R | none |
 | REST POSTs (`/chat/contents`, `/learning/personality-quizzes`) | `workers.py` | Write AI output | W | persistent DB writes |
 
 **Findings**:
@@ -231,7 +231,7 @@ The "agents" use these tools (read or write to what):
 - All tools are **R or W** (read or write). There are **no EXTERNAL ACTION** tools — no agent can send email, place an order, change billing.
 - This is correct (lowest privilege), but also reflects that the agents are **content generators**, not autonomous actors.
 - The Tavily tool is unbounded — `limit=10` per call but no domain allow-list. A malicious tutor could embed instructions in a public website that gets retrieved and fed to the LLM.
-- The `MemoryManager.upsert` is called on every LLM output (see [`config/memory_embedding.py:65-88`](../../ai-api-cervana/config/memory_embedding.py)). It has no write policy. The caller (`utils/tools/memory.py:40-55`) wraps it but doesn't add filtering either.
+- The `MemoryManager.upsert` is called on every LLM output (see [`config/memory_embedding.py:65-88`](../../services/ai-api/config/memory_embedding.py)). It has no write policy. The caller (`utils/tools/memory.py:40-55`) wraps it but doesn't add filtering either.
 
 The AI service does **not** use any formal tool-calling framework (no `bind_tools`, no `ToolNode`). Tools are imported as Python functions and called from LangGraph node bodies. This means there is no per-tool permission or sandbox; if a node function calls something, it calls it.
 
@@ -378,7 +378,7 @@ Hard rule: **no loop writes to `prompt_versions` without `decidedBy = human`** a
 
 | Area | Current | Target | Gap | Severity | Action |
 |---|---|---|---|---|---|
-| Microservice boundaries | mostly correct | enforced | `embeding.ts` direct Gemini call | CRITICAL | migrate to `ai-api` |
+| Microservice boundaries | mostly correct | enforced | `embeding.ts` direct Gemini call (resolved 2026-09-30, file deleted) | CRITICAL | none open |
 | DB ownership | ✅ correct | correct | none | – | – |
 | Business logic in prompts | at least 4 cases | 0 cases | out-of-scope, citations, schema, memory fallback | HIGH | move to deterministic code |
 | Tool permissions | all tools R or W | same | no formal tool-calling framework | MEDIUM | introduce `bind_tools` if going agentic |

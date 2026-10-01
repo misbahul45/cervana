@@ -1,6 +1,6 @@
 # Phase 1 report: security, authorization, tenant and domain foundation
 
-> Date: 2026-09-30. Scope: `cervana-api`, `ai-api-cervana` (auth and resource flow only), compose and env templates, docs.
+> Date: 2026-09-30. Scope: `services/api`, `services/ai-api` (auth and resource flow only), compose and env templates, docs.
 > Nothing was staged or committed. `AGENTS.md` was not modified (see [ADR-007](../decisions/ADR-007-ai-api-service-boundary.md) for the proposed change).
 > Superseded in part by [PHASE_3_REPORT](./PHASE_3_REPORT.md): order-level `approve-payment`, `reject-payment` and `refund` were replaced by payment review (`/admin/payments/...`), the order state table gained `FULFILLED` and `REFUND_PENDING`, and the authorization matrix now lists 195 routes.
 > Related: [CURRENT_STATE](./CURRENT_STATE.md), [TARGET_STATE](./TARGET_STATE.md), [AUTHORIZATION_MATRIX](./AUTHORIZATION_MATRIX.md), [ADR-001](../decisions/ADR-001-multi-tenancy-model.md).
@@ -80,12 +80,12 @@ Database invariants proven against real Postgres, including races: one APPROVED 
 Run them:
 
 ```bash
-cd cervana-api
+cd services/api
 pnpm test                                                        # unit and HTTP tests
-export TEST_DATABASE_URL=postgresql://<user>:<pw>@localhost:5433/cervana_phase1_clean
-export TEST_LEGACY_DATABASE_URL=postgresql://<user>:<pw>@localhost:5433/cervana_phase1_legacy
+export TEST_DATABASE_URL=postgresql://<user>:<pw>@localhost:5433/reducera_phase1_clean
+export TEST_LEGACY_DATABASE_URL=postgresql://<user>:<pw>@localhost:5433/reducera_phase1_legacy
 pnpm test                                                        # adds DB and legacy-data suites
-cd ../ai-api-cervana
+cd ../services/ai-api
 uv run --no-project --with pytest --with requests --with fastapi --with python-dotenv --with pydantic --with httpx pytest -q config/__tests__
 ```
 
@@ -107,7 +107,7 @@ All changes are additive except `Order.topicId` losing `NOT NULL`. No `DROP` of 
 Applying to the existing dev database (empty, 58 tables, no `_prisma_migrations`):
 
 ```bash
-cd cervana-api
+cd services/api
 export DATABASE_URL=<dev database url>
 for m in 20251202032210_final_db 20251202230940_final_db 20260115090000_idempotency_key 20260115100000_domain_model 20260115110000_content_job_fields; do
   npx prisma migrate resolve --applied $m
@@ -115,7 +115,7 @@ done
 npx prisma migrate deploy
 ```
 
-This exact sequence was rehearsed on `cervana_phase1_legacy`. Back up first if the database ever holds data.
+This exact sequence was rehearsed on `reducera_phase1_legacy`. Back up first if the database ever holds data.
 
 ## 6. Known gaps and risks
 
@@ -134,7 +134,7 @@ This exact sequence was rehearsed on `cervana_phase1_legacy`. Back up first if t
 13. **Pre-existing test failures in `ai-api`** (4 `embedding_pipeline` need `llama_index`, absent from my throwaway environment; 4 `rate_limit` above). `pytest` is not installed in the repo environment (`uv sync --group dev` was not run).
 14. **The injection detector and the memory tables have no production callers.** The detector is not applied to memory writes or retrieved chunks; nothing writes learner memory, episodes or decision traces yet.
 15. **Other**: `PUT /learning/user-topics/:id` is called by the web app but the API defines `PATCH` (update never worked); non-production error responses include stack traces; the request logger prints full URLs; row-level security is not implemented; tenant `EDITOR` and invitation flows are not built.
-16. **Scratch databases** `cervana_phase1_clean` and `cervana_phase1_legacy` exist in the local Postgres container for the integration tests. Drop them with `DROP DATABASE` when no longer needed. The dev database `cervana` was only read.
+16. **Scratch databases** `reducera_phase1_clean` and `reducera_phase1_legacy` exist in the local Postgres container for the integration tests. Drop them with `DROP DATABASE` when no longer needed. The dev database `reducera` was only read.
 
 ## 7. Recommended next phase
 

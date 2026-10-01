@@ -22,10 +22,10 @@ This plan assumes:
 
 Files affected:
 
-- `ai-api-cervana/pyproject.toml` (add `dspy`)
-- `ai-api-cervana/v1/tutor/dspy_module.py` (new)
-- `ai-api-cervana/v1/tutor/optimizer.py` (new)
-- `ai-api-cervana/v1/tutor/benchmark_runner.py` (new)
+- `services/ai-api/pyproject.toml` (add `dspy`)
+- `services/ai-api/v1/tutor/dspy_module.py` (new)
+- `services/ai-api/v1/tutor/optimizer.py` (new)
+- `services/ai-api/v1/tutor/benchmark_runner.py` (new)
 - `api/src/v1/optimization/acceptance-gate.service.ts` (new)
 - `api/src/v1/optimization/optimization-runner.service.ts` (new)
 - `api/src/v1/optimization/canary.service.ts` (new)

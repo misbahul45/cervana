@@ -1,4 +1,4 @@
-name: cervana_prod
+name: reducera_prod
 
 x-image-tag: &image_tag ${IMAGE_TAG:-latest}
 
@@ -14,29 +14,29 @@ x-restart: &default_restart
 services:
   postgres:
     image: postgres:15-alpine
-    container_name: cervana_postgres
+    container_name: reducera_postgres
     <<: *default_restart
     env_file:
       - .env
     environment:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      POSTGRES_DB: ${POSTGRES_DB:-cervana}
+      POSTGRES_DB: ${POSTGRES_DB:-reducera}
       PGDATA: /var/lib/postgresql/data/pgdata
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./postgres/init:/docker-entrypoint-initdb.d:ro
+      - ./infra/postgres/init:/docker-entrypoint-initdb.d:ro
     expose:
       - "5432"
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB:-cervana}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB:-reducera}"]
       interval: 15s
       timeout: 5s
       retries: 5
       start_period: 15s
     logging: *default_logging
     networks:
-      - cervana_backend
+      - reducera_backend
     deploy:
       resources:
         limits:
@@ -47,7 +47,7 @@ services:
 
   redis:
     image: redis:7-alpine
-    container_name: cervana_redis
+    container_name: reducera_redis
     <<: *default_restart
     env_file:
       - .env
@@ -64,7 +64,7 @@ services:
       start_period: 5s
     logging: *default_logging
     networks:
-      - cervana_backend
+      - reducera_backend
     deploy:
       resources:
         limits:
@@ -73,13 +73,13 @@ services:
 
   qdrant:
     image: qdrant/qdrant:v1.12.4
-    container_name: cervana_qdrant
+    container_name: reducera_qdrant
     <<: *default_restart
     env_file:
       - .env
     volumes:
       - qdrant_data:/qdrant/storage
-      - ./qdrant/config.yaml:/qdrant/config/config.yaml:ro
+      - ./infra/qdrant/config.yaml:/qdrant/config/config.yaml:ro
     expose:
       - "6333"
       - "6334"
@@ -91,7 +91,7 @@ services:
       start_period: 30s
     logging: *default_logging
     networks:
-      - cervana_backend
+      - reducera_backend
     deploy:
       resources:
         limits:
@@ -99,11 +99,11 @@ services:
           cpus: "1.5"
 
   api:
-    image: cervana/api:${IMAGE_TAG:-latest}
+    image: reducera/api:${IMAGE_TAG:-latest}
     build:
-      context: ./cervana-api
+      context: ./services/api
       dockerfile: Dockerfile
-    container_name: cervana_api
+    container_name: reducera_api
     <<: *default_restart
     env_file:
       - .env
@@ -116,6 +116,7 @@ services:
       API_INTERNAL_URL: ${API_INTERNAL_URL:-http://api:3002}
       FRONTEND_URL: ${FRONTEND_URL}
       ADMIN_URL: ${ADMIN_URL}
+      CORS_EXTRA_ORIGINS: ${CORS_EXTRA_ORIGINS:-}
       COOKIE_SECRET: ${COOKIE_SECRET}
       JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET}
       INTERNAL_AI_API_SECRET: ${INTERNAL_AI_API_SECRET}
@@ -156,8 +157,8 @@ services:
       start_period: 60s
     logging: *default_logging
     networks:
-      - cervana_backend
-      - cervana_frontend
+      - reducera_backend
+      - reducera_frontend
     deploy:
       resources:
         limits:
@@ -167,8 +168,8 @@ services:
           memory: 512M
 
   api-migrate:
-    image: cervana/api:${IMAGE_TAG:-latest}
-    container_name: cervana_api_migrate
+    image: reducera/api:${IMAGE_TAG:-latest}
+    container_name: reducera_api_migrate
     profiles: ["migrate"]
     env_file:
       - .env
@@ -180,15 +181,15 @@ services:
         condition: service_healthy
     entrypoint: ["node", "node_modules/prisma/build/index.js", "migrate", "deploy"]
     networks:
-      - cervana_backend
+      - reducera_backend
     restart: "no"
 
   ai-api:
-    image: cervana/ai-api:${IMAGE_TAG:-latest}
+    image: reducera/ai-api:${IMAGE_TAG:-latest}
     build:
-      context: ./ai-api-cervana
+      context: ./services/ai-api
       dockerfile: Dockerfile
-    container_name: cervana_ai_api
+    container_name: reducera_ai_api
     <<: *default_restart
     env_file:
       - .env
@@ -202,11 +203,18 @@ services:
       CELERY_RESULT_BACKEND: ${CELERY_RESULT_BACKEND:-redis://redis:6379/0}
       QDRANT_URL: ${QDRANT_URL:-http://qdrant:6333}
       QDRANT_API_KEY: ${QDRANT_API_KEY}
-      QDRANT_COLLECTION: ${QDRANT_COLLECTION:-cervana-embedding}
-      QDRANT_MEMORY_COLLECTION: ${QDRANT_MEMORY_COLLECTION:-cervana-memory}
-      GEMINI_API_KEY: ${GEMINI_API_KEY}
+      QDRANT_COLLECTION: ${QDRANT_COLLECTION:-reducera-embedding}
+      QDRANT_MEMORY_COLLECTION: ${QDRANT_MEMORY_COLLECTION:-reducera-memory}
       OPENAI_API_KEY: ${OPENAI_API_KEY}
-      EMBEDDING_MODEL: ${EMBEDDING_MODEL:-models/text-embedding-004}
+      OPENAI_BASE_URL: ${OPENAI_BASE_URL:-https://api.openai.com/v1}
+      OPENAI_MODEL_FLASH: ${OPENAI_MODEL_FLASH:-gpt-4.1-mini}
+      OPENAI_MODEL_THINKING: ${OPENAI_MODEL_THINKING:-gpt-5-mini}
+      OPENAI_MAX_TOKENS: ${OPENAI_MAX_TOKENS:-8192}
+      OPENAI_THINKING_MAX_TOKENS: ${OPENAI_THINKING_MAX_TOKENS:-16000}
+      OPENAI_FLASH_TEMPERATURE: ${OPENAI_FLASH_TEMPERATURE:-}
+      HF_EMBEDDING_MODEL: ${HF_EMBEDDING_MODEL:-BAAI/bge-m3}
+      HF_EMBEDDING_URL: ${HF_EMBEDDING_URL:-}
+      EMBEDDING_DIM: ${EMBEDDING_DIM:-1024}
       TAVILY_API_KEY: ${TAVILY_API_KEY}
       RESOURCE_ALLOWLIST_HOSTS: ${RESOURCE_ALLOWLIST_HOSTS:-}
       RESOURCE_ALLOWLIST_SCHEMES: ${RESOURCE_ALLOWLIST_SCHEMES:-https}
@@ -215,13 +223,10 @@ services:
       AI_API_RATE_BURST: ${AI_API_RATE_BURST:-10}
       WEB_URL: ${WEB_URL:-http://web:3000}
       ADMIN_URL: ${ADMIN_URL}
-      HF_HOME: /home/cervana/.cache/huggingface
       HF_TOKEN: ${HF_TOKEN}
       NODE_ENV: production
     expose:
       - "3003"
-    volumes:
-      - hf_cache:/home/cervana/.cache/huggingface
     depends_on:
       redis:
         condition: service_healthy
@@ -237,8 +242,8 @@ services:
       start_period: 90s
     logging: *default_logging
     networks:
-      - cervana_backend
-      - cervana_frontend
+      - reducera_backend
+      - reducera_frontend
     deploy:
       resources:
         limits:
@@ -246,8 +251,8 @@ services:
           cpus: "2.0"
 
   celery-worker:
-    image: cervana/ai-api:${IMAGE_TAG:-latest}
-    container_name: cervana_celery_worker
+    image: reducera/ai-api:${IMAGE_TAG:-latest}
+    container_name: reducera_celery_worker
     <<: *default_restart
     env_file:
       - .env
@@ -257,11 +262,8 @@ services:
       CELERY_RESULT_BACKEND: ${CELERY_RESULT_BACKEND:-redis://redis:6379/0}
       CELERY_WORKER_CONCURRENCY: ${CELERY_WORKER_CONCURRENCY:-2}
       CELERY_WORKER_PREFETCH_MULTIPLIER: ${CELERY_WORKER_PREFETCH_MULTIPLIER:-1}
-      HF_HOME: /home/cervana/.cache/huggingface
       HF_TOKEN: ${HF_TOKEN}
       NODE_ENV: production
-    volumes:
-      - hf_cache:/home/cervana/.cache/huggingface
     depends_on:
       redis:
         condition: service_healthy
@@ -270,7 +272,7 @@ services:
     command: ["celery", "-A", "config.celery:celery_app", "worker", "--loglevel=info", "--concurrency=2"]
     logging: *default_logging
     networks:
-      - cervana_backend
+      - reducera_backend
     deploy:
       resources:
         limits:
@@ -278,11 +280,11 @@ services:
           cpus: "3.0"
 
   web:
-    image: cervana/web:${IMAGE_TAG:-latest}
+    image: reducera/web:${IMAGE_TAG:-latest}
     build:
-      context: ./web-cervana
+      context: ./apps/web
       dockerfile: Dockerfile
-    container_name: cervana_web
+    container_name: reducera_web
     <<: *default_restart
     env_file:
       - .env
@@ -308,7 +310,7 @@ services:
       start_period: 30s
     logging: *default_logging
     networks:
-      - cervana_frontend
+      - reducera_frontend
     deploy:
       resources:
         limits:
@@ -317,15 +319,15 @@ services:
 
   nginx:
     image: nginx:1.27-alpine
-    container_name: cervana_nginx
+    container_name: reducera_nginx
     <<: *default_restart
     env_file:
       - .env
     ports:
       - "${NGINX_HTTP_PORT:-80}:80"
     volumes:
-      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
-      - ./nginx/conf.d:/etc/nginx/conf.d:ro
+      - ./infra/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./infra/nginx/conf.d:/etc/nginx/conf.d:ro
       - nginx_logs:/var/log/nginx
     depends_on:
       web:
@@ -341,7 +343,7 @@ services:
       retries: 3
     logging: *default_logging
     networks:
-      - cervana_frontend
+      - reducera_frontend
     deploy:
       resources:
         limits:
@@ -349,21 +351,19 @@ services:
           cpus: "0.3"
 
 networks:
-  cervana_backend:
+  reducera_backend:
     driver: bridge
-    name: cervana_backend
-  cervana_frontend:
+    name: reducera_backend
+  reducera_frontend:
     driver: bridge
-    name: cervana_frontend
+    name: reducera_frontend
 
 volumes:
   postgres_data:
-    name: cervana_postgres_data
+    name: reducera_postgres_data
   redis_data:
-    name: cervana_redis_data
+    name: reducera_redis_data
   qdrant_data:
-    name: cervana_qdrant_data
-  hf_cache:
-    name: cervana_hf_cache
+    name: reducera_qdrant_data
   nginx_logs:
-    name: cervana_nginx_logs
+    name: reducera_nginx_logs

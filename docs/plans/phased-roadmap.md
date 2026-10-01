@@ -2,13 +2,13 @@
 
 > **Status**: `planned` · **Owner**: `architect` · **Last reviewed**: `2026-09-30`
 >
-> 13-phase ordered roadmap to take Cervana from current state to a research-grade, self-improving educational agent.
+> 13-phase ordered roadmap to take ReduCera from current state to a research-grade, self-improving educational agent.
 
 ---
 
 ## 1. Objective
 
-Define an ordered, dependency-aware sequence of phases that converts the current Cervana codebase (see [`docs/01-audit/system-audit.md`](../01-audit/system-audit.md)) into the target architecture (see [`docs/02-architecture/target-state.md`](../02-architecture/target-state.md)). Each phase has explicit acceptance criteria; downstream phases assume upstream phases are stable.
+Define an ordered, dependency-aware sequence of phases that converts the current ReduCera codebase (see [`docs/01-audit/system-audit.md`](../01-audit/system-audit.md)) into the target architecture (see [`docs/02-architecture/target-state.md`](../02-architecture/target-state.md)). Each phase has explicit acceptance criteria; downstream phases assume upstream phases are stable.
 
 This is a **roadmap**, not a sprint plan. Phases may take 1–4 weeks each depending on team size.
 
@@ -46,29 +46,29 @@ Close every CRITICAL finding from the audit so the system can run reliably enoug
 
 Files affected:
 
-- `cervana-api/src/v1/chat/contents/` (resolve C-002, C-003)
-- `cervana-api/src/v1/chat/chat-messages/` (resolve C-002, C-003)
-- `cervana-api/src/v1/quiz/quiz-attempts/`, `cervana-api/src/v1/quiz/answers/` (resolve C-004)
-- `ai-api-cervana/v1/learning/service.py` (resolve C-001)
-- `cervana-api/src/v1/learning/user-steps/`, `cervana-api/src/v1/chat/`, `cervana-api/src/v1/material/` (resolve C-007)
-- `cervana-api/test/`, `ai-api-cervana/tests/` (resolve C-006)
-- `ai-api-cervana/utils/tools/memory.py` (resolve C-005)
-- `cervana-api/src/common/interceptors/daily-activity.interceptor.ts` (resolve H-001)
-- `nginx/nginx.conf` (resolve H-006)
+- `services/api/src/v1/chat/contents/` (resolve C-002, C-003)
+- `services/api/src/v1/chat/chat-messages/` (resolve C-002, C-003)
+- `services/api/src/v1/quiz/quiz-attempts/`, `services/api/src/v1/quiz/answers/` (resolve C-004)
+- `services/ai-api/v1/learning/service.py` (resolve C-001)
+- `services/api/src/v1/learning/user-steps/`, `services/api/src/v1/chat/`, `services/api/src/v1/material/` (resolve C-007)
+- `services/api/test/`, `services/ai-api/tests/` (resolve C-006)
+- `services/ai-api/utils/tools/memory.py` (resolve C-005)
+- `services/api/src/common/interceptors/daily-activity.interceptor.ts` (resolve H-001)
+- `infra/nginx/nginx.conf` (resolve H-006)
 - `docker-compose.yml`, `docker-compose.prod.yml` (resolve H-007)
 
 ### 3.3 Steps
 
 1. **Resolve C-001** — implement `GET /chat/contents/similarity?chatId=&query=` in NestJS. Use the existing `contents.repo.ts` (after fixing C-002) plus a Postgres similarity via `pg_trgm` extension (already enabled in `postgres/init/01-extensions.sql`).
 2. **Resolve C-002** — remove the dead `findById` query in `contents.repo.ts:67-87`, or add a `ContentEmbedding` Prisma model and migration. Recommended: add the model + migration; this also closes C-003.
-3. **Resolve C-003** — implement `ContentProcessor` in `cervana-api/src/v1/queue/queues/content.processor.ts` that consumes the `content` queue and writes to `content_embeddings`.
+3. **Resolve C-003** — implement `ContentProcessor` in `services/api/src/v1/queue/queues/content.processor.ts` that consumes the `content` queue and writes to `content_embeddings`.
 4. **Resolve C-004** — implement `QuizEvaluationService`. For `MULTIPLE_CHOICE`, compare stored `correctAnswer` with `userAnswer`. For `TEXT` and `CASE_STUDY`, call `ai-api /ai/v1/evaluator/grade` with rubric; `ai-api` calls the LLM with structured output. Wire `Answer.isCorrect` and `QuizAttempt.score` updates.
 5. **Resolve C-005** — fix `tool_semantic_search` to filter by `lessonId` strictly and log fallback (don't include cross-lesson items).
 6. **Resolve C-006** — add real unit + integration tests. Phase 0 target: ≥ 30 tests covering auth, evaluation, memory, RAG retrieval, streak, leaderboard.
 7. **Resolve C-007** — add ownership checks on `chats`, `chat-messages`, `contents`, `user-steps`, `user-topics`, `personality-quizzes` controllers. Use a NestJS guard or per-controller check.
 8. **Resolve H-001** — restrict `ActivityDetectorInterceptor` to specific high-signal endpoints. Move from global interceptor to explicit invocation in handlers.
 9. **Resolve H-006** — add CSP, HSTS, Permissions-Policy headers in `nginx.conf`.
-10. **Resolve H-007** — pick one Celery startup path. Remove subprocess spawn from `ai-api-cervana/main.py` and rely on the dedicated `celery-worker` service.
+10. **Resolve H-007** — pick one Celery startup path. Remove subprocess spawn from `services/ai-api/main.py` and rely on the dedicated `celery-worker` service.
 
 ### 3.4 Acceptance criteria
 
@@ -101,7 +101,7 @@ Make the system measurable. No optimization can be principled without metrics.
 
 ### 4.2 Scope
 
-- OpenTelemetry SDK in both `cervana-api` and `ai-api-cervana`.
+- OpenTelemetry SDK in both `services/api` and `services/ai-api`.
 - Structured JSON logging (winston in NestJS, structlog in FastAPI).
 - Metrics exporter (Prometheus) at `/metrics` on each service.
 - Token usage + cost counters per `Episode`.
@@ -124,8 +124,8 @@ Add the new Prisma tables from [`docs/02-architecture/data-model.md`](../02-arch
 
 ### 5.2 Scope
 
-- `cervana-api/prisma/schema.prisma` additions.
-- `cervana-api/prisma/migrations/<timestamp>_domain_model/migration.sql`.
+- `services/api/prisma/schema.prisma` additions.
+- `services/api/prisma/migrations/<timestamp>_domain_model/migration.sql`.
 - Backfill `TopicMasteryRecord` from existing `StepProgress`.
 - Mark existing Qdrant memory rows `SUPERSEDED`.
 
@@ -148,8 +148,8 @@ Replace the Qdrant-only untyped memory with a 4-layer typed memory (`WorkingMemo
 ### 6.2 Scope
 
 - `api/src/v1/memory/memory.service.ts` — CRUD + extraction policy + decay + retrieval scoring.
-- `ai-api-cervana/config/embedding_pipeline.py` — keep for vector search; pass `userId` filter at every call.
-- `ai-api-cervana/utils/tools/memory.py` — replace with typed calls to `api`'s `MemoryService` over HTTP.
+- `services/ai-api/config/embedding_pipeline.py` — keep for vector search; pass `userId` filter at every call.
+- `services/ai-api/utils/tools/memory.py` — replace with typed calls to `api`'s `MemoryService` over HTTP.
 
 ### 6.3 Acceptance criteria
 
@@ -218,8 +218,8 @@ Build the new tutor endpoint that ties everything together.
 
 ### 9.2 Scope
 
-- New `POST /ai/v1/tutor/respond` in `ai-api-cervana/v1/tutor/router.py`.
-- New `POST /chat/tutor-message` in `cervana-api/src/v1/chat/tutor.controller.ts`.
+- New `POST /ai/v1/tutor/respond` in `services/ai-api/v1/tutor/router.py`.
+- New `POST /chat/tutor-message` in `services/api/src/v1/chat/tutor.controller.ts`.
 - Service boundaries enforced: `ai-api` reads all DB state via `api`.
 - Decision trace persistence in `decision_traces` table.
 - Episode persistence in `episodes` table.
@@ -244,7 +244,7 @@ Make the system evaluable. Build the frozen benchmark and the per-interaction ev
 ### 10.2 Scope
 
 - `api/src/v1/evaluator/quiz-evaluation.service.ts` — for `MULTIPLE_CHOICE`, deterministic; for `TEXT`/`CASE_STUDY`, calls `ai-api /ai/v1/evaluator/grade` with rubric.
-- `ai-api-cervana/v1/evaluator/grade.py` — LLM-as-judge with structured output.
+- `services/ai-api/v1/evaluator/grade.py` — LLM-as-judge with structured output.
 - `api/src/v1/evaluator/per-interaction-evaluator.service.ts` — runs after each episode.
 - Frozen benchmark: 50 representative accounting scenarios in `EvaluationDataset`.
 - Nightly cron: run eval set against current active prompt + policy versions.
@@ -269,8 +269,8 @@ Introduce DSPy for prompt optimization, behind an evaluation gate.
 
 ### 11.2 Scope
 
-- Add `dspy` to `ai-api-cervana/pyproject.toml`.
-- `ai-api-cervana/v1/tutor/dspy_module.py` — `AdaptiveTutor` + `TutorSignature`.
+- Add `dspy` to `services/ai-api/pyproject.toml`.
+- `services/ai-api/v1/tutor/dspy_module.py` — `AdaptiveTutor` + `TutorSignature`.
 - Build `OptimizationDataset` from `episodes` where `evaluation.overall_score ≥ 0.7`.
 - Initial `BootstrapFewShot` run.
 

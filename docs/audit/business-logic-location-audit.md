@@ -2,7 +2,7 @@
 
 > **Status**: `stable` · **Owner**: `architect` · **Last reviewed**: `2026-09-30`
 >
-> Where business rules currently live in Cervana, and where they *should* live. Rules embedded in LLM prompts are classified as **architectural debt** unless migrated.
+> Where business rules currently live in ReduCera, and where they *should* live. Rules embedded in LLM prompts are classified as **architectural debt** unless migrated.
 
 ---
 
@@ -122,7 +122,7 @@ return items[:5]   # ← cross-lesson leak
 
 The LLM is told "Material-Bound" but only by prompt. If retrieved chunks include out-of-scope material (e.g., a math chunk in an accounting lesson), the LLM may produce off-topic questions.
 
-**Correct location**: retrieved chunks must be filtered by `topic_id` before injection. The `metadata_filter` parameter on `EmbeddingPipeline.retrieve` exists but is never populated ([`embedding_pipeline.py:238-243`](../../ai-api-cervana/config/embedding_pipeline.py)).
+**Correct location**: retrieved chunks must be filtered by `topic_id` before injection. The `metadata_filter` parameter on `EmbeddingPipeline.retrieve` exists but is never populated ([`embedding_pipeline.py:238-243`](../../services/ai-api/config/embedding_pipeline.py)).
 
 ### 2.8 Language constraints — multiple prompts
 
@@ -136,7 +136,7 @@ The LLM is told "Output MUST be JSON ONLY. No markdown. No explanation." with st
 
 **Problem**: this is enforced by `json.loads` after stripping ``` fences, which can fail on subtle JSON variants.
 
-**Correct location**: every LLM call that returns structured data must use `with_structured_output(...)` (Pydantic model or JSON schema). Already done in [`generate_quiz_pipeline.py:147`](../../ai-api-cervana/v1/users_steps/generate_quiz_pipeline.py). Not done in [`generate_user_steps_pipeline.py:341`](../../ai-api-cervana/v1/users_steps/generate_user_steps_pipeline.py), [`content_pipeline.py:71`](../../ai-api-cervana/v1/learning/content_pipeline.py), or [`service.py:148`](../../ai-api-cervana/v1/learning/service.py).
+**Correct location**: every LLM call that returns structured data must use `with_structured_output(...)` (Pydantic model or JSON schema). Already done in [`generate_quiz_pipeline.py:147`](../../services/ai-api/v1/users_steps/generate_quiz_pipeline.py). Not done in [`generate_user_steps_pipeline.py:341`](../../services/ai-api/v1/users_steps/generate_user_steps_pipeline.py), [`content_pipeline.py:71`](../../services/ai-api/v1/learning/content_pipeline.py), or [`service.py:148`](../../services/ai-api/v1/learning/service.py).
 
 ---
 
@@ -146,13 +146,13 @@ These are good — verify they stay so:
 
 | Rule | Location |
 |---|---|
-| Streak `incrementOrReset` math | [`streaks.repo.ts:136-171`](../../cervana-api/src/v1/gamify/streaks/streaks.repo.ts) |
-| `LeaderboardScore.increment` | [`leaderboards.repo.ts:151-174`](../../cervana-api/src/v1/gamify/leaderboards/leaderboards.repo.ts) |
+| Streak `incrementOrReset` math | [`streaks.repo.ts:136-171`](../../services/api/src/v1/gamify/streaks/streaks.repo.ts) |
+| `LeaderboardScore.increment` | [`leaderboards.repo.ts:151-174`](../../services/api/src/v1/gamify/leaderboards/leaderboards.repo.ts) |
 | Zod validation on DTOs | all `*.dto.ts` files |
-| `RolesGuard` enforcement | [`auth/guards/roles.guard.ts`](../../cervana-api/src/v1/auth/guards/roles.guard.ts) |
-| Arcjet rate limit | [`main.ts`](../../cervana-api/src/main.ts) and per-route |
-| `sameSite: 'none'` cookie config | [`auth.controller.ts:415-428`](../../cervana-api/src/v1/auth/auth.controller.ts) |
-| `PersonalityQuizzesService.submitAttempt` level calculation | [`personality-quizzes.service.ts:140-156`](../../cervana-api/src/v1/learning/personality-quizzes/personality-quizzes.service.ts) (rule-based, not LLM) |
+| `RolesGuard` enforcement | [`auth/guards/roles.guard.ts`](../../services/api/src/v1/auth/guards/roles.guard.ts) |
+| Arcjet rate limit | [`main.ts`](../../services/api/src/main.ts) and per-route |
+| `sameSite: 'none'` cookie config | [`auth.controller.ts:415-428`](../../services/api/src/v1/auth/auth.controller.ts) |
+| `PersonalityQuizzesService.submitAttempt` level calculation | [`personality-quizzes.service.ts:140-156`](../../services/api/src/v1/learning/personality-quizzes/personality-quizzes.service.ts) (rule-based, not LLM) |
 
 ---
 

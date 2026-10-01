@@ -1,14 +1,14 @@
-# System Audit — Cervana
+# System Audit — ReduCera
 
 > **Status**: `stable` · **Owner**: `architect` · **Last reviewed**: `2026-09-30`
 >
-> Evidence-based audit of the Cervana repository. Every claim cites a file path.
+> Evidence-based audit of the ReduCera repository. Every claim cites a file path.
 
 ---
 
 ## 1. Scope
 
-This document audits the Cervana repository at the snapshot taken on 2026-09-30. It covers:
+This document audits the ReduCera repository at the snapshot taken on 2026-09-30. It covers:
 
 - Service inventory and boundaries.
 - RAG lifecycle, memory architecture, learner model.
@@ -43,14 +43,14 @@ This is an **audit**, not a plan. For the target architecture and implementation
 
 | Component | Type | Technology | Responsibility | Dependencies | Status | Evidence |
 |---|---|---|---|---|---|---|
-| `postgres` | DB | PostgreSQL 15 | OLTP store | Docker volume `postgres_data` | `implemented` | [`docker-compose.yml:4-26`](../../docker-compose.yml), [`postgres/init/01-extensions.sql`](../../postgres/init/01-extensions.sql) |
+| `postgres` | DB | PostgreSQL 15 | OLTP store | Docker volume `postgres_data` | `implemented` | [`docker-compose.yml:4-26`](../../docker-compose.yml), [`infra/postgres/init/01-extensions.sql`](../../infra/postgres/init/01-extensions.sql) |
 | `redis` | Cache + broker | Redis 7 | App cache, BullMQ broker, Celery broker, SSE pub/sub | Docker volume `redis_data` | `implemented` | [`docker-compose.yml:28-46`](../../docker-compose.yml) |
-| `qdrant` | Vector DB | Qdrant v1.12.4 | Collections `cervana-embedding`, `cervana-memory` | Docker volume `qdrant_data` | `implemented` | [`docker-compose.yml:48-65`](../../docker-compose.yml), [`qdrant/config.yaml`](../../qdrant/config.yaml) |
-| `api` | Backend | NestJS 11 + Prisma 7 | Auth, curriculum, gamification, chat, SSE, BullMQ producers | Postgres, Redis, Arcjet, Resend, Cloudinary | `implemented` | [`cervana-api/src/main.ts`](../../cervana-api/src/main.ts), [`app.module.ts`](../../cervana-api/src/app.module.ts) |
-| `ai-api` | AI service | FastAPI 0.121 + LangChain + LangGraph + Celery | RAG embeddings, chat generation, 2 LangGraph pipelines, memory | Qdrant, Redis, Tavily, Gemini | `partial` | [`ai-api-cervana/main.py`](../../ai-api-cervana/main.py) |
-| `celery-worker` | Worker | Celery 5.5 | Resource extraction, embedding, LangGraph pipelines | Redis, Qdrant, NestJS API | `implemented` | [`ai-api-cervana/config/celery.py`](../../ai-api-cervana/config/celery.py) |
-| `web` | Student frontend | Nuxt 4 | Auth, learning pages, chatbot UI, SSE listeners | NestJS API, AI API via Nginx | `partial` | [`web-cervana/app/pages/**`](../../web-cervana/app/pages/) |
-| `nginx` | Reverse proxy | Nginx 1.27 | TLS, `/` → Nuxt, `/api/` → NestJS, `/ai/` → FastAPI | All services | `implemented` | [`nginx/nginx.conf`](../../nginx/nginx.conf) |
+| `qdrant` | Vector DB | Qdrant v1.12.4 | Collections `reducera-embedding`, `reducera-memory` | Docker volume `qdrant_data` | `implemented` | [`docker-compose.yml:48-65`](../../docker-compose.yml), [`infra/qdrant/config.yaml`](../../infra/qdrant/config.yaml) |
+| `api` | Backend | NestJS 11 + Prisma 7 | Auth, curriculum, gamification, chat, SSE, BullMQ producers | Postgres, Redis, Arcjet, Resend, Cloudinary | `implemented` | [`services/api/src/main.ts`](../../services/api/src/main.ts), [`app.module.ts`](../../services/api/src/app.module.ts) |
+| `ai-api` | AI service | FastAPI 0.121 + LangChain + LangGraph + Celery | RAG embeddings, chat generation, 2 LangGraph pipelines, memory | Qdrant, Redis, Tavily, OpenAI-compatible LLM, Hugging Face Inference | `partial` | [`services/ai-api/main.py`](../../services/ai-api/main.py) |
+| `celery-worker` | Worker | Celery 5.5 | Resource extraction, embedding, LangGraph pipelines | Redis, Qdrant, NestJS API | `implemented` | [`services/ai-api/config/celery.py`](../../services/ai-api/config/celery.py) |
+| `web` | Student frontend | Nuxt 4 | Auth, learning pages, chatbot UI, SSE listeners | NestJS API, AI API via Nginx | `partial` | [`apps/web/app/pages/**`](../../apps/web/app/pages/) |
+| `nginx` | Reverse proxy | Nginx 1.27 | TLS, `/` → Nuxt, `/api/` → NestJS, `/ai/` → FastAPI | All services | `implemented` | [`infra/nginx/nginx.conf`](../../infra/nginx/nginx.conf) |
 | Admin frontend (SvelteKit) | UI | SvelteKit 2 | Per README claims `:3001` | – | `referenced` (no code in repo) | [`readme.md:18`](../../readme.md) |
 
 ---
@@ -59,14 +59,14 @@ This is an **audit**, not a plan. For the target architecture and implementation
 
 Each service has a clear purpose and one backing technology, but the **split between `api` and `ai-api` is artificial**:
 
-- `ai-api` is a thin client to `api` for almost every read path. See [`v1/learning/service.py`](../../ai-api-cervana/v1/learning/service.py) where 80% of the file is `requests.post(...)` back into NestJS.
+- `ai-api` is a thin client to `api` for almost every read path. See [`v1/learning/service.py`](../../services/ai-api/v1/learning/service.py) where 80% of the file is `requests.post(...)` back into NestJS.
 - This is the textbook **distributed monolith** anti-pattern.
 
 | Issue | Severity | Evidence |
 |---|---|---|
-| Synchronous HTTP fan-out from `ai-api` Celery into `api` | high | [`ai-api-cervana/v1/learning/workers.py:28-30`](../../ai-api-cervana/v1/learning/workers.py) |
-| DTO duplication (Pydantic vs Zod) | medium | [`ai-api-cervana/v1/learning/dto.py`](../../ai-api-cervana/v1/learning/dto.py) vs [`cervana-api/src/v1/chat/contents/contents.dto.ts`](../../cervana-api/src/v1/chat/contents/contents.dto.ts) |
-| Two Celery startup paths (subprocess in dev, separate service in prod) | high | [`ai-api-cervana/main.py:28-35`](../../ai-api-cervana/main.py) vs [`docker-compose.prod.yml:236-266`](../../docker-compose.prod.yml) |
+| Synchronous HTTP fan-out from `ai-api` Celery into `api` | high | [`services/ai-api/v1/learning/workers.py:28-30`](../../services/ai-api/v1/learning/workers.py) |
+| DTO duplication (Pydantic vs Zod) | medium | [`services/ai-api/v1/learning/dto.py`](../../services/ai-api/v1/learning/dto.py) vs [`services/api/src/v1/chat/contents/contents.dto.ts`](../../services/api/src/v1/chat/contents/contents.dto.ts) |
+| Two Celery startup paths (subprocess in dev, separate service in prod) | high | [`services/ai-api/main.py:28-35`](../../services/ai-api/main.py) vs [`docker-compose.prod.yml:236-266`](../../docker-compose.prod.yml) |
 | No circuit breaker between services | medium | – |
 
 ---
@@ -75,14 +75,14 @@ Each service has a clear purpose and one backing technology, but the **split bet
 
 | Stage | Status | Evidence |
 |---|---|---|
-| Document creation | ✅ | [`cervana-api/src/v1/material/resources/resources.controller.ts:12-19`](../../cervana-api/src/v1/material/resources/resources.controller.ts) |
-| Extraction | ✅ | [`ai-api-cervana/v1/resources/service.py:95-128`](../../ai-api-cervana/v1/resources/service.py) |
-| Chunking | ✅ semantic + structural fallback | [`ai-api-cervana/config/embedding_pipeline.py:78-102`](../../ai-api-cervana/config/embedding_pipeline.py) |
-| Embedding | ✅ Gemini `models/embedding-001` (768-dim) | [`embedding_pipeline.py:35`](../../ai-api-cervana/config/embedding_pipeline.py) |
-| Vector store | ✅ Qdrant | [`embedding_pipeline.py:67-68`](../../ai-api-cervana/config/embedding_pipeline.py) |
-| Retrieval | 🟡 works, but `metadata_filter` parameter is constructed but never populated | [`embedding_pipeline.py:238-243`](../../ai-api-cervana/config/embedding_pipeline.py) |
+| Document creation | ✅ | [`services/api/src/v1/material/resources/resources.controller.ts:12-19`](../../services/api/src/v1/material/resources/resources.controller.ts) |
+| Extraction | ✅ | [`services/ai-api/v1/resources/service.py:95-128`](../../services/ai-api/v1/resources/service.py) |
+| Chunking | ✅ semantic + structural fallback | [`services/ai-api/config/embedding_pipeline.py:78-102`](../../services/ai-api/config/embedding_pipeline.py) |
+| Embedding | ✅ Hugging Face Inference `BAAI/bge-m3` (1024-dim, env-driven) | [`providers.py`](../../services/ai-api/config/providers.py) |
+| Vector store | ✅ Qdrant | [`embedding_pipeline.py:67-68`](../../services/ai-api/config/embedding_pipeline.py) |
+| Retrieval | 🟡 works, but `metadata_filter` parameter is constructed but never populated | [`embedding_pipeline.py:238-243`](../../services/ai-api/config/embedding_pipeline.py) |
 | Reranking | ❌ | – |
-| Citations | ❌ hard-coded `[]` | [`v1/learning/content_pipeline.py:212`](../../ai-api-cervana/v1/learning/content_pipeline.py), [`v1/learning/workers.py:75`](../../ai-api-cervana/v1/learning/workers.py) |
+| Citations | ❌ hard-coded `[]` | [`v1/learning/content_pipeline.py:212`](../../services/ai-api/v1/learning/content_pipeline.py), [`v1/learning/workers.py:75`](../../services/ai-api/v1/learning/workers.py) |
 | Authority tier | ❌ all docs equal | – |
 | Document versioning | ❌ | – |
 | Freshness filter | ❌ | – |
@@ -97,16 +97,16 @@ Each service has a clear purpose and one backing technology, but the **split bet
 |---|---|---|
 | Working memory | Postgres `chat_messages.text` | raw text, no extraction |
 | Episodic memory | ❌ not represented | – |
-| Semantic learner memory | Qdrant `cervana-memory` | untyped, no decay, cross-lesson leak (see §17) |
+| Semantic learner memory | Qdrant `reducera-memory` | untyped, no decay, cross-lesson leak (see §17) |
 | Procedural memory | ❌ not represented | – |
-| External knowledge | Qdrant `cervana-embedding` + Postgres `resources` | mixed with chat content |
+| External knowledge | Qdrant `reducera-embedding` + Postgres `resources` | mixed with chat content |
 
 **Memory write policy**: every LLM output writes a memory entry — most are not educationally meaningful. The fix is a typed, decay-aware 4-layer schema; see [`docs/02-architecture/target-state.md` §4.3](../02-architecture/target-state.md#43-memory-architecture).
 
 **Cross-lesson leak bug** (CRITICAL):
 
 ```python
-# ai-api-cervana/utils/tools/memory.py:25-33
+# services/ai-api/utils/tools/memory.py:25-33
 filtered = [m for m in items if m.get("metadata", {}).get("lessonId") == lessonId
             or m.get("metadata", {}).get("lesson_id") == lessonId]
 if filtered:
@@ -129,7 +129,7 @@ The `or` condition and unconditional fallback mean cross-lesson memory is always
 | Badges / Achievements | `Achievement` + `UserAchievement` | ❌ no evaluator |
 | Themes | `Theme` + `ThemeIcon` | cosmetic |
 
-**Streak farming risk**: `ActivityDetectorInterceptor` (`cervana-api/src/common/interceptors/daily-activity.interceptor.ts:44-49`) fires on **every authenticated request**. Any ping mints a streak; leaderboard score increments every 7 days.
+**Streak farming risk**: `ActivityDetectorInterceptor` (`services/api/src/common/interceptors/daily-activity.interceptor.ts:44-49`) fires on **every authenticated request**. Any ping mints a streak; leaderboard score increments every 7 days.
 
 ---
 
@@ -184,7 +184,7 @@ The system does not represent this dependency graph.
 
 | Dimension | Status | Evidence |
 |---|---|---|
-| Correctness (quiz grading) | ❌ `Answer.isCorrect` and `QuizAttempt.score` never set | [`quiz-attempts.service.ts:14-22`](../../cervana-api/src/v1/quiz/quiz-attempts/quiz-attempts.service.ts) is pure CRUD |
+| Correctness (quiz grading) | ❌ `Answer.isCorrect` and `QuizAttempt.score` never set | [`quiz-attempts.service.ts:14-22`](../../services/api/src/v1/quiz/quiz-attempts/quiz-attempts.service.ts) is pure CRUD |
 | Grounding (RAG citation) | ❌ | – |
 | Pedagogical quality | ❌ | – |
 | Personalization | ❌ | – |
@@ -245,7 +245,7 @@ The system does not represent this dependency graph.
 |---|---|---|
 | Unit tests | 0 | – |
 | Integration tests | 0 | – |
-| E2E tests | 1 (stale) | [`cervana-api/test/app.e2e-spec.ts:23`](../../cervana-api/test/app.e2e-spec.ts) |
+| E2E tests | 1 (stale) | [`services/api/test/app.e2e-spec.ts:23`](../../services/api/test/app.e2e-spec.ts) |
 | AI evaluation | 0 | – |
 | Contract tests | 0 | – |
 | Load tests | 0 | – |
@@ -258,9 +258,9 @@ The system does not represent this dependency graph.
 
 | Concern | Status | Evidence |
 |---|---|---|
-| LLM calls per content generation | ~3 calls (translate, analyze, generate) | [`v1/learning/content_pipeline.py:70-205`](../../ai-api-cervana/v1/learning/content_pipeline.py) |
-| Translation flag default `True` | 🟡 doubles embedding cost | [`config/embedding_pipeline.py:111-115`](../../ai-api-cervana/config/embedding_pipeline.py) |
-| Sequential chunk embedding | 🟡 20 chunks × N resources = sequential API calls | [`embedding_pipeline.py:209-217`](../../ai-api-cervana/config/embedding_pipeline.py) |
+| LLM calls per content generation | ~3 calls (translate, analyze, generate) | [`v1/learning/content_pipeline.py:70-205`](../../services/ai-api/v1/learning/content_pipeline.py) |
+| Translation flag default `True` | 🟡 doubles embedding cost | [`config/embedding_pipeline.py:111-115`](../../services/ai-api/config/embedding_pipeline.py) |
+| Sequential chunk embedding | 🟡 20 chunks × N resources = sequential API calls | [`embedding_pipeline.py:209-217`](../../services/ai-api/config/embedding_pipeline.py) |
 | No prompt caching | 🟡 re-sends full chat history | – |
 
 ---
@@ -271,25 +271,25 @@ The system does not represent this dependency graph.
 
 | ID | Issue | Evidence | Impact |
 |---|---|---|---|
-| C-001 | `/chat/contents/similarity` endpoint missing | `grep -rn similarity cervana-api/src → 0`; caller: [`v1/learning/service.py:33-51`](../../ai-api-cervana/v1/learning/service.py) | Chat continuation path always fails |
-| C-002 | `contents.repo.ts` queries `content_embeddings` table but no such Prisma model | `grep content_embeddings cervana-api/prisma → 0` | Dead code or runtime failure |
-| C-003 | `addContentEmbeddingJob` enqueues to `content` queue but no `content.processor.ts` | [`queues/index.ts:3`](../../cervana-api/src/v1/queue/queues/index.ts) vs filesystem | Chat contents never get embedded |
+| C-001 | `/chat/contents/similarity` endpoint missing | `grep -rn similarity services/api/src → 0`; caller: [`v1/learning/service.py:33-51`](../../services/ai-api/v1/learning/service.py) | Chat continuation path always fails |
+| C-002 | `contents.repo.ts` queries `content_embeddings` table but no such Prisma model | `grep content_embeddings services/api/prisma → 0` | Dead code or runtime failure |
+| C-003 | `addContentEmbeddingJob` enqueues to `content` queue but no `content.processor.ts` | [`queues/index.ts:3`](../../services/api/src/v1/queue/queues/index.ts) vs filesystem | Chat contents never get embedded |
 | C-004 | Quiz evaluation missing — `Answer.isCorrect`/`pointsEarned`/`QuizAttempt.score` never set | – | No learning signal flows back |
-| C-005 | `tool_semantic_search` cross-lesson leak | [`utils/tools/memory.py:25-33`](../../ai-api-cervana/utils/tools/memory.py) | Wrong user memory in prompts |
-| C-006 | No tests; stale `app.e2e-spec.ts` asserts `'Hello World!'` | [`cervana-api/test/app.e2e-spec.ts:23`](../../cervana-api/test/app.e2e-spec.ts) | Cannot ship safely |
+| C-005 | `tool_semantic_search` cross-lesson leak | [`utils/tools/memory.py:25-33`](../../services/ai-api/utils/tools/memory.py) | Wrong user memory in prompts |
+| C-006 | No tests; stale `app.e2e-spec.ts` asserts `'Hello World!'` | [`services/api/test/app.e2e-spec.ts:23`](../../services/api/test/app.e2e-spec.ts) | Cannot ship safely |
 | C-007 | No ownership checks on chat/user-step routes | – | UUID-guessing authorization bypass |
 
 ### HIGH
 
 | ID | Issue | Evidence |
 |---|---|---|
-| H-001 | `ActivityDetectorInterceptor` mints streaks on any authenticated ping | [`daily-activity.interceptor.ts:44-49`](../../cervana-api/src/common/interceptors/daily-activity.interceptor.ts) |
-| H-002 | RAG citations hard-coded to `[]` | [`v1/learning/content_pipeline.py:212`](../../ai-api-cervana/v1/learning/content_pipeline.py) |
-| H-003 | Document URLs fetched from arbitrary hosts (SSRF + RAG poisoning) | [`v1/resources/service.py:115-127`](../../ai-api-cervana/v1/resources/service.py) |
+| H-001 | `ActivityDetectorInterceptor` mints streaks on any authenticated ping | [`daily-activity.interceptor.ts:44-49`](../../services/api/src/common/interceptors/daily-activity.interceptor.ts) |
+| H-002 | RAG citations hard-coded to `[]` | [`v1/learning/content_pipeline.py:212`](../../services/ai-api/v1/learning/content_pipeline.py) |
+| H-003 | Document URLs fetched from arbitrary hosts (SSRF + RAG poisoning) | [`v1/resources/service.py:115-127`](../../services/ai-api/v1/resources/service.py) |
 | H-004 | Prompt-injection defense is instruction-only | All prompt templates |
-| H-005 | `enable_translation=True` default | [`config/embedding_pipeline.py:111-115`](../../ai-api-cervana/config/embedding_pipeline.py) |
-| H-006 | No CSP / HSTS / Permissions-Policy headers | [`nginx/nginx.conf`](../../nginx/nginx.conf) |
-| H-007 | Two Celery startup paths | [`ai-api-cervana/main.py:28-35`](../../ai-api-cervana/main.py) vs [`docker-compose.prod.yml:236-266`](../../docker-compose.prod.yml) |
+| H-005 | `enable_translation=True` default | [`config/embedding_pipeline.py:111-115`](../../services/ai-api/config/embedding_pipeline.py) |
+| H-006 | No CSP / HSTS / Permissions-Policy headers | [`infra/nginx/nginx.conf`](../../infra/nginx/nginx.conf) |
+| H-007 | Two Celery startup paths | [`services/ai-api/main.py:28-35`](../../services/ai-api/main.py) vs [`docker-compose.prod.yml:236-266`](../../docker-compose.prod.yml) |
 | H-008 | No OpenTelemetry / metrics / traces | – |
 | H-009 | No evaluation harness / frozen benchmark | – |
 | H-010 | No rate limiting on ai-api endpoints | – |
@@ -333,7 +333,7 @@ The system does not represent this dependency graph.
 The `ai-api` service calls this endpoint to retrieve chat history for context:
 
 ```python
-# ai-api-cervana/v1/learning/service.py:33-51
+# services/ai-api/v1/learning/service.py:33-51
 def query_content_history(chatId: str, q: str, token: str) -> Any:
     base_url = f"{ENVS['NEST_API']}/chat/contents/similarity"
     ...
@@ -346,7 +346,7 @@ A `grep` of the NestJS code shows no controller defines this route. Every chat c
 ### 17.2 `contents.repo.ts` queries a non-existent table
 
 ```typescript
-// cervana-api/src/v1/chat/contents/contents.repo.ts:72-86
+// services/api/src/v1/chat/contents/contents.repo.ts:72-86
 async findById(id: string) {
   const embeddingsMetadata = await this.prisma.$queryRaw<...>`
     SELECT id, chunk_text as "chunkText", metadata, created_at as "createdAt", updated_at as "updatedAt"
@@ -363,7 +363,7 @@ The Prisma schema has no `content_embeddings` model. The `contents` table is map
 ### 17.3 `content` queue has no processor
 
 ```typescript
-// cervana-api/src/v1/queue/queues/index.ts
+// services/api/src/v1/queue/queues/index.ts
 export const QUEUES = [
   { name: 'knowledge' },
   { name: 'content' },       // ← declared
@@ -382,14 +382,14 @@ providers: [
 ]
 ```
 
-The `addContentEmbeddingJob` method exists in `QueueService` ([`cervana-api/src/v1/queue/queue.service.ts:17-27`](../../cervana-api/src/v1/queue/queue.service.ts)) and is called from `contents.repo.ts:128-133`, but no worker consumes the queue. Embeddings for chat contents accumulate forever.
+The `addContentEmbeddingJob` method exists in `QueueService` ([`services/api/src/v1/queue/queue.service.ts:17-27`](../../services/api/src/v1/queue/queue.service.ts)) and is called from `contents.repo.ts:128-133`, but no worker consumes the queue. Embeddings for chat contents accumulate forever.
 
 ### 17.4 Quiz evaluation is missing
 
 `Answer.isCorrect: Boolean` and `QuizAttempt.score: Float?` exist in the schema but no service ever sets them. Searches:
 
 ```
-grep -rn "isCorrect\s*=" cervana-api/src --include="*.ts" \
+grep -rn "isCorrect\s*=" services/api/src --include="*.ts" \
   | grep -v node_modules | grep -v ".dto.ts" | grep -v "doc.ts"
 → 0 results
 ```
@@ -412,7 +412,7 @@ The chat, content, and user-step controllers do not check `req.user.id === resou
 
 ## 18. Verdict
 
-Cervana today is best described as:
+ReduCera today is best described as:
 
 > A functional Docker-orchestrated, multi-service web application with a real-but-narrow RAG pipeline, two LangGraph flows, working auth, working queue-based async, and a partially-modeled gamification layer. It is not yet the agentic, self-improving, misconception-tracking accounting tutor that the README describes.
 
@@ -427,15 +427,15 @@ The roadmap to close these gaps is in [`docs/03-plans/phased-roadmap.md`](../03-
 Files inspected during this audit (non-exhaustive):
 
 - [`docker-compose.yml`](../../docker-compose.yml), [`docker-compose.prod.yml`](../../docker-compose.prod.yml)
-- [`cervana-api/prisma/schema.prisma`](../../cervana-api/prisma/schema.prisma), [`cervana-api/prisma/seed.ts`](../../cervana-api/prisma/seed.ts)
-- [`cervana-api/src/app.module.ts`](../../cervana-api/src/app.module.ts), [`main.ts`](../../cervana-api/src/main.ts)
-- [`cervana-api/src/v1/**/*.ts`](../../cervana-api/src/v1/) (all modules)
-- [`cervana-api/src/v1/queue/queues/`](../../cervana-api/src/v1/queue/queues/)
-- [`cervana-api/src/v1/sse/`](../../cervana-api/src/v1/sse/) (all SSE controllers)
-- [`ai-api-cervana/main.py`](../../ai-api-cervana/main.py), [`config/celery.py`](../../ai-api-cervana/config/celery.py)
-- [`ai-api-cervana/config/embedding_pipeline.py`](../../ai-api-cervana/config/embedding_pipeline.py), [`memory_embedding.py`](../../ai-api-cervana/config/memory_embedding.py)
-- [`ai-api-cervana/v1/learning/*.py`](../../ai-api-cervana/v1/learning/), [`v1/users_steps/*.py`](../../ai-api-cervana/v1/users_steps/), [`v1/resources/*.py`](../../ai-api-cervana/v1/resources/)
-- [`web-cervana/app/pages/**`](../../web-cervana/app/pages/), [`components/my-learning/Chatbot.vue`](../../web-cervana/app/components/my-learning/Chatbot.vue), [`PersonalityQuiz.vue`](../../web-cervana/app/components/my-learning/PersonalityQuiz.vue), [`LearningStyleForm.vue`](../../web-cervana/app/components/my-learning/LearningStyleForm.vue)
-- [`nginx/nginx.conf`](../../nginx/nginx.conf)
-- [`qdrant/config.yaml`](../../qdrant/config.yaml)
-- [`postgres/init/01-extensions.sql`](../../postgres/init/01-extensions.sql)
+- [`services/api/prisma/schema.prisma`](../../services/api/prisma/schema.prisma), [`services/api/prisma/seed.ts`](../../services/api/prisma/seed.ts)
+- [`services/api/src/app.module.ts`](../../services/api/src/app.module.ts), [`main.ts`](../../services/api/src/main.ts)
+- [`services/api/src/v1/**/*.ts`](../../services/api/src/v1/) (all modules)
+- [`services/api/src/v1/queue/queues/`](../../services/api/src/v1/queue/queues/)
+- [`services/api/src/v1/sse/`](../../services/api/src/v1/sse/) (all SSE controllers)
+- [`services/ai-api/main.py`](../../services/ai-api/main.py), [`config/celery.py`](../../services/ai-api/config/celery.py)
+- [`services/ai-api/config/embedding_pipeline.py`](../../services/ai-api/config/embedding_pipeline.py), [`memory_embedding.py`](../../services/ai-api/config/memory_embedding.py)
+- [`services/ai-api/v1/learning/*.py`](../../services/ai-api/v1/learning/), [`v1/users_steps/*.py`](../../services/ai-api/v1/users_steps/), [`v1/resources/*.py`](../../services/ai-api/v1/resources/)
+- [`apps/web/app/pages/**`](../../apps/web/app/pages/), [`components/my-learning/Chatbot.vue`](../../apps/web/app/components/my-learning/Chatbot.vue), [`PersonalityQuiz.vue`](../../apps/web/app/components/my-learning/PersonalityQuiz.vue), [`LearningStyleForm.vue`](../../apps/web/app/components/my-learning/LearningStyleForm.vue)
+- [`infra/nginx/nginx.conf`](../../infra/nginx/nginx.conf)
+- [`infra/qdrant/config.yaml`](../../infra/qdrant/config.yaml)
+- [`infra/postgres/init/01-extensions.sql`](../../infra/postgres/init/01-extensions.sql)

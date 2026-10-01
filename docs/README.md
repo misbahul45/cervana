@@ -1,14 +1,14 @@
-# Cervana — Documentation
+# ReduCera — Documentation
 
 > **Status**: `planned` · **Owner**: `architect` · **Last reviewed**: `2026-09-30`
 >
-> Entry point for Cervana planning documentation. Organized around **Business Flow → Data Flow → System Flow** triplets that describe the **circular learning economy** end-to-end.
+> Entry point for ReduCera planning documentation. Organized around **Business Flow → Data Flow → System Flow** triplets that describe the **circular learning economy** end-to-end.
 
 ---
 
-## 1. What Cervana is
+## 1. What ReduCera is
 
-Cervana is a **learning marketplace + AI learning infrastructure + creator economy**, not just an AI tutor. The economic loop is:
+ReduCera is a **learning marketplace + AI learning infrastructure + creator economy**, not just an AI tutor. The economic loop is:
 
 ```text
 LEARN
@@ -143,7 +143,7 @@ BF-001 (Learn) → BF-002 (Buy) → BF-003 (Creator earns) → Reinvest → BF-0
 
 ## 7. What this tree does NOT contain
 
-- Implementation code (lives in `cervana-api/`, `ai-api-cervana/`, `web-cervana/`).
+- Implementation code (lives in `services/api/`, `services/ai-api/`, `apps/web/`).
 - Test code (lives in service directories).
 - Generated content from the AI service.
 

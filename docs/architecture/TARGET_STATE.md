@@ -16,7 +16,7 @@
 
 ## 2. Architecture
 
-Keep the current topology; add modules inside `cervana-api`, no new services.
+Keep the current topology; add modules inside `services/api`, no new services.
 
 ```
 Web (Nuxt, one app: learner / teacher / admin)
@@ -35,7 +35,7 @@ Boundaries:
 - `ai-api` owns LLM calls, embeddings, retrieval, agent runtime, tool orchestration, evaluation. It may call `api` only through its internal contract and never holds `DATABASE_URL`.
 - Sensitive mutations exist only as intent endpoints (`approvePayment`, `publishArticle`, …) backed by a state-machine table per aggregate. No generic `PATCH status`.
 
-## 3. Domain modules to add in `cervana-api/src/v1`
+## 3. Domain modules to add in `services/api/src/v1`
 
 `tenants`, `tenant-memberships`, `teacher-applications` (extends `teacher/applications`), `articles`, `classes`, `enrollments`, `entitlements`, `orders` (rewritten), `manual-payments`, `creator-earnings`, `wallets`, `payouts`, `refunds`, `ledger`, `ai-credits`, `learning-events` (event bus + consumers), `gamification` (UniverseEngine), `memory`, `recommendations`, `audit`, `admin`, `analytics`, `internal` (service-to-service contract). Existing curriculum, quiz, chat, learning modules stay.
 

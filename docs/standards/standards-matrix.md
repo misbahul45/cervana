@@ -2,7 +2,7 @@
 
 > **Status**: `planned` · **Owner**: `architect` · **Last reviewed**: `2026-09-30`
 >
-> Mapping of Cervana's target architecture and current implementation against external standards. Every claim uses `aligned / mapped / partially aligned / implementation gap / evidence available / evidence missing` — never `ISO compliant` or `certified`.
+> Mapping of ReduCera's target architecture and current implementation against external standards. Every claim uses `aligned / mapped / partially aligned / implementation gap / evidence available / evidence missing` — never `ISO compliant` or `certified`.
 
 ---
 
@@ -25,19 +25,19 @@ Per the master prompt §2:
 
 ### ISO 59004 — Circular economy — Guiding principles
 
-| Principle | Cervana control | Evidence | Status |
+| Principle | ReduCera control | Evidence | Status |
 |---|---|---|---|
-| Value retention (keep resources in use) | `Resource` lifecycle + `isEmbedded` flag; lesson / step / quiz reuse | [`schema.prisma:640-660`](../../cervana-api/prisma/schema.prisma) | mapped |
+| Value retention (keep resources in use) | `Resource` lifecycle + `isEmbedded` flag; lesson / step / quiz reuse | [`schema.prisma:640-660`](../../services/api/prisma/schema.prisma) | mapped |
 | Value retention (knowledge) | Lesson / Step / Quiz reuse across Users | Prisma relations | mapped |
-| Resource loops (biological + technical) | Not applicable — Cervana is a digital learning platform. Document this explicitly. | – | N/A |
-| Stakeholder collaboration | Tutor / Creator / Learner roles | [`schema.prisma:731-768`](../../cervana-api/prisma/schema.prisma) | aligned |
+| Resource loops (biological + technical) | Not applicable — ReduCera is a digital learning platform. Document this explicitly. | – | N/A |
+| Stakeholder collaboration | Tutor / Creator / Learner roles | [`schema.prisma:731-768`](../../services/api/prisma/schema.prisma) | aligned |
 | Transparency | `DailyStats`, `LeaderboardScore` tables | – | partially aligned |
 | System thinking | Three-loop architecture (Fast / Medium / Slow) | [`target-state.md`](../02-architecture/target-state.md) | aligned |
 | Circularity KPIs | Defined in [`circular-economy-model.md`](../02-architecture/circular-economy-model.md) | – | implementation gap |
 
 ### ISO 59010 — Circular economy — Business models
 
-| Principle | Cervana control | Evidence | Status |
+| Principle | ReduCera control | Evidence | Status |
 |---|---|---|---|
 | Circular business models | Marketplace (Course + AI Agent) | [`ai-agent-marketplace.md`](../02-architecture/ai-agent-marketplace.md) | mapped |
 | Reuse / repair / remanufacture / recycle | Content reuse (lesson → article → quiz → sandbox) | [`circular-economy-model.md`](../02-architecture/circular-economy-model.md) §3 | aligned |
@@ -45,7 +45,7 @@ Per the master prompt §2:
 
 ### ISO 59020 — Circular economy — Measuring and assessing
 
-| Principle | Cervana control | Evidence | Status |
+| Principle | ReduCera control | Evidence | Status |
 |---|---|---|---|
 | Material flow measurement | Not applicable for digital platform | – | N/A |
 | Circularity indicators | `CircularityKPI` model | [`circular-economy-model.md`](../02-architecture/circular-economy-model.md) §5 | implementation gap |
@@ -53,7 +53,7 @@ Per the master prompt §2:
 
 ### Important interpretation (master prompt §3)
 
-Cervana is a **digital learning platform**. Its circularity is primarily:
+ReduCera is a **digital learning platform**. Its circularity is primarily:
 
 - Knowledge circularity (lessons, articles, agents reused across learners and creators).
 - Creator economic circularity (earnings → wallet → reinvestment → content).
@@ -67,11 +67,11 @@ It is **not** a physical-material circular economy. Environmental-impact claims 
 
 ### ISO 21001:2025 — Educational organizations — Management systems
 
-| Principle | Cervana control | Evidence | Status |
+| Principle | ReduCera control | Evidence | Status |
 |---|---|---|---|
-| Learning objectives explicit | `Step.lessonId` + `Step.title/description` (must be filled by Tutor) | [`schema.prisma:240-261`](../../cervana-api/prisma/schema.prisma) | partially aligned |
+| Learning objectives explicit | `Step.lessonId` + `Step.title/description` (must be filled by Tutor) | [`schema.prisma:240-261`](../../services/api/prisma/schema.prisma) | partially aligned |
 | Prerequisites | `Step.prerequisiteSteps` (planned per [`data-model.md`](../02-architecture/data-model.md) §4) | – | implementation gap |
-| Assessment linked to objectives | `Quiz` + `Question` + `Answer` + grading | [`quiz-attempts.service.ts`](../../cervana-api/src/v1/quiz/quiz-attempts/quiz-attempts.service.ts) | partially aligned (no evaluator yet) |
+| Assessment linked to objectives | `Quiz` + `Question` + `Answer` + grading | [`quiz-attempts.service.ts`](../../services/api/src/v1/quiz/quiz-attempts/quiz-attempts.service.ts) | partially aligned (no evaluator yet) |
 | Feedback to learner | `QuizAttempt.score` + `Answer.pointsEarned` | – | implementation gap |
 | Continual improvement | Nightly eval + prompt versioning | [`dspy-integration.md`](../03-plans/dspy-integration.md) | planned |
 
@@ -81,7 +81,7 @@ It is **not** a physical-material circular economy. Environmental-impact claims 
 
 ### ISO/IEC 42001 — AI management systems
 
-| Control area | Cervana control | Evidence | Status |
+| Control area | ReduCera control | Evidence | Status |
 |---|---|---|---|
 | AI inventory | This docs tree (every AI capability documented) | – | aligned |
 | Risk classification per AI use case | Each BF/DF/SF doc declares AI vs deterministic | – | aligned |
@@ -93,7 +93,7 @@ It is **not** a physical-material circular economy. Environmental-impact claims 
 
 ### ISO/IEC 23894 — AI risk management
 
-| Control area | Cervana control | Evidence | Status |
+| Control area | ReduCera control | Evidence | Status |
 |---|---|---|---|
 | Risk identification | Master prompt §57 attack taxonomy → [`security-audit.md`](../01-audit/security-audit.md) | – | mapped |
 | Risk evaluation | Severity table in each audit doc | – | aligned |
@@ -106,7 +106,7 @@ It is **not** a physical-material circular economy. Environmental-impact claims 
 
 ### WCAG 2.2
 
-| Principle | Cervana control | Evidence | Status |
+| Principle | ReduCera control | Evidence | Status |
 |---|---|---|---|
 | Perceivable | TBD — frontend audit needed | – | implementation gap |
 | Operable (keyboard) | TBD | – | implementation gap |
@@ -121,17 +121,17 @@ It is **not** a physical-material circular economy. Environmental-impact claims 
 
 ### OWASP ASVS 5.0
 
-| Verification requirement | Cervana control | Evidence | Status |
+| Verification requirement | ReduCera control | Evidence | Status |
 |---|---|---|---|
 | V1 — Architecture | Service boundaries documented | [`service-boundaries.md`](../03-plans/service-boundaries.md) | aligned |
-| V2 — Authentication | JWT + Google OAuth + Arcjet | [`auth.controller.ts`](../../cervana-api/src/v1/auth/auth.controller.ts) | mapped |
+| V2 — Authentication | JWT + Google OAuth + Arcjet | [`auth.controller.ts`](../../services/api/src/v1/auth/auth.controller.ts) | mapped |
 | V3 — Session management | Cookie config + refresh tokens | Same | mapped |
 | V4 — Access control | RolesGuard exists; ownership checks absent | [`api-inventory.md`](../01-audit/api-inventory.md) | implementation gap |
 | V5 — Input validation | Zod DTOs + `ZodPipe` | – | aligned |
-| V6 — Cryptography | Cookies `secure`, `sameSite: 'none'` | [`auth.controller.ts:415-428`](../../cervana-api/src/v1/auth/auth.controller.ts) | mapped |
+| V6 — Cryptography | Cookies `secure`, `sameSite: 'none'` | [`auth.controller.ts:415-428`](../../services/api/src/v1/auth/auth.controller.ts) | mapped |
 | V7 — Error handling and logging | `errorHandler`, `AppExceptionsFilter` | – | mapped |
 | V8 — Data protection | Encryption-at-rest is Postgres default; in-transit via Nginx | – | mapped |
-| V9 — Communications | HTTPS via Nginx | [`nginx.conf`](../../nginx/nginx.conf) | mapped |
+| V9 — Communications | HTTPS via Nginx | [`nginx.conf`](../../infra/nginx/nginx.conf) | mapped |
 | V10 — Malicious code | Per-service image; Arcjet WAF for auth | – | partially aligned |
 | V11 — Business logic | Per-endpoint audit; ownership + business-logic docs | – | implementation gap |
 | V12 — Files and uploads | Resource upload + extraction; no allow-list yet | – | implementation gap |
@@ -140,7 +140,7 @@ It is **not** a physical-material circular economy. Environmental-impact claims 
 
 ### OWASP Top 10 for LLM Applications (2025)
 
-| Risk | Cervana control | Evidence | Status |
+| Risk | ReduCera control | Evidence | Status |
 |---|---|---|---|
 | LLM01 — Prompt Injection | Instruction-only defense today | [`security-audit.md`](../01-audit/security-audit.md) §2 | implementation gap |
 | LLM02 — Insecure Output Handling | Output filtered for `citatetions: []`; no other filters today | – | implementation gap |
@@ -159,7 +159,7 @@ It is **not** a physical-material circular economy. Environmental-impact claims 
 
 ### xAPI 2.0
 
-| Concept | Cervana control | Evidence | Status |
+| Concept | ReduCera control | Evidence | Status |
 |---|---|---|---|
 | Actor | `User.id` | – | mapped |
 | Verb | `LearningEvent.eventType` enum | [`data-model.md`](../02-architecture/data-model.md) §2.3 | mapped |
@@ -171,7 +171,7 @@ It is **not** a physical-material circular economy. Environmental-impact claims 
 
 ### LTI 1.3 / LTI Advantage
 
-| Control | Cervana control | Evidence | Status |
+| Control | ReduCera control | Evidence | Status |
 |---|---|---|---|
 | Tool launch | Not implemented | – | implementation gap |
 | Deep linking | Not implemented | – | implementation gap |

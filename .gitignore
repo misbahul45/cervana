@@ -1,42 +1,70 @@
-# Dependencies
 node_modules/
-__pycache__/
-.env
-.env.*
-!.env.example
-.env.prod
-db_data/
+.pnpm-store/
+npm-debug.log*
+pnpm-debug.log*
+yarn-error.log*
 
-# Build outputs
 dist/
+build/
+out/
 .next/
 .nuxt/
 .output/
+.nitro/
+.data/
 .svelte-kit/
-build/
+.vercel/
+.turbo/
 .cache/
-out/
+*.tsbuildinfo
+coverage/
+.nyc_output/
+tmp/
+logs/
 
-# Docker
-*.pid
-*.log
-
-# Python
-*.pyc
-.venv/
 __pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+wheels/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
 
-# Qdrant
-qdrant/storage/
-qdrant/snapshots/
+.env
+.env.*
+!.env.example
+!.env.*.example
 
-# Postgres data (jika pernah di-bind mount)
-postgres/data/
+*.pem
+*.key
+*.p12
+*.log
+*.pid
+nohup.out
+*.bak
+*.orig
+*.rej
+*.swp
 
-# Nginx certs (private)
-nginx/certs/
+db_data/
+infra/postgres/data/
+infra/qdrant/storage/
+infra/qdrant/snapshots/
+infra/nginx/certs/
+*.dump
+*.sql.gz
 
-# Misc
-.DS_Store
+.playwright-mcp/
+playwright-report/
+test-results/
+blob-report/
+
+.claude/settings.local.json
 .vscode/
 .idea/
+.DS_Store
+Thumbs.db

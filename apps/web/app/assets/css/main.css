@@ -1,0 +1,151 @@
+@import "tailwindcss";
+@import "@nuxt/ui";
+@plugin '@tailwindcss/typography';
+
+@theme static {
+  --color-reef-50: #E6F8FB;
+  --color-reef-100: #C4EDF3;
+  --color-reef-200: #92DDE8;
+  --color-reef-300: #63D0E0;
+  --color-reef-400: #3CC8DA;
+  --color-reef-500: #0B7285;
+  --color-reef-600: #0A6272;
+  --color-reef-700: #095260;
+  --color-reef-800: #08424D;
+  --color-reef-900: #06343D;
+  --color-reef-950: #042A31;
+
+  --color-tide-50: #EAF3FD;
+  --color-tide-100: #D0E3FA;
+  --color-tide-200: #A9CCF6;
+  --color-tide-300: #8BBAF3;
+  --color-tide-400: #6FA8F0;
+  --color-tide-500: #1C5D99;
+  --color-tide-600: #184E82;
+  --color-tide-700: #143F6A;
+  --color-tide-800: #0F3153;
+  --color-tide-900: #0B2440;
+  --color-tide-950: #071A2E;
+
+  --color-shell-50: #F2FAFB;
+  --color-shell-100: #E4F1F4;
+  --color-shell-200: #CBE4EA;
+  --color-shell-300: #A9CBD4;
+  --color-shell-400: #7FA6B2;
+  --color-shell-500: #5B8896;
+  --color-shell-600: #3F5B69;
+  --color-shell-700: #2B4553;
+  --color-shell-800: #0A3145;
+  --color-shell-900: #0A2533;
+  --color-shell-950: #04202D;
+}
+
+:root {
+  --rc-bg: #F2FAFB;
+  --rc-surface: #FFFFFF;
+  --rc-fg: #0A2533;
+  --rc-muted: #3F5B69;
+  --rc-border: #B7D9E1;
+  --rc-border-strong: #5B8896;
+  --rc-primary: #0B7285;
+  --rc-primary-fg: #FFFFFF;
+  --rc-secondary: #1C5D99;
+  --rc-secondary-fg: #FFFFFF;
+  --rc-accent: #C2410C;
+  --rc-focus: #0B5FA8;
+  --rc-foam: #DDF3F4;
+  --rc-sand: #E9DDB8;
+
+  --ui-bg: var(--rc-bg);
+  --ui-bg-muted: var(--rc-foam);
+  --ui-bg-elevated: var(--rc-surface);
+  --ui-bg-accented: var(--rc-foam);
+  --ui-bg-inverted: var(--rc-fg);
+
+  --ui-text: var(--rc-fg);
+  --ui-text-muted: var(--rc-muted);
+  --ui-text-dimmed: var(--rc-muted);
+  --ui-text-toned: var(--rc-fg);
+  --ui-text-highlighted: var(--rc-fg);
+  --ui-text-inverted: var(--rc-surface);
+
+  --ui-border: var(--rc-border);
+  --ui-border-accented: var(--rc-border-strong);
+  --ui-border-inverted: var(--rc-fg);
+
+  --ui-primary: var(--rc-primary);
+  --ui-secondary: var(--rc-secondary);
+  --ui-accent: var(--rc-accent);
+
+  font-family: Ubuntu, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+
+.dark {
+  --rc-bg: #04202D;
+  --rc-surface: #0A3145;
+  --rc-fg: #E6F7FA;
+  --rc-muted: #A5CBD6;
+  --rc-border: #2A6178;
+  --rc-border-strong: #4C8BA3;
+  --rc-primary: #3CC8DA;
+  --rc-primary-fg: #03202B;
+  --rc-secondary: #6FA8F0;
+  --rc-secondary-fg: #04182B;
+  --rc-accent: #FF9A76;
+  --rc-focus: #7DD3FC;
+  --rc-foam: #0F4A61;
+  --rc-sand: #3A4A52;
+
+  --ui-bg: var(--rc-bg);
+  --ui-bg-muted: var(--rc-foam);
+  --ui-bg-elevated: var(--rc-surface);
+  --ui-bg-accented: var(--rc-foam);
+  --ui-bg-inverted: var(--rc-fg);
+
+  --ui-text: var(--rc-fg);
+  --ui-text-muted: var(--rc-muted);
+  --ui-text-dimmed: var(--rc-muted);
+  --ui-text-toned: var(--rc-fg);
+  --ui-text-highlighted: var(--rc-fg);
+  --ui-text-inverted: var(--rc-surface);
+
+  --ui-border: var(--rc-border);
+  --ui-border-accented: var(--rc-border-strong);
+  --ui-border-inverted: var(--rc-fg);
+}
+
+body {
+  background-color: var(--rc-bg);
+  color: var(--rc-fg);
+}
+
+@layer base {
+  :focus-visible {
+    outline: 2px solid var(--rc-focus);
+    outline-offset: 2px;
+  }
+}
+
+@font-face {
+  font-family: "Ubuntu";
+  src: url("/fonts/Ubuntu/Ubuntu-Regular.ttf") format("truetype");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Ubuntu";
+  src: url("/fonts/Ubuntu/Ubuntu-Medium.ttf") format("truetype");
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Ubuntu";
+  src: url("/fonts/Ubuntu/Ubuntu-Bold.ttf") format("truetype");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}

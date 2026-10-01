@@ -5,7 +5,7 @@
 
 ## Context
 
-Cervana becomes a marketplace where teachers publish articles and classes. Creator data must be isolated per tenant, while learners consume across tenants. The existing code has one global `Role` on `User` and no tenant concept.
+ReduCera becomes a marketplace where teachers publish articles and classes. Creator data must be isolated per tenant, while learners consume across tenants. The existing code has one global `Role` on `User` and no tenant concept.
 
 ## Decision
 

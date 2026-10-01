@@ -2,13 +2,13 @@
 
 > **Status**: `stable` · **Owner**: `architect` · **Last reviewed**: `2026-09-30`
 >
-> The actual agentic surface of Cervana as it exists today — not as the README or notes claim.
+> The actual agentic surface of ReduCera as it exists today — not as the README or notes claim.
 
 ---
 
 ## 1. Scope
 
-This document describes what is actually implemented in `ai-api-cervana/` and the agentic responsibilities it claims. It is intentionally short. For the gap analysis and target architecture, see [`docs/02-architecture/target-state.md`](../02-architecture/target-state.md).
+This document describes what is actually implemented in `services/ai-api/` and the agentic responsibilities it claims. It is intentionally short. For the gap analysis and target architecture, see [`docs/02-architecture/target-state.md`](../02-architecture/target-state.md).
 
 ---
 
@@ -16,11 +16,11 @@ This document describes what is actually implemented in `ai-api-cervana/` and th
 
 | Name | Type | Evidence | Genuine agent? |
 |---|---|---|---|
-| `GenerateContentMaterialPipeline` | LangGraph: `parallel_fetch` → `prepare_learning_context` → `generate_material` | [`v1/learning/content_pipeline.py:236-244`](../../ai-api-cervana/v1/learning/content_pipeline.py) | ❌ linear pipeline, no tool use, no reflection |
-| `GenerateUserStepPipeline` | LangGraph: `fetch` → `personality_material_builder` → `build_context` → `read_memory` → `semantic_search` → `external_search` → `generate` | [`v1/users_steps/generate_user_steps_pipeline.py:372-395`](../../ai-api-cervana/v1/users_steps/generate_user_steps_pipeline.py) | ❌ linear pipeline, no reflection |
-| `generating_new_content` (chat continuation) | Single LLM call wrapped in Celery task | [`v1/learning/workers.py:42-97`](../../ai-api-cervana/v1/learning/workers.py) | ❌ single-prompt LLM wrapper |
-| `generate_personality_quiz` | LangGraph: `pararel_fetch` → `process_results` → `analyze_text` | [`v1/users_steps/generate_quiz_pipeline.py:157-165`](../../ai-api-cervana/v1/users_steps/generate_quiz_pipeline.py) | ❌ linear pipeline |
-| `Chatbot.vue` (frontend) | SSE listener + LLM response renderer | [`web-cervana/app/components/my-learning/Chatbot.vue:29-43`](../../web-cervana/app/components/my-learning/Chatbot.vue) | ❌ UI only |
+| `GenerateContentMaterialPipeline` | LangGraph: `parallel_fetch` → `prepare_learning_context` → `generate_material` | [`v1/learning/content_pipeline.py:236-244`](../../services/ai-api/v1/learning/content_pipeline.py) | ❌ linear pipeline, no tool use, no reflection |
+| `GenerateUserStepPipeline` | LangGraph: `fetch` → `personality_material_builder` → `build_context` → `read_memory` → `semantic_search` → `external_search` → `generate` | [`v1/users_steps/generate_user_steps_pipeline.py:372-395`](../../services/ai-api/v1/users_steps/generate_user_steps_pipeline.py) | ❌ linear pipeline, no reflection |
+| `generating_new_content` (chat continuation) | Single LLM call wrapped in Celery task | [`v1/learning/workers.py:42-97`](../../services/ai-api/v1/learning/workers.py) | ❌ single-prompt LLM wrapper |
+| `generate_personality_quiz` | LangGraph: `pararel_fetch` → `process_results` → `analyze_text` | [`v1/users_steps/generate_quiz_pipeline.py:157-165`](../../services/ai-api/v1/users_steps/generate_quiz_pipeline.py) | ❌ linear pipeline |
+| `Chatbot.vue` (frontend) | SSE listener + LLM response renderer | [`apps/web/app/components/my-learning/Chatbot.vue:29-43`](../../apps/web/app/components/my-learning/Chatbot.vue) | ❌ UI only |
 
 **Verdict**: zero real agents. Two linear LangGraph wrappers + three direct LLM calls.
 
@@ -34,8 +34,8 @@ It does **not** follow **Pattern A**: `OBSERVE → REASON → PLAN → ACT → O
 
 | Property of a real agent | Present? | Evidence |
 |---|---|---|
-| Tool-calling loop | ❌ | `grep -rn bind_tools function_call tool_choice ToolNode ai-api-cervana/ → 0` |
-| Dynamic planning (conditional edges) | ❌ | `grep -rn add_conditional_edges ai-api-cervana/ → 0` |
+| Tool-calling loop | ❌ | `grep -rn bind_tools function_call tool_choice ToolNode services/ai-api/ → 0` |
+| Dynamic planning (conditional edges) | ❌ | `grep -rn add_conditional_edges services/ai-api/ → 0` |
 | Reflection / self-critique | ❌ | No node evaluates output of another node |
 | Verification step (post-LLM assertion) | 🟡 | `generate_quiz_pipeline.py:152-154` catches JSON parse errors, returns empty `QuizResponse`; nothing else |
 | Stop / ask-human | ❌ | – |
@@ -63,7 +63,7 @@ flowchart LR
   WS[Tavily Web Search]
   PG[(Postgres)]
   QDR[(Qdrant)]
-  GEM[(Gemini)]
+  GEM[(OpenAI-compatible LLM + HF embeddings)]
 
   USER --> WEB --> NGINX
   NGINX -->|/api/| API
@@ -122,7 +122,7 @@ flowchart LR
                                │  ┌────────────────────────────────────────┐│
                                │  │ FastAPI Tutor API  (agentic layer)  ││
                                │  │                                        ││
-                               │  │ [EmbeddingPipeline] Qdrant + Gemini  ││
+                               │  │ [EmbeddingPipeline] Qdrant + HF/LLM ││
                                │  │ [MemoryManager]      Qdrant memory   ││
                                │  │ [tool_web_search]    Tavily           ││
                                │  │                                        ││
@@ -183,7 +183,7 @@ flowchart LR
   │material│             LLM generate                       ▼
   └────┬────┘                                       ┌──────────────┐  read_memory
        │                                           │ tool_memory_ │ ─────►  Qdrant
-       ▼                                           │    read      │         cervana-memory
+       ▼                                           │    read      │         reducera-memory
   ┌─────────┐  POST /chat/contents                │              │         ⚠ fallback bug
   │  END   │ ─────────►  write Content + SSE      └───────┬───────┘         (cross-lesson leak)
   └─────────┘                                           │
@@ -225,7 +225,7 @@ flowchart LR
             ▼                         ▼
   ┌──────────────────┐       ┌──────────────────┐
   │ Qdrant           │       │ Postgres         │
-  │ cervana-memory   │       │ chat_messages    │
+  │ reducera-memory   │       │ chat_messages    │
   │ (MemoryManager)  │       │ contents         │
   │                  │       │ user_steps       │
   └──────────────────┘       └──────────────────┘
@@ -255,13 +255,13 @@ LEGEND
 
 | Agent | Tool | Read/Write | Effect |
 |---|---|---|---|
-| Content-Material | `EmbeddingPipeline.retrieve` | R | Vector search over `cervana-embedding` |
+| Content-Material | `EmbeddingPipeline.retrieve` | R | Vector search over `reducera-embedding` |
 | Content-Material | `tool_web_search` | R | Tavily HTTP call |
-| Content-Material | `MemoryManager.upsert` | W | Inserts into `cervana-memory` |
+| Content-Material | `MemoryManager.upsert` | W | Inserts into `reducera-memory` |
 | Content-Material | REST GET `/curriculum/lessons/:id`, etc. | R | Per-request fan-out into NestJS |
 | Content-Material | `query_content_history` → `/chat/contents/similarity` | R | ❌ Broken — endpoint missing |
 | Content-Material | `POST /chat/contents`, `PATCH /chat/chat-messages/:id` | W | Persists AI output |
-| User-Steps | `tool_memory_read` | R | Reads from `cervana-memory` |
+| User-Steps | `tool_memory_read` | R | Reads from `reducera-memory` |
 | User-Steps | `tool_semantic_search` | R | Vector search filtered by `userId+lessonId`; ⚠ fallback leaks across lessons |
 | User-Steps | `tool_web_search` | R | Tavily |
 | User-Steps | `MemoryManager.upsert` | W | Inserts summary into memory |
@@ -282,7 +282,7 @@ sequenceDiagram
   participant F as FastAPI (ai-api)
   participant Cel as Celery worker
   participant Qdr as Qdrant
-  participant Gem as Gemini
+  participant Gem as LLM (OpenAI-compatible)
 
   S->>W: Open lesson page
   W->>N: GET /auth/check
@@ -322,7 +322,7 @@ sequenceDiagram
   F->>N: POST /learning/user-steps (create UserStep rows)
   F->>N: POST /ai/v1/learning/generate-material (per user-step)
   F->>F: LangGraph #1 (content pipeline)
-  F->>Qdr: RAG retrieve (cervana-embedding)
+  F->>Qdr: RAG retrieve (reducera-embedding)
   F->>F: Tavily web search
   F->>Gem: LLM call (generate material)
   F->>N: PATCH /chat/chat-messages/:id (status)

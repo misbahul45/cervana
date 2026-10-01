@@ -9,9 +9,9 @@
 ## 1. Current state
 
 ```bash
-find /home/misbahul45/code/cervana -type f \( -name "*.spec.ts" -o -name "*_test.py" -o -name "test_*.py" \) \
+find /home/misbahul45/code/reducera -type f \( -name "*.spec.ts" -o -name "*_test.py" -o -name "test_*.py" \) \
   -not -path "*/node_modules/*" 2>/dev/null
-→ /home/misbahul45/code/cervana/cervana-api/test/app.e2e-spec.ts (stale; expects "Hello World!")
+→ /home/misbahul45/code/reducera/services/api/test/app.e2e-spec.ts (stale; expects "Hello World!")
 ```
 
 **Total: 1 test, currently failing** (no controller returns "Hello World!" in the real app).
@@ -232,7 +232,7 @@ Current: **1**. Target: **148**.
 Required gates on every PR:
 
 ```
-[ ] Lint (eslint on cervana-api, ruff on ai-api)
+[ ] Lint (eslint on services/api, ruff on ai-api)
 [ ] Type check (tsc, mypy)
 [ ] Unit tests (Jest, pytest)
 [ ] Integration tests (supertest, pytest with containers)
@@ -253,11 +253,11 @@ For a PR to merge, the following must be true for any changed file:
 
 | File type | Coverage floor |
 |---|---|
-| `cervana-api/src/v1/**/*.service.ts` | ≥ 70% lines, ≥ 50% branches |
-| `cervana-api/src/v1/**/*.controller.ts` | ≥ 60% lines |
-| `ai-api-cervana/v1/**/*.py` (services, workers) | ≥ 60% lines |
-| `ai-api-cervana/config/*.py` | ≥ 70% lines |
-| `cervana-api/src/common/lib/*.ts` | ≥ 80% lines |
+| `services/api/src/v1/**/*.service.ts` | ≥ 70% lines, ≥ 50% branches |
+| `services/api/src/v1/**/*.controller.ts` | ≥ 60% lines |
+| `services/ai-api/v1/**/*.py` (services, workers) | ≥ 60% lines |
+| `services/ai-api/config/*.py` | ≥ 70% lines |
+| `services/api/src/common/lib/*.ts` | ≥ 80% lines |
 | New Prisma model | migration test + 1 integration test |
 
 ---

@@ -10,14 +10,14 @@ Monorepo with a single root `.git` and a single root `.env` (never create `.env`
 
 | Dir | Service | Stack | Port |
 |---|---|---|---|
-| `cervana-api/` | `api` | NestJS 11 + Prisma 7 (PostgreSQL), BullMQ, Socket.IO/SSE, Zod | 3002 |
-| `ai-api-cervana/` | `ai-api` + `celery-worker` | FastAPI, LangChain/LangGraph, LlamaIndex, Celery, Qdrant | 3003 |
-| `web-cervana/` | `web` | Nuxt 4, Nuxt UI, Pinia, TanStack Query | 3000 |
-| `nginx/`, `postgres/`, `qdrant/` | infra config | | 80/443 |
+| `services/api/` | `api` | NestJS 11 + Prisma 7 (PostgreSQL), BullMQ, Socket.IO/SSE, Zod | 3002 |
+| `services/ai-api/` | `ai-api` + `celery-worker` | FastAPI, LangChain/LangGraph, LlamaIndex, Celery, Qdrant | 3003 |
+| `apps/web/` | `web` | Nuxt 4, Nuxt UI, Pinia, TanStack Query | 3000 |
+| `infra/nginx/`, `infra/postgres/`, `infra/qdrant/` | infra config | | 80/443 |
 
 `readme.md` mentions a SvelteKit `admin` app; it does not exist in this repo (CORS/env still reference `ADMIN_URL`).
 
-Nginx routes `/` → web, `/api/` → api, `/ai/` → ai-api. API is served under `/api/v1` (Swagger at `/api/v1/docs`); FastAPI routes are mounted under `/ai` (`v1Router` in `ai-api-cervana/v1/router.py`).
+Nginx routes `/` → web, `/api/` → api, `/ai/` → ai-api. API is served under `/api/v1` (Swagger at `/api/v1/docs`); FastAPI routes are mounted under `/ai` (`v1Router` in `services/ai-api/v1/router.py`).
 
 ## Commands
 
@@ -31,7 +31,7 @@ docker compose logs -f api
 docker compose -f docker-compose.prod.yml --profile migrate run --rm api-migrate   # prod prisma migrate deploy
 ```
 
-`cervana-api/` (pnpm):
+`services/api/` (pnpm):
 
 ```bash
 pnpm dev                                # nest start --watch
@@ -44,7 +44,7 @@ pnpm test:e2e                           # test/jest-e2e.json
 pnpm prisma migrate dev --name <name>   # new migration; pnpm seed runs prisma/seed.ts via tsx
 ```
 
-`ai-api-cervana/` (uv):
+`services/ai-api/` (uv):
 
 ```bash
 uv run pytest -q
@@ -56,7 +56,9 @@ celery -A config.celery:celery_app worker --loglevel=info
 
 Pytest `testpaths` are `tests`, `config/__tests__`, `utils/tools/__tests__`, and `v1` (tests colocated with features).
 
-`web-cervana/` (pnpm): `pnpm dev`, `pnpm build`, `pnpm preview`. No lint/test scripts are defined.
+`apps/web/` (pnpm): `pnpm dev`, `pnpm build`, `pnpm preview`. No lint/test scripts are defined yet (the execution plan adds vitest).
+
+Web is SSR (`ssr: true`): content and theme must be in the first HTML, no `Math.random()`/`Date.now()`/`window` during render, server calls use `API_URL_INTERNAL` not the public URL, and no `swr`/`isr`/`prerender` on pages that render user state. Full list in `AGENTS.md` ("Web Rendering Rules").
 
 ## Architecture: strict service ownership
 
@@ -67,28 +69,30 @@ This is the rule most likely to be broken by a well-meaning change:
 - When `api` needs AI (embedding, generation, RAG), it calls `ai-api` over HTTP.
 - Missing capability on the owner service → add an endpoint there; never bypass. Migration order for existing violations is in `AGENTS.md` ("Migration of existing violations").
 
-Known violation: `cervana-api/src/common/lib/embeding.ts` calls Gemini directly (target: `POST /ai/v1/embeddings/text` on `ai-api`). Don't add new LLM-dependent code in `api` before it is migrated. The grep patterns in `AGENTS.md` ("Detection") define violations; run them after cross-service changes.
+No boundary violation is open. `api` has no LLM or embedding code, dependency or credential; the former Gemini call in `common/lib/embeding.ts` had no callers and was deleted. The grep patterns in `AGENTS.md` ("Detection") define violations; run them after cross-service changes.
 
-Redis serves three roles: app cache, BullMQ broker (`api`, see `cervana-api/src/v1/queue/`), and Celery broker (`ai-api`). Embedding/indexing work runs as Celery tasks (`v1/*/workers.py`, `config/celery.py`).
+AI providers (only `ai-api` and `celery-worker` get these): the LLM is one OpenAI-compatible gateway (`OPENAI_API_KEY`, `OPENAI_BASE_URL`; the project uses `https://ai.flaz.id/v1`) with two modes built in `services/ai-api/config/providers.py`: flash (`OPENAI_MODEL_FLASH`, `OPENAI_MAX_TOKENS`, `pipeline.llm`) and thinking (`OPENAI_MODEL_THINKING`, `OPENAI_THINKING_MAX_TOKENS`, `pipeline.llm_thinking`); embeddings are computed remotely by Hugging Face Inference (`HF_TOKEN`, `HF_EMBEDDING_MODEL`, `HF_EMBEDDING_URL`, `EMBEDDING_DIM`). Google Gemini credentials are gone (a `gemini/...` model id served by the gateway is allowed). Changing the embedding model or dimension needs new Qdrant collection names and a re-embed; `ai-api` refuses to start on a vector-size mismatch. A developer's personal `HF_TOKEN` stays in the git-ignored root `.env` only.
+
+Redis serves three roles: app cache, BullMQ broker (`api`, see `services/api/src/v1/queue/`), and Celery broker (`ai-api`). Embedding/indexing work runs as Celery tasks (`v1/*/workers.py`, `config/celery.py`).
 
 ### Dev vs prod discrepancy
 
-`ai-api-cervana/main.py` spawns a Celery worker as a subprocess on FastAPI startup, and `docker-compose.yml` has no `celery-worker` service. `docker-compose.prod.yml` has a dedicated `celery-worker`, and `AGENTS.md` forbids the subprocess pattern. Keep this in mind before touching startup code or assuming a worker exists in dev.
+`services/ai-api/main.py` spawns a Celery worker as a subprocess on FastAPI startup, and `docker-compose.yml` has no `celery-worker` service. `docker-compose.prod.yml` has a dedicated `celery-worker`, and `AGENTS.md` forbids the subprocess pattern. Keep this in mind before touching startup code or assuming a worker exists in dev.
 
-### API layout (`cervana-api/src`)
+### API layout (`services/api/src`)
 
-`app.module.ts` → `v1/v1.module.ts` aggregates feature modules under `v1/` (auth, chat, curriculum, learning, learner-model, gamify, quiz, sse, queue, orders, teacher, ...). Cross-cutting code is in `common/` (response interceptor, exception filters, idempotency, logging). Path alias `@/*` → `src/*` (resolved by `tsc-alias` at build). Responses are wrapped globally by `ResponseInterceptor`; validation is Zod-based. Prisma schema/migrations: `cervana-api/prisma/`.
+`app.module.ts` → `v1/v1.module.ts` aggregates feature modules under `v1/` (auth, chat, curriculum, learning, learner-model, gamify, quiz, sse, queue, orders, teacher, ...). Cross-cutting code is in `common/` (response interceptor, exception filters, idempotency, logging). Path alias `@/*` → `src/*` (resolved by `tsc-alias` at build). Responses are wrapped globally by `ResponseInterceptor`; validation is Zod-based. Prisma schema/migrations: `services/api/prisma/`.
 
-### Access control (`cervana-api`)
+### Access control (`services/api`)
 
 - **Every route must declare an access decision** or `src/common/authz/__tests__/route-access.spec.ts` fails: `@Public()`, `@Roles(...)`, `@RequireOwnership(resource)` / `@RequireParentOwnership(resource, field, 'body'|'query')`, `@ScopeToUser()`, `@TenantScoped({ roles })`, `@InternalOnly()`, or `@AuthenticatedOnly()` (only when the service enforces the rows). New owned resource types go in `v1/common/guards/ownership.registry.ts`. Guard order is global: JWT → Roles → Ownership; `docs/architecture/AUTHORIZATION_MATRIX.md` lists every route.
 - **Sensitive state changes are intent endpoints** (`approve-payment`, `POST /users/:id/role`, `/teacher/applications/:id/approve`), never `PATCH status`. They run in one transaction with a row lock, follow a state table (`orders/order-state.ts`), are idempotent, and write an `AuditService` entry.
 - **Tenant context** comes from `@TenantScoped()` (`common/tenancy`). `x-tenant-id` only selects among the caller's own memberships; tenant-owned queries must filter with `tenantWhere(context)`.
-- **Service-to-service** calls use signed headers (`common/authz/internal-signature.ts`, Python twin `ai-api-cervana/config/service_auth.py`, shared test vectors). Routes live under `/internal` with `@InternalOnly()`. The API must keep Nest's `rawBody` parser: do not add `app.use(json())` in `main.ts`, it hides the raw body and every signed POST fails.
+- **Service-to-service** calls use signed headers (`common/authz/internal-signature.ts`, Python twin `services/ai-api/config/service_auth.py`, shared test vectors). Routes live under `/internal` with `@InternalOnly()`. The API must keep Nest's `rawBody` parser: do not add `app.use(json())` in `main.ts`, it hides the raw body and every signed POST fails.
 - **Zod 4 keeps `.default()` inside `.partial()`**. Build update DTOs with `partialWithoutDefaults` (`common/lib/zod-partial.ts`); `update-dto-defaults.spec.ts` enforces it.
 - Money is `Decimal`. Database rules (checks, partial unique indexes, append-only triggers) live in the hand-written tails of `prisma/migrations/*_domain_foundation` and `*_payment_domain`; Prisma does not know about them.
 
-### Payments (`cervana-api/src/v1/payments`, `orders`, `commerce`)
+### Payments (`services/api/src/v1/payments`, `orders`, `commerce`)
 
 - Manual payment is the V1 adapter; the provider abstraction is the architecture (`docs/architecture/PAYMENT_ARCHITECTURE.md`, ADR-008). Do not put provider logic (proofs, bank accounts, gateway payloads) in `orders/`, `commerce/` or `entitlements/`, and do not import `payments/providers/*` from them.
 - Order → `PaymentService` → provider adapter. Approval, gateway settlement or any other verification ends in `PaymentService.markVerified`, which publishes `PaymentVerified`; `CommerceFulfillmentService` reacts (order paid, entitlement, creator earning, ledger, order fulfilled). Never grant access or write earnings from a controller.
@@ -106,7 +110,7 @@ Redis serves three roles: app cache, BullMQ broker (`api`, see `cervana-api/src/
 - Python tests without syncing the heavy project: `uv run --no-project --with pytest --with requests --with fastapi --with python-dotenv --with pydantic --with httpx pytest -q config/__tests__`. Some existing tests fail for known reasons (see the Phase 1 report).
 - `INTERNAL_AI_API_SECRET` must be set in the root `.env` for `api`, `ai-api` and the celery worker.
 
-### AI layout (`ai-api-cervana`)
+### AI layout (`services/ai-api`)
 
 Feature packages under `v1/` (`learning`, `resources`, `users_steps`), each with `router.py`, `dto.py`, `service.py`, `workers.py`, and pipeline modules (LangGraph/LangChain). `config/` holds env loading (`ENVS`), Celery app, embedding pipeline, rate limiting, URL allowlist, prompt segmentation. `utils/tools/` holds agent tools (web search, memory).
 
@@ -118,5 +122,7 @@ Feature packages under `v1/` (`learning`, `resources`, `users_steps`), each with
 
 - No comments in code, Dockerfiles, compose, or nginx config unless explicitly requested.
 - Never run `git add`, `git commit`, `git push`, rebase/merge/reset --hard, or amend. Only read git state; report changed and untracked files when done and let the owner stage/commit.
-- Compose/Dockerfile rules (`restart: unless-stopped`, healthchecks on every service, `runner` final stage, non-root `cervana` user, no `latest` tags, prod exposes only nginx ports) are in `AGENTS.md`.
+- Compose/Dockerfile rules (`restart: unless-stopped`, healthchecks on every service, `runner` final stage, non-root `reducera` user, no `latest` tags, prod exposes only nginx ports) are in `AGENTS.md`.
+- Audit structure and callers with `codebase-memory-mcp` (`check_index_coverage`, `search_graph`, `trace_path`), then confirm negative claims with `grep`. Details in `AGENTS.md` ("Code audit").
+- Verify web changes in a real browser through the `playwright` MCP (viewports 375/768/1280, light and dark, reduced motion, zero console errors), not only `pnpm build`. Details in `AGENTS.md` ("Web verification"). Always pass `filename` as `.playwright-mcp/<name>.png` (git-ignored); a bare name lands in the repo root.
 - Before claiming infra work complete: `docker compose config`, prod `config`, `docker compose ps` healthy, `curl http://localhost/nginx-health`, `curl http://localhost/api/v1/docs`.

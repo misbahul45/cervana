@@ -2,7 +2,7 @@
 
 > **Status**: `planned` · **Owner**: `ml-lead` · **Last reviewed**: `2026-09-30`
 >
-> How to make Cervana's tutor LLM actually self-improve: observed → measured → evaluated → improved → measured again.
+> How to make ReduCera's tutor LLM actually self-improve: observed → measured → evaluated → improved → measured again.
 
 ---
 
@@ -24,11 +24,11 @@ Files affected when implemented:
 - `api/src/v1/optimization/acceptance-gate.service.ts` (new)
 - `api/src/v1/optimization/canary.service.ts` (new)
 - `api/src/v1/evaluator/benchmark-runner.service.ts` (new)
-- `ai-api-cervana/v1/optimization/dspy_program.py` (new)
-- `ai-api-cervana/v1/optimization/runner.py` (new)
-- `ai-api-cervana/v1/evaluator/grade.py` (new)
-- `ai-api-cervana/pyproject.toml` (add `dspy`)
-- `cervana-api/prisma/schema.prisma` (already includes `Episode`, `DecisionTrace`, `OptimizationRun`, `PromptVersion` per [`docs/02-architecture/data-model.md`](../02-architecture/data-model.md))
+- `services/ai-api/v1/optimization/dspy_program.py` (new)
+- `services/ai-api/v1/optimization/runner.py` (new)
+- `services/ai-api/v1/evaluator/grade.py` (new)
+- `services/ai-api/pyproject.toml` (add `dspy`)
+- `services/api/prisma/schema.prisma` (already includes `Episode`, `DecisionTrace`, `OptimizationRun`, `PromptVersion` per [`docs/02-architecture/data-model.md`](../02-architecture/data-model.md))
 
 ---
 

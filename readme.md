@@ -1,22 +1,20 @@
-# CERVANA
+# REDUCERA
 
 AI-powered learning platform for vocational accounting students, combining Retrieval-Augmented Generation with gamified microlearning.
 
 ## Overview
 
-CERVANA is a full-stack web platform that helps SMK Akuntansi students prepare for competency certification through:
+REDUCERA is a full-stack web platform that helps SMK Akuntansi students prepare for competency certification through:
 
 - RAG-based AI tutor over accounting curriculum (PDF, video, modules)
 - Adaptive quizzes with real-time evaluation
 - Gamification (points, streaks, badges, leaderboard)
-- Admin dashboard for content, progress, and analytics management
 
 ## Tech Stack
 
 | Layer | Technology | Version |
 |---|---|---|
 | Frontend (Student) | Nuxt | 4.x |
-| Frontend (Admin) | SvelteKit | 2.x |
 | Backend API | NestJS + Prisma | 11.x / 7.x |
 | AI Service | FastAPI + LangChain + Celery | 0.121+ / 0.3+ / 5.5+ |
 | Vector Database | Qdrant | 1.12+ |
@@ -36,25 +34,25 @@ CERVANA is a full-stack web platform that helps SMK Akuntansi students prepare f
                  ┌─────────┐
                  │  Nginx  │ :80 / :443
                  └────┬────┘
-       ┌──────────────┼──────────────┬──────────────┐
-       ▼              ▼              ▼              ▼
-  ┌─────────┐   ┌──────────┐   ┌─────────┐   ┌──────────┐
-  │   web   │   │  admin   │   │   api   │   │  ai-api  │
-  │  Nuxt   │   │SvelteKit │   │ NestJS  │   │ FastAPI  │
-  │  :3000  │   │  :3001   │   │  :3002  │   │  :3003   │
-  └─────────┘   └──────────┘   └────┬────┘   └────┬─────┘
-                                   │              │
-                           ┌───────┴──────┐       │
-                           ▼              ▼       ▼
-                      ┌────────┐    ┌─────────┐  ┌──────────┐
-                      │postgres│    │  redis  │  │ celery   │
-                      │  :5432 │    │  :6379  │  │ worker   │
-                      └────────┘    └─────────┘  └────┬─────┘
-                                                      ▼
-                                                 ┌─────────┐
-                                                 │ qdrant  │
-                                                 │  :6333  │
-                                                 └─────────┘
+       ┌──────────────┼──────────────┐
+       ▼              ▼              ▼
+  ┌─────────┐   ┌─────────┐   ┌──────────┐
+  │   web   │   │   api   │   │  ai-api  │
+  │  Nuxt   │   │ NestJS  │   │ FastAPI  │
+  │  :3000  │   │  :3002  │   │  :3003   │
+  └─────────┘   └────┬────┘   └────┬─────┘
+                     │             │
+             ┌───────┴──────┐      │
+             ▼              ▼      ▼
+        ┌────────┐    ┌─────────┐  ┌──────────┐
+        │postgres│    │  redis  │  │ celery   │
+        │  :5432 │    │  :6379  │  │ worker   │
+        └────────┘    └─────────┘  └────┬─────┘
+                                        ▼
+                                   ┌─────────┐
+                                   │ qdrant  │
+                                   │  :6333  │
+                                   └─────────┘
 ```
 
 ### Service Responsibilities
@@ -63,7 +61,6 @@ CERVANA is a full-stack web platform that helps SMK Akuntansi students prepare f
 |---|---|---|
 | `nginx` | Reverse proxy, TLS termination, static caching | 80, 443 |
 | `web` | Student-facing Nuxt SSR | 3000 |
-| `admin` | Admin dashboard (SvelteKit) | 3001 |
 | `api` | Core REST API (auth, users, gamification, content) | 3002 |
 | `ai-api` | AI inference, RAG orchestration, embedding pipeline | 3003 |
 | `celery-worker` | Async embedding & indexing tasks | — |
@@ -74,17 +71,22 @@ CERVANA is a full-stack web platform that helps SMK Akuntansi students prepare f
 ## Repository Layout
 
 ```
-cervana/
-├── cervana-api/            NestJS API + Prisma schema
-├── ai-api-cervana/         FastAPI + Celery + LangChain pipeline
-├── web-cervana/            Nuxt student app
-├── nginx/                  Reverse proxy configuration
-├── postgres/init/          SQL bootstrap scripts
-├── qdrant/                 Vector DB configuration
-├── docker-compose.yml      Development stack
-├── docker-compose.prod.yml Production stack
-├── AGENTS.md               Operating rules for Docker/deployment
-└── .env.example            Environment variable template
+reducera/
+├── apps/
+│   └── web/                 Nuxt web app
+├── services/
+│   ├── api/                 NestJS API + Prisma schema
+│   └── ai-api/              FastAPI + Celery + LangChain pipeline
+├── infra/
+│   ├── nginx/               Reverse proxy configuration
+│   ├── postgres/init/       SQL bootstrap scripts
+│   ├── qdrant/              Vector DB configuration
+│   └── scripts/             One-off operational scripts
+├── docs/                    Architecture, audits, plans
+├── docker-compose.yml       Development stack
+├── docker-compose.prod.yml  Production stack
+├── AGENTS.md                Operating rules for Docker/deployment
+└── .env.example             Environment variable template
 ```
 
 ## Prerequisites
@@ -97,8 +99,8 @@ cervana/
 ## Quick Start (Development)
 
 ```bash
-git clone <repository-url> cervana
-cd cervana
+git clone <repository-url> reducera
+cd reducera
 cp .env.example .env
 ```
 
@@ -134,9 +136,9 @@ curl http://localhost/api/v1/docs
 ```bash
 export IMAGE_TAG=1.0.0
 
-docker build -t cervana/api:$IMAGE_TAG      ./cervana-api
-docker build -t cervana/ai-api:$IMAGE_TAG   ./ai-api-cervana
-docker build -t cervana/web:$IMAGE_TAG      ./web-cervana
+docker build -t reducera/api:$IMAGE_TAG      ./services/api
+docker build -t reducera/ai-api:$IMAGE_TAG   ./services/ai-api
+docker build -t reducera/web:$IMAGE_TAG      ./apps/web
 ```
 
 Push to a private registry if deploying across multiple hosts.
@@ -146,8 +148,8 @@ Push to a private registry if deploying across multiple hosts.
 On the production host:
 
 ```bash
-git clone <repository-url> cervana
-cd cervana
+git clone <repository-url> reducera
+cd reducera
 cp .env.example .env
 ```
 
@@ -157,7 +159,8 @@ Edit `.env` and set:
 - `IMAGE_TAG=<version>`
 - `POSTGRES_PASSWORD`, `COOKIE_SECRET`, `JWT_ACCESS_SECRET`, `JWT_REFRESH_SECRET` to strong random values
 - `PUBLIC_API_URL`, `PUBLIC_AI_URL`, `PUBLIC_WEB_URL` to the public HTTPS endpoints
-- LLM provider keys: `GEMINI_API_KEY` or `OPENAI_API_KEY`
+- LLM: `OPENAI_API_KEY`, `OPENAI_BASE_URL`, and the two modes `OPENAI_MODEL_FLASH` (fast) and `OPENAI_MODEL_THINKING` (reasoning)
+- Embeddings (Hugging Face Inference): `HF_TOKEN`, `HF_EMBEDDING_MODEL`, `EMBEDDING_DIM`
 
 ### Run Database Migrations
 
@@ -176,13 +179,13 @@ docker compose -f docker-compose.prod.yml up -d
 ### TLS Configuration
 
 ```bash
-certbot certonly --standalone -d cervana.example.com
+certbot certonly --standalone -d reducera.example.com
 
-mkdir -p nginx/certs/cervana.example.com
-cp /etc/letsencrypt/live/cervana.example.com/fullchain.pem nginx/certs/
-cp /etc/letsencrypt/live/cervana.example.com/privkey.pem   nginx/certs/
+mkdir -p infra/nginx/certs/reducera.example.com
+cp /etc/letsencrypt/live/reducera.example.com/fullchain.pem infra/nginx/certs/
+cp /etc/letsencrypt/live/reducera.example.com/privkey.pem   infra/nginx/certs/
 
-mv nginx/conf.d/01-ssl.conf.example nginx/conf.d/01-ssl.conf
+mv infra/nginx/conf.d/01-ssl.conf.example infra/nginx/conf.d/01-ssl.conf
 
 docker compose -f docker-compose.prod.yml restart nginx
 ```
@@ -200,7 +203,7 @@ docker compose -f docker-compose.prod.yml up -d
 |---|---|---|
 | Image source | Built from source on `up` | Pre-built with immutable tag |
 | Service ports | Exposed to host for debugging | Only Nginx exposed |
-| Network segmentation | Single bridge | Split `cervana_backend` + `cervana_frontend` |
+| Network segmentation | Single bridge | Split `reducera_backend` + `reducera_frontend` |
 | Resource limits | None | `memory` + `cpus` per service |
 | Celery worker | Subprocess inside `ai-api` | Dedicated `celery-worker` service |
 | Qdrant | Optional | Required for AI |
@@ -218,9 +221,12 @@ All configuration is centralized in a single root `.env` file. See `.env.example
 | `QDRANT_*` | Vector database endpoint and collections |
 | `COOKIE_SECRET`, `JWT_*` | Authentication secrets |
 | `NUXT_PUBLIC_*` | Public URLs exposed to browser (student app) |
-| `PUBLIC_*` | Public URLs exposed to browser (admin app) |
+| `PUBLIC_*` | Public URLs used by nginx and the services |
 | `*_INTERNAL` | Service-to-service URLs resolved via Docker DNS |
-| `GEMINI_API_KEY` / `OPENAI_API_KEY` | LLM provider credentials |
+| `OPENAI_API_KEY`, `OPENAI_BASE_URL` | LLM gateway credentials |
+| `OPENAI_MODEL_FLASH`, `OPENAI_MAX_TOKENS`, `OPENAI_FLASH_TEMPERATURE` | Fast mode model, token budget, optional temperature |
+| `OPENAI_MODEL_THINKING`, `OPENAI_THINKING_MAX_TOKENS` | Thinking mode model and token budget |
+| `HF_TOKEN`, `HF_EMBEDDING_MODEL`, `HF_EMBEDDING_URL`, `EMBEDDING_DIM` | Remote embeddings via Hugging Face Inference |
 | `IMAGE_TAG` | Production image version (rollback control) |
 
 Full naming and precedence rules are documented in [`AGENTS.md`](./AGENTS.md).
@@ -230,7 +236,7 @@ Full naming and precedence rules are documented in [`AGENTS.md`](./AGENTS.md).
 ```bash
 docker compose ps                                          # Service health
 docker compose logs -f api                                  # Tail API logs
-docker compose exec postgres pg_dump -U cervana_prod cervana > backup.sql
+docker compose exec postgres pg_dump -U reducera_prod reducera > backup.sql
 docker compose exec api npx prisma studio                  # Prisma GUI
 docker compose restart ai-api                              # Restart single service
 docker compose up -d --build web                           # Rebuild single service
@@ -242,7 +248,7 @@ Production equivalents:
 ```bash
 docker compose -f docker-compose.prod.yml ps
 docker compose -f docker-compose.prod.yml logs -f --tail=100 ai-api
-docker compose -f docker-compose.prod.yml exec postgres pg_dump -U cervana_prod cervana > backup-$(date +%F).sql
+docker compose -f docker-compose.prod.yml exec postgres pg_dump -U reducera_prod reducera > backup-$(date +%F).sql
 ```
 
 ## Health Endpoints

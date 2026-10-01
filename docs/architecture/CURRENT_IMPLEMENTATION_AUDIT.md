@@ -1,13 +1,13 @@
 # Current implementation audit
 
-> Date: 2026-09-30. Verified against source (not against earlier documents): `cervana-api/src`, `cervana-api/prisma`, `ai-api-cervana`, `web-cervana`, compose files. Where an earlier document disagrees with this one, this one wins.
+> Date: 2026-09-30. Verified against source (not against earlier documents): `services/api/src`, `services/api/prisma`, `services/ai-api`, `apps/web`, compose files. Where an earlier document disagrees with this one, this one wins.
 > Method: file inventories, Prisma schema read in full, a script that maps every model to the application code that touches it, route metadata extracted at runtime, test runs (`30 suites / 607 tests` with a database), an end-to-end run against the built API.
 
 ## 1. Inventory
 
 | Area | Count | Note |
 |---|---|---|
-| API modules / controllers / services / repositories | 62 / 48 / 61 / 32 | `cervana-api/src` |
+| API modules / controllers / services / repositories | 62 / 48 / 61 / 32 | `services/api/src` |
 | HTTP routes | 195 | every route has an explicit access decision (ratchet test); see [AUTHORIZATION_MATRIX](./AUTHORIZATION_MATRIX.md) |
 | Prisma models / enums / migrations | 80 / 45 / 11 | zero drift on a clean database |
 | Jest suites / tests | 30 / 607 | 554 pass and 53 skip without a database, all pass with one |
@@ -47,7 +47,7 @@ Consequence: 32 of the 80 tables have no writer. The whole learner model, memory
 | Gamification | Dormant. `ActivityDetectorInterceptor` is never registered and its `intercept` never calls `detect`; `StreakService.recordLearningEvent` has no caller; nothing writes `User.totalPoints`, `souls`, `stars` or the streak counters. `Achievement` and `UserAchievement` have no code. Leaderboard and streak endpoints read tables nothing fills |
 | Uploads and RAG ingestion | Cloudinary upload (images and PDFs, ownership by file prefix). `Resource` ingestion goes through `ai-api` with an allow-list that admits loopback only. There is no quarantine or review state before RAG. Any `TEACHER` can create and read any resource |
 | Web | Nuxt 4, SSR. Middleware only distinguishes logged in from public. No role-aware layout, no marketplace, no teacher area, no admin area, no checkout. The order page reads the deprecated `order.amount` |
-| Infra | Compose dev has no `celery-worker` (subprocess started from `main.py`); prod has one. `api` still calls Gemini directly in `common/lib/embeding.ts` (known violation). Replay cache for signed internal requests is in memory |
+| Infra | Compose dev has no `celery-worker` (subprocess started from `main.py`); prod has one. The former Gemini call in `api` (`common/lib/embeding.ts`) had no callers and was deleted on 2026-09-30. Replay cache for signed internal requests is in memory |
 
 ## 4. Authorization as implemented
 
@@ -77,9 +77,9 @@ Consequence: 32 of the 80 tables have no writer. The whole learner model, memory
 | 10 | Streak and points engine is dead code | section 3, Gamification | No learner earns anything today |
 | 11 | `TenantSettings` never created | `tenant-provisioning.service.ts` | Payout destination has nowhere to live |
 | 12 | Any `TEACHER` edits any lesson, step, quiz, resource | section 4 | Cross-teacher tampering |
-| 13 | `api` calls Gemini directly | `common/lib/embeding.ts` | Breaks the API/AI boundary |
-| 14 | AI calls forward user tokens for reads and writes of learning data | `ai-api-cervana/v1/*/service.py` | Partly migrated (ADR-007) |
-| 15 | Celery worker started as a subprocess in dev | `ai-api-cervana/main.py` | Dev and prod differ |
+| 13 | `api` called Gemini directly (resolved 2026-09-30: file had no callers and was deleted) | `common/lib/embeding.ts` | Breaks the API/AI boundary |
+| 14 | AI calls forward user tokens for reads and writes of learning data | `services/ai-api/v1/*/service.py` | Partly migrated (ADR-007) |
+| 15 | Celery worker started as a subprocess in dev | `services/ai-api/main.py` | Dev and prod differ |
 | 16 | Stripe variables remain in `.env.example` and compose | env files | Unused |
 | 17 | `DailyStats`, `Achievement`, `UserAchievement` unused | section 2 | Dead schema |
 | 18 | Integration tests commit rows that append-only tables cannot clean | `payment-flow.int.spec.ts` | Scratch databases only |
