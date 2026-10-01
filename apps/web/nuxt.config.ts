@@ -47,6 +47,7 @@ export default defineNuxtConfig({
   components: {
     dirs: [
       '~/components',
+      { path: '~/components/landingpage', pathPrefix: false },
     ]
   },
   pinia:{

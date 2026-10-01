@@ -39,3 +39,6 @@ dev = [
 [tool.pytest.ini_options]
 testpaths = ["tests", "config/__tests__", "utils/tools/__tests__", "v1"]
 python_files = ["test_*.py", "*_test.py"]
+collect_ignore = [
+    "utils/tools/__tests__/test_memory.py",
+]

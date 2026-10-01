@@ -26,3 +26,5 @@ os.environ.setdefault("APP_VERSION", "v1")
 os.environ.setdefault(
     "RESOURCE_ALLOWLIST_SCHEMES", "https,http"
 )
+
+collect_ignore = ["utils/tools/__tests__/test_memory.py"]

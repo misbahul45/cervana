@@ -211,3 +211,33 @@ The planning phase is complete when:
 - [x] Every open question has a decision owner.
 - [x] `AGENTS.md` Service Ownership section is in place.
 - [x] This progress file is current.
+
+---
+
+## Strategy planning (2026-10-02)
+
+Rows added by the strategy planning job (`docs/strategy/`). Prefix `SP-`. No existing row was changed.
+
+| ID | Task | Priority | Status | Owner | Evidence |
+|---|---|---|---|---|---|
+| SP-001 | Verification delta: S-01 to S-20, K-01 to K-12, commits, capability inventory, tracks, tests | P0 | [x] | architect | [01-verification-delta.md](./strategy/01-verification-delta.md) |
+| SP-002 | Decision register D-01 to D-21 with defaults | P0 | [x] | owner | [decision-register.md](./strategy/decision-register.md) |
+| SP-003 | Executive summary | P1 | [x] | owner | [00-executive-summary.md](./strategy/00-executive-summary.md) |
+| SP-004 | Business model, canvas, unit-economics skeleton | P1 | [x] | product-strategist | [02-business-model.md](./strategy/02-business-model.md) |
+| SP-005 | Actors, stage ladder, journeys | P1 | [x] | product-strategist | [03-actors-and-journeys.md](./strategy/03-actors-and-journeys.md) |
+| SP-006 | Business processes BP-01 to BP-12 | P1 | [x] | process-architect | [04-business-processes.md](./strategy/04-business-processes.md) |
+| SP-007 | Circular economy loops, KPIs, guardrails | P1 | [x] | product-strategist | [05-circular-economy.md](./strategy/05-circular-economy.md) |
+| SP-008 | Accounting domain and sandbox reconciliation | P1 | [x] | accounting-architect | [06-accounting-domain.md](./strategy/06-accounting-domain.md) |
+| SP-009 | AI architecture and decision authority matrix | P1 | [x] | ai-architect | [07-ai-architecture.md](./strategy/07-ai-architecture.md) |
+| SP-010 | Gamification and dynamic theme | P2 | [x] | product-architect | [08-gamification-and-theme.md](./strategy/08-gamification-and-theme.md) |
+| SP-011 | Gap analysis | P0 | [x] | architect | [09-gap-analysis.md](./strategy/09-gap-analysis.md) |
+| SP-012 | Target architecture and regenerated responsibility matrix | P1 | [x] | architect | [10-target-architecture.md](./strategy/10-target-architecture.md) |
+| SP-013 | API system plan | P1 | [x] | api-architect | [11-api-plan.md](./strategy/11-api-plan.md) |
+| SP-014 | UI system plan | P1 | [x] | ux-architect | [12-ui-plan.md](./strategy/12-ui-plan.md) |
+| SP-015 | Data model delta | P1 | [x] | data-architect | [13-data-model-delta.md](./strategy/13-data-model-delta.md) |
+| SP-016 | Canonical roadmap | P0 | [x] | owner | [14-roadmap.md](./strategy/14-roadmap.md) |
+| SP-017 | Risk register | P1 | [x] | owner | [15-risks.md](./strategy/15-risks.md) |
+| SP-018 | Owner confirms D-01, D-08, D-05, D-12, D-13 | P0 | [ ] | owner | [decision-register.md](./strategy/decision-register.md) |
+| SP-019 | Stage 0 fixes: nginx prefix, web URLs, `ai-api` caller validation, `AI_URL`, curriculum read gate | P0 | [ ] | developer | [14-roadmap.md](./strategy/14-roadmap.md) Stage 0 |
+| SP-020 | Repair 161 broken doc links; regenerate `AUTHORIZATION_MATRIX.md` (273 routes) | P1 | [ ] | developer | [01-verification-delta.md](./strategy/01-verification-delta.md) §8 |
+| SP-021 | Run the database integration suites on a scratch database in CI | P0 | [ ] | developer | [09-gap-analysis.md](./strategy/09-gap-analysis.md) G-T-03 |
