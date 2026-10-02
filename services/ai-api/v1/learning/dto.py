@@ -8,11 +8,18 @@ from v1.users_steps.dto import (
     LearningStyleProfileBase,
 )
 
+class CitationDto(BaseModel):
+    lessonId: str
+    chunkId: Optional[str] = None
+    score: Optional[float] = None
+    label: Optional[str] = None
+
+
 class GenerateContentMaterialResponseDto(BaseModel):
     chatId: str
     chatMessageId: str
     data: Any
-    citations: Optional[List[str] | Dict[str, Any]] = None
+    citations: Optional[List[Any]] = []
     metadata: Optional[Dict[str, Any]] = None
 
     class Config:
@@ -27,7 +34,14 @@ class GenerateContentMaterialResponseDto(BaseModel):
                     "- Menyediakan informasi keuangan\n"
                     "- Menjadi dasar pengambilan keputusan\n"
                 ),
-                "citations": ["Buku Akuntansi Keuangan Dasar, Bab 2"],
+                "citations": [
+                    {
+                        "lessonId": "l1-t01-accounting-equation",
+                        "chunkId": "chunk-1",
+                        "score": 0.91,
+                        "label": "Buku Akuntansi Keuangan Dasar, Bab 2"
+                    }
+                ],
                 "metadata": {
                     "difficulty": "beginner",
                     "source": "AI-generated"

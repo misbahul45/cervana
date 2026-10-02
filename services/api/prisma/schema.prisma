@@ -60,6 +60,7 @@ model User {
   // Sandbox
   sandboxAttempts      SandboxAttempt[]
   episodes             Episode[]
+  adaptivePolicies     AdaptivePolicy[]
   decisionTraces       DecisionTrace[]
   teacherOverridesGiven   TeacherOverride[] @relation("teacherOverridesGiven")
   teacherOverridesReceived TeacherOverride[] @relation("teacherOverridesReceived")
@@ -2101,4 +2102,21 @@ model AICreditLedgerEntry {
   @@unique([userId, idempotencyKey])
   @@index([userId, createdAt])
   @@index([sourceType, sourceId])
+}
+
+// -----------------------------------------------------------------------------
+// Phase 2 personalization
+// -----------------------------------------------------------------------------
+
+model AdaptivePolicy {
+  id             String   @id @default(cuid())
+  userId         String
+  topicId        String
+  nextActivityId String?
+  rationale      Json
+  appliedAt      DateTime @default(now())
+
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, appliedAt])
 }

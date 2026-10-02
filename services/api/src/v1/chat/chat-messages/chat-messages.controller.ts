@@ -1,5 +1,5 @@
 import { RequireOwnership, RequireParentOwnership } from '@/v1/common/guards/ownership.decorator';
-import { Controller, Get, Post, Body, Patch, Param, Delete, Query } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, Query, UseInterceptors } from '@nestjs/common';
 import { ChatMessagesService } from './chat-messages.service';
 import { CreateChatMessageDto, CreateChatMessageDtoType, UpdateChatMessageDto, UpdateChatMessageDtoType } from './chat-messages.dto';
 import { ZodPipe } from '@/common/pipes/zod.pipe';
@@ -7,6 +7,7 @@ import { ApiCrudDocs } from '@/common/lib/docs';
 import { BaseChatMessageSchema } from '@/common/docs/chat.doc';
 import { ChatsService } from '../chats/chats.service';
 import { ChatMessagesSseService } from '@/v1/sse/chat-messages-sse/chat-messages-sse.service';
+import { ActivityDetectorInterceptor } from '@/common/interceptors/daily-activity.interceptor';
 
 @Controller('chat-messages')
 export class ChatMessagesController {
@@ -18,6 +19,7 @@ export class ChatMessagesController {
   @Post()
   @ApiCrudDocs.create(BaseChatMessageSchema, CreateChatMessageDto, 'Chat Message')
   @RequireParentOwnership('chat', 'chatId')
+  @UseInterceptors(ActivityDetectorInterceptor)
   async create(@Body(new ZodPipe(CreateChatMessageDto)) createChatMessageDto: CreateChatMessageDtoType) {
     const res=await this.chatMessagesService.create(createChatMessageDto);
     this.ChatMessageSseService.emitUpdate(res.data.chatId);

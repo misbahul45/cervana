@@ -1,9 +1,10 @@
 import { ScopeToUser } from '@/common/authz/access';
 import { RequireOwnership } from '@/v1/common/guards/ownership.decorator';
-import { Controller, Get, Post, Body, Patch, Param, Delete, Query } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, Query, UseInterceptors } from '@nestjs/common';
 import { QuizAttemptsService } from './quiz-attempts.service';
 import { CreateQuizAttemptType, UpdateQuizAttemptType } from './quizAttempets.dto';
 import { Query as QueryInterface } from '@/common/interfaces';
+import { ActivityDetectorInterceptor } from '@/common/interceptors/daily-activity.interceptor';
 
 
 @Controller('quiz-attempts')
@@ -12,6 +13,7 @@ export class QuizAttemptsController {
 
   @Post()
   @ScopeToUser()
+  @UseInterceptors(ActivityDetectorInterceptor)
   create(@Body() createQuizAttemptDto: CreateQuizAttemptType) {
     return this.quizAttemptsService.create(createQuizAttemptDto);
   }

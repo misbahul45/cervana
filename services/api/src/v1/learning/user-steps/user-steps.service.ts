@@ -5,9 +5,37 @@ import { AppError, AppErrorCode } from '@/common/lib/error';
 import { UserStepsRepo } from './user-steps.repo';
 import { CreateUserStepType, UpdateUserStepType } from './user-steps.dto';
 
+const LEVEL_FALLBACK_TOPIC_ID = 'l1-t01-accounting-equation';
+
 @Injectable()
 export class UserStepsService {
   constructor(private readonly userStepsRepo: UserStepsRepo) {}
+
+  placeDiagnostic(answers: string[]): {
+    recommendedLevel: number;
+    recommendedTopicId: string;
+    confidence: number;
+  } {
+    if (!Array.isArray(answers) || answers.length === 0) {
+      return {
+        recommendedLevel: 1,
+        recommendedTopicId: LEVEL_FALLBACK_TOPIC_ID,
+        confidence: 0,
+      };
+    }
+    const correct = answers.filter((a) => a === 'A').length;
+    const score = correct / answers.length;
+    let recommendedLevel = 1;
+    if (score >= 0.8) recommendedLevel = 4;
+    else if (score >= 0.6) recommendedLevel = 3;
+    else if (score >= 0.4) recommendedLevel = 2;
+
+    return {
+      recommendedLevel,
+      recommendedTopicId: LEVEL_FALLBACK_TOPIC_ID,
+      confidence: score,
+    };
+  }
 
   create(values: CreateUserStepType) {
     return errorHandler(async () => {

@@ -1,16 +1,27 @@
 import { ScopeToUser } from '@/common/authz/access';
 import { RequireOwnership } from '@/v1/common/guards/ownership.decorator';
-import { Controller, Get, Post, Body, Patch, Param, Delete, Query } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, Query, UseInterceptors } from '@nestjs/common';
 import { UserStepsService } from './user-steps.service';
 import { Query as QueryInterface } from '@/common/interfaces';
 import { CreateUserStepType, UpdateUserStepType } from './user-steps.dto';
+import { ActivityDetectorInterceptor } from '@/common/interceptors/daily-activity.interceptor';
 
 @Controller('user-steps')
 export class UserStepsController {
   constructor(private readonly userStepsService: UserStepsService) {}
 
+  @Post('placement-diagnostic')
+  @ScopeToUser()
+  placeDiagnostic(@Body() body: { answers: string[] }) {
+    return {
+      message: 'Placement diagnostic complete',
+      data: this.userStepsService.placeDiagnostic(body?.answers ?? []),
+    };
+  }
+
   @Post()
   @ScopeToUser()
+  @UseInterceptors(ActivityDetectorInterceptor)
   create(@Body() createUserStepDto: CreateUserStepType) {
     return this.userStepsService.create(createUserStepDto);
   }
@@ -29,12 +40,14 @@ export class UserStepsController {
 
   @Patch(':id')
   @RequireOwnership('user-step')
+  @UseInterceptors(ActivityDetectorInterceptor)
   update(@Param('id') id: string, @Body() updateUserStepDto: UpdateUserStepType) {
     return this.userStepsService.update(id, updateUserStepDto);
   }
 
   @Post('/complete/:id')
   @RequireOwnership('user-step')
+  @UseInterceptors(ActivityDetectorInterceptor)
   complete(
     @Param('id') id:string
   ){

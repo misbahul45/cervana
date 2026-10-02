@@ -1,6 +1,13 @@
 import type { ApiResponse, Query } from "~/interfaces/api";
 import { authService } from "~/services/auth";
 import { useAuth } from "~/stores/auth";
+import type {
+  SandboxGraph,
+  SandboxJournalEntry,
+  SandboxJournalValidation,
+  SandboxScenario,
+  PlacementResult,
+} from "~/interfaces/sandbox";
 
 type HttpMethod = "GET" | "POST" | "PUT" | "DELETE" | "HEAD" | "PATCH";
 
@@ -16,6 +23,78 @@ export function getApiUrl() {
   }
   return config.public.API_URL;
 }
+
+export const sandboxApi = {
+  listScenarios: (token?: string) =>
+    request<SandboxScenario[]>(
+      `${getApiUrl()}/api/v1/sandbox/scenarios`,
+      "GET",
+      undefined,
+      {},
+      true,
+      token ? { access_token: token } : undefined,
+    ).then((res) => res.data ?? []),
+  graph: (token?: string) =>
+    request<SandboxGraph>(
+      `${getApiUrl()}/api/v1/sandbox/graph`,
+      "GET",
+      undefined,
+      {},
+      true,
+      token ? { access_token: token } : undefined,
+    ).then((res) => res.data ?? { levels: [] }),
+  validateJournal: (
+    body: { scenarioId?: string; entries: SandboxJournalEntry[] },
+    token?: string,
+  ) =>
+    request<SandboxJournalValidation>(
+      `${getApiUrl()}/api/v1/sandbox/journal/validate`,
+      "POST",
+      body,
+      {},
+      true,
+      token ? { access_token: token } : undefined,
+    ).then((res) => res.data as SandboxJournalValidation | undefined),
+  placement: (answers: string[], token?: string) =>
+    request<PlacementResult>(
+      `${getApiUrl()}/api/v1/learning/placement-diagnostic`,
+      "POST",
+      { answers },
+      {},
+      true,
+      token ? { access_token: token } : undefined,
+    ).then((res) => res.data as PlacementResult | undefined),
+};
+
+export const personalizationApi = {
+  listMastery: (token?: string) =>
+    request<MasteryScore[]>(
+      `${getApiUrl()}/api/v1/personalization/mastery/me`,
+      "GET",
+      undefined,
+      {},
+      true,
+      token ? { access_token: token } : undefined,
+    ).then((res) => res.data ?? []),
+  listMisconceptions: (token?: string) =>
+    request<MisconceptionPattern[]>(
+      `${getApiUrl()}/api/v1/personalization/misconceptions/active`,
+      "GET",
+      undefined,
+      {},
+      true,
+      token ? { access_token: token } : undefined,
+    ).then((res) => res.data ?? []),
+  nextActivity: (token?: string) =>
+    request<NextActivityDecision>(
+      `${getApiUrl()}/api/v1/personalization/policy/next`,
+      "GET",
+      undefined,
+      {},
+      true,
+      token ? { access_token: token } : undefined,
+    ).then((res) => res.data as NextActivityDecision | undefined),
+};
 
 export async function request<T>(
   endpoint: string,

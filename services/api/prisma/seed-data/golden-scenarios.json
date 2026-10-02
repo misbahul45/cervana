@@ -1,0 +1,87 @@
+[
+  {
+    "id": "s-buy-inventory-100",
+    "topicId": "l1-t03-journal-entries",
+    "level": 1,
+    "title": "Buy inventory for $100 cash",
+    "description": "A small shop buys $100 of inventory using cash. Record the journal entry.",
+    "difficulty": "BEGINNER",
+    "expectedLines": [
+      { "accountId": "Inventory", "side": "DEBIT", "amount": 100 },
+      { "accountId": "Cash", "side": "CREDIT", "amount": 100 }
+    ]
+  },
+  {
+    "id": "s-provide-services-500",
+    "topicId": "l1-t03-journal-entries",
+    "level": 1,
+    "title": "Provide services for $500",
+    "description": "Earn $500 of consulting revenue in the period. Record the journal entry.",
+    "difficulty": "BEGINNER",
+    "expectedLines": [
+      { "accountId": "Cash", "side": "DEBIT", "amount": 500 },
+      { "accountId": "Service Revenue", "side": "CREDIT", "amount": 500 }
+    ]
+  },
+  {
+    "id": "s-pay-salary-1200",
+    "topicId": "l1-t07-closing-entries",
+    "level": 1,
+    "title": "Pay salary of $1,200",
+    "description": "Pay employees $1,200 cash for the period. Record the journal entry.",
+    "difficulty": "BEGINNER",
+    "expectedLines": [
+      { "accountId": "Salary Expense", "side": "DEBIT", "amount": 1200 },
+      { "accountId": "Cash", "side": "CREDIT", "amount": 1200 }
+    ]
+  },
+  {
+    "id": "s-record-allowance",
+    "topicId": "l2-t10-receivables-bad-debt",
+    "level": 2,
+    "title": "Record allowance for doubtful accounts $300",
+    "description": "Estimate $300 of receivables will be uncollectible. Record the adjusting entry.",
+    "difficulty": "INTERMEDIATE",
+    "expectedLines": [
+      { "accountId": "Bad Debt Expense", "side": "DEBIT", "amount": 300 },
+      { "accountId": "Allowance for Doubtful Accounts", "side": "CREDIT", "amount": 300 }
+    ]
+  },
+  {
+    "id": "s-record-depreciation",
+    "topicId": "l2-t11-pppe-depreciation",
+    "level": 2,
+    "title": "Record $500 monthly depreciation",
+    "description": "Record one month of straight-line depreciation on equipment.",
+    "difficulty": "INTERMEDIATE",
+    "expectedLines": [
+      { "accountId": "Depreciation Expense", "side": "DEBIT", "amount": 500 },
+      { "accountId": "Accumulated Depreciation", "side": "CREDIT", "amount": 500 }
+    ]
+  },
+  {
+    "id": "s-cogs-variance",
+    "topicId": "l3-t10-standard-costing-variance",
+    "level": 3,
+    "title": "Apply variable costing to inventory variance",
+    "description": "Close an unfavorable variable-cost variance of $1,000 to Cost of Goods Sold.",
+    "difficulty": "ADVANCED",
+    "expectedLines": [
+      { "accountId": "Cost of Goods Sold", "side": "DEBIT", "amount": 1000 },
+      { "accountId": "Variable Cost Variance", "side": "CREDIT", "amount": 1000 }
+    ]
+  },
+  {
+    "id": "s-goodwill-acquisition",
+    "topicId": "l4-t02-business-combinations",
+    "level": 4,
+    "title": "Recognize goodwill in acquisition",
+    "description": "Acquire a subsidiary for $9,000 cash; net identifiable assets at fair value are $8,000.",
+    "difficulty": "ADVANCED",
+    "expectedLines": [
+      { "accountId": "Net Identifiable Assets", "side": "DEBIT", "amount": 8000 },
+      { "accountId": "Goodwill", "side": "DEBIT", "amount": 1000 },
+      { "accountId": "Cash", "side": "CREDIT", "amount": 9000 }
+    ]
+  }
+]

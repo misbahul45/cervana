@@ -1,0 +1,93 @@
+{
+  "levels": [
+    {
+      "id": 1,
+      "title": "Fundamentals of Accounting",
+      "topics": [
+        { "id": "l1-t01-accounting-equation", "title": "The Accounting Equation", "description": "Assets = Liabilities + Equity, the foundation of double-entry bookkeeping.", "prerequisites": [], "estimatedMinutes": 30 },
+        { "id": "l1-t02-debits-credits", "title": "Debits and Credits", "description": "How debits and credits increase or decrease account balances.", "prerequisites": ["l1-t01-accounting-equation"], "estimatedMinutes": 45 },
+        { "id": "l1-t03-journal-entries", "title": "Journal Entries", "description": "Recording business transactions in the general journal.", "prerequisites": ["l1-t02-debits-credits"], "estimatedMinutes": 60 },
+        { "id": "l1-t04-ledger-accounts", "title": "Ledger Accounts", "description": "Posting journal entries to individual ledger accounts (T-accounts).", "prerequisites": ["l1-t03-journal-entries"], "estimatedMinutes": 45 },
+        { "id": "l1-t05-trial-balance", "title": "Trial Balance", "description": "Listing all ledger balances to verify total debits equal total credits.", "prerequisites": ["l1-t04-ledger-accounts"], "estimatedMinutes": 45 },
+        { "id": "l1-t06-adjusting-entries", "title": "Adjusting Entries", "description": "Accruals, deferrals, depreciation, and bad debt at period end.", "prerequisites": ["l1-t05-trial-balance"], "estimatedMinutes": 75 },
+        { "id": "l1-t07-closing-entries", "title": "Closing Entries", "description": "Zero out temporary accounts and transfer net income to retained earnings.", "prerequisites": ["l1-t06-adjusting-entries"], "estimatedMinutes": 60 },
+        { "id": "l1-t08-post-closing-trial-balance", "title": "Post-Closing Trial Balance", "description": "Verify the ledger is ready for the next accounting period.", "prerequisites": ["l1-t07-closing-entries"], "estimatedMinutes": 30 },
+        { "id": "l1-t09-accounting-cycle", "title": "The Accounting Cycle", "description": "The eight-step cycle from source documents to post-closing trial balance.", "prerequisites": ["l1-t08-post-closing-trial-balance"], "estimatedMinutes": 45 },
+        { "id": "l1-t10-chart-of-accounts", "title": "Chart of Accounts", "description": "Designing and organizing the accounts used by a business.", "prerequisites": ["l1-t01-accounting-equation"], "estimatedMinutes": 30 },
+        { "id": "l1-t11-cash-vs-accrual", "title": "Cash Basis vs Accrual Basis", "description": "When revenue and expenses are recognized under each method.", "prerequisites": ["l1-t01-accounting-equation"], "estimatedMinutes": 45 },
+        { "id": "l1-t12-source-documents", "title": "Source Documents", "description": "Invoices, receipts, bank statements, and other transaction evidence.", "prerequisites": ["l1-t03-journal-entries"], "estimatedMinutes": 30 },
+        { "id": "l1-t13-double-entry-logic", "title": "Double-Entry Logic", "description": "Why every transaction has equal debits and credits.", "prerequisites": ["l1-t02-debits-credits"], "estimatedMinutes": 30 },
+        { "id": "l1-t14-general-vs-special", "title": "General vs Special Journals", "description": "Cash receipts, cash payments, purchases, sales journals.", "prerequisites": ["l1-t03-journal-entries"], "estimatedMinutes": 45 },
+        { "id": "l1-t15-errors-and-corrections", "title": "Errors and Corrections", "description": "Identifying and fixing common journal entry errors.", "prerequisites": ["l1-t05-trial-balance"], "estimatedMinutes": 30 },
+        { "id": "l1-t16-bank-reconciliation", "title": "Bank Reconciliation", "description": "Reconcile the bank statement balance with the book balance.", "prerequisites": ["l1-t05-trial-balance"], "estimatedMinutes": 60 }
+      ]
+    },
+    {
+      "id": 2,
+      "title": "Financial Accounting",
+      "topics": [
+        { "id": "l2-t01-balance-sheet", "title": "Balance Sheet", "description": "Reporting assets, liabilities, and equity at a point in time.", "prerequisites": ["l1-t09-accounting-cycle"], "estimatedMinutes": 60 },
+        { "id": "l2-t02-income-statement", "title": "Income Statement", "description": "Revenue minus expenses over an accounting period.", "prerequisites": ["l2-t01-balance-sheet"], "estimatedMinutes": 60 },
+        { "id": "l2-t03-cash-flow-statement", "title": "Cash Flow Statement", "description": "Operating, investing, and financing cash flows.", "prerequisites": ["l2-t01-balance-sheet"], "estimatedMinutes": 75 },
+        { "id": "l2-t04-statement-of-changes-equity", "title": "Statement of Changes in Equity", "description": "Movements in contributed capital and retained earnings.", "prerequisites": ["l2-t02-income-statement"], "estimatedMinutes": 45 },
+        { "id": "l2-t05-notes-to-financial-statements", "title": "Notes to Financial Statements", "description": "Accounting policies, breakdowns, and disclosures.", "prerequisites": ["l2-t01-balance-sheet"], "estimatedMinutes": 60 },
+        { "id": "l2-t06-inventory-fifo", "title": "Inventory Valuation: FIFO", "description": "First-in, first-out inventory valuation.", "prerequisites": ["l1-t07-closing-entries"], "estimatedMinutes": 45 },
+        { "id": "l2-t07-inventory-lifo", "title": "Inventory Valuation: LIFO", "description": "Last-in, first-out inventory valuation.", "prerequisites": ["l2-t06-inventory-fifo"], "estimatedMinutes": 45 },
+        { "id": "l2-t08-inventory-weighted-average", "title": "Inventory Valuation: Weighted Average", "description": "Blending unit costs.", "prerequisites": ["l2-t06-inventory-fifo"], "estimatedMinutes": 45 },
+        { "id": "l2-t09-inventory-lcnrv", "title": "Lower of Cost or NRV", "description": "Conservative inventory valuation rule.", "prerequisites": ["l2-t08-inventory-weighted-average"], "estimatedMinutes": 45 },
+        { "id": "l2-t10-receivables-bad-debt", "title": "Receivables and Bad Debt", "description": "Allowance method for doubtful accounts.", "prerequisites": ["l1-t06-adjusting-entries"], "estimatedMinutes": 60 },
+        { "id": "l2-t11-pppe-depreciation", "title": "PP&E and Depreciation", "description": "Capitalization, depreciation methods, and impairment.", "prerequisites": ["l1-t06-adjusting-entries"], "estimatedMinutes": 75 },
+        { "id": "l2-t12-intangible-assets", "title": "Intangible Assets", "description": "Goodwill, patents, and amortization.", "prerequisites": ["l2-t11-pppe-depreciation"], "estimatedMinutes": 45 },
+        { "id": "l2-t13-revenue-recognition", "title": "Revenue Recognition (IFRS 15 / ASC 606)", "description": "Five-step model: contract, performance obligations, transaction price, recognition.", "prerequisites": ["l2-t02-income-statement"], "estimatedMinutes": 90 },
+        { "id": "l2-t14-current-vs-noncurrent", "title": "Current vs Non-current Liabilities", "description": "Classifying obligations by maturity.", "prerequisites": ["l2-t01-balance-sheet"], "estimatedMinutes": 45 },
+        { "id": "l2-t15-earnings-per-share", "title": "Earnings Per Share", "description": "Basic and diluted EPS, weighted-average shares.", "prerequisites": ["l2-t02-income-statement"], "estimatedMinutes": 60 },
+        { "id": "l2-t16-statement-ratios", "title": "Statement Ratios", "description": "Liquidity, leverage, and profitability ratios.", "prerequisites": ["l2-t03-cash-flow-statement"], "estimatedMinutes": 60 }
+      ]
+    },
+    {
+      "id": 3,
+      "title": "Managerial Accounting",
+      "topics": [
+        { "id": "l3-t01-cost-classification", "title": "Cost Classification", "description": "Product vs period, direct vs indirect, fixed vs variable.", "prerequisites": ["l2-t02-income-statement"], "estimatedMinutes": 45 },
+        { "id": "l3-t02-job-order-costing", "title": "Job Order Costing", "description": "Tracking costs by individual job.", "prerequisites": ["l3-t01-cost-classification"], "estimatedMinutes": 60 },
+        { "id": "l3-t03-process-costing", "title": "Process Costing", "description": "Averaging costs across units in continuous processes.", "prerequisites": ["l3-t02-job-order-costing"], "estimatedMinutes": 75 },
+        { "id": "l3-t04-activity-based-costing", "title": "Activity-Based Costing", "description": "Assigning overhead based on activities and cost drivers.", "prerequisites": ["l3-t02-job-order-costing"], "estimatedMinutes": 75 },
+        { "id": "l3-t05-cvp-analysis", "title": "Cost-Volume-Profit Analysis", "description": "Break-even, margin of safety, operating leverage.", "prerequisites": ["l3-t01-cost-classification"], "estimatedMinutes": 60 },
+        { "id": "l3-t06-variable-costing", "title": "Variable Costing", "description": "Income statement under variable costing.", "prerequisites": ["l3-t05-cvp-analysis"], "estimatedMinutes": 60 },
+        { "id": "l3-t07-absorption-costing", "title": "Absorption Costing", "description": "Income statement under absorption costing.", "prerequisites": ["l3-t06-variable-costing"], "estimatedMinutes": 60 },
+        { "id": "l3-t08-budgeting-master-budget", "title": "Master Budget", "description": "Operating, financial, and cash budgets.", "prerequisites": ["l3-t05-cvp-analysis"], "estimatedMinutes": 90 },
+        { "id": "l3-t09-flexible-budget", "title": "Flexible Budget", "description": "Budgeted cost for actual activity levels.", "prerequisites": ["l3-t08-budgeting-master-budget"], "estimatedMinutes": 60 },
+        { "id": "l3-t10-standard-costing-variance", "title": "Standard Costing and Variance Analysis", "description": "Material, labor, and overhead variances.", "prerequisites": ["l3-t02-job-order-costing"], "estimatedMinutes": 90 },
+        { "id": "l3-t11-responsibility-accounting", "title": "Responsibility Accounting", "description": "Segment reporting and controllable cost centers.", "prerequisites": ["l3-t08-budgeting-master-budget"], "estimatedMinutes": 60 },
+        { "id": "l3-t12-transfer-pricing", "title": "Transfer Pricing", "description": "Pricing of intra-company transfers.", "prerequisites": ["l3-t11-responsibility-accounting"], "estimatedMinutes": 75 },
+        { "id": "l3-t13-relevant-cost-decisions", "title": "Relevant Costing for Decisions", "description": "Special orders, make-or-buy, sell-or-process.", "prerequisites": ["l3-t01-cost-classification"], "estimatedMinutes": 60 },
+        { "id": "l3-t14-capital-budgeting", "title": "Capital Budgeting", "description": "NPV, IRR, payback period.", "prerequisites": ["l2-t02-income-statement"], "estimatedMinutes": 90 },
+        { "id": "l3-t15-balanced-scorecard", "title": "Balanced Scorecard", "description": "Strategy mapped to financial, customer, internal, learning metrics.", "prerequisites": ["l3-t11-responsibility-accounting"], "estimatedMinutes": 60 },
+        { "id": "l3-t16-inventory-management", "title": "Inventory Management (EOQ, JIT)", "description": "Economic order quantity and just-in-time.", "prerequisites": ["l2-t08-inventory-weighted-average"], "estimatedMinutes": 75 }
+      ]
+    },
+    {
+      "id": 4,
+      "title": "Advanced / Audit / Tax",
+      "topics": [
+        { "id": "l4-t01-consolidated-statements", "title": "Consolidated Financial Statements", "description": "Combining parent and subsidiary financials.", "prerequisites": ["l2-t04-statement-of-changes-equity"], "estimatedMinutes": 120 },
+        { "id": "l4-t02-business-combinations", "title": "Business Combinations", "description": "Acquisition method, goodwill calculation.", "prerequisites": ["l4-t01-consolidated-statements"], "estimatedMinutes": 90 },
+        { "id": "l4-t03-intercompany-eliminations", "title": "Intercompany Eliminations", "description": "Eliminate intra-group balances and transactions.", "prerequisites": ["l4-t01-consolidated-statements"], "estimatedMinutes": 90 },
+        { "id": "l4-t04-foreign-currency-translation", "title": "Foreign Currency Translation", "description": "Current rate, temporal method, translation adjustment.", "prerequisites": ["l2-t05-notes-to-financial-statements"], "estimatedMinutes": 90 },
+        { "id": "l4-t05-stockholders-equity-transactions", "title": "Stockholders' Equity Transactions", "description": "Issuance, treasury stock, dividends, stock splits.", "prerequisites": ["l2-t04-statement-of-changes-equity"], "estimatedMinutes": 60 },
+        { "id": "l4-t07-deferred-taxes", "title": "Deferred Taxes", "description": "Temporary differences and tax expense recognition.", "prerequisites": ["l2-t02-income-statement"], "estimatedMinutes": 90 },
+        { "id": "l4-t08-lease-accounting", "title": "Lease Accounting (IFRS 16 / ASC 842)", "description": "ROU assets and lease liabilities.", "prerequisites": ["l2-t01-balance-sheet"], "estimatedMinutes": 90 },
+        { "id": "l4-t09-stock-based-compensation", "title": "Stock-Based Compensation", "description": "Black-Scholes, restricted stock, EPS dilution.", "prerequisites": ["l2-t15-earnings-per-share"], "estimatedMinutes": 90 },
+        { "id": "l4-t10-earnings-management", "title": "Earnings Management", "description": "Big bath, cookie jar reserves, channel stuffing.", "prerequisites": ["l2-t02-income-statement"], "estimatedMinutes": 60 },
+        { "id": "l4-t11-audit-objectives", "title": "Audit Objectives", "description": "ISA/PCAOB objectives: existence, completeness, valuation.", "prerequisites": ["l2-t01-balance-sheet"], "estimatedMinutes": 60 },
+        { "id": "l4-t12-audit-evidence", "title": "Audit Evidence", "description": "Sufficient and appropriate audit evidence.", "prerequisites": ["l4-t11-audit-objectives"], "estimatedMinutes": 60 },
+        { "id": "l4-t13-internal-controls", "title": "Internal Controls (COSO)", "description": "Five components of internal control.", "prerequisites": ["l4-t11-audit-objectives"], "estimatedMinutes": 90 },
+        { "id": "l4-t14-audit-sampling", "title": "Audit Sampling", "description": "Statistical vs non-statistical sampling.", "prerequisites": ["l4-t12-audit-evidence"], "estimatedMinutes": 75 },
+        { "id": "l4-t15-audit-report", "title": "Audit Report Opinions", "description": "Unqualified, qualified, adverse, disclaimer.", "prerequisites": ["l4-t11-audit-objectives"], "estimatedMinutes": 60 },
+        { "id": "l4-t16-tax-planning", "title": "Tax Planning", "description": "Timing income, deductions, and credits.", "prerequisites": ["l4-t07-deferred-taxes"], "estimatedMinutes": 75 },
+        { "id": "l4-t17-vat-gst", "title": "VAT / GST", "description": "Output tax, input tax, net payable.", "prerequisites": ["l2-t13-revenue-recognition"], "estimatedMinutes": 60 },
+        { "id": "l4-t18-ethics", "title": "Professional Ethics (IFAC / AICPA)", "description": "Integrity, objectivity, confidentiality, professional behavior.", "prerequisites": ["l4-t15-audit-report"], "estimatedMinutes": 45 }
+      ]
+    }
+  ]
+}

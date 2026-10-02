@@ -9,6 +9,8 @@ import { ConfigModule } from '@nestjs/config';
 import { QuizModule } from './v1/quiz/quiz.module';
 import { AuthzModule } from './common/authz/authz.module';
 import { LearningModule } from './v1/learning/learning.module';
+import { SandboxModule } from './v1/sandbox/sandbox.module';
+import { PersonalizationModule } from './v1/personalization/personalization.module';
 import { EventEmitterModule } from '@nestjs/event-emitter';
 import { StreakService } from './common/streak/streak.service';
 
@@ -17,6 +19,8 @@ import { StreakService } from './common/streak/streak.service';
     AuthzModule,
     QuizModule,
     LearningModule,
+    SandboxModule,
+    PersonalizationModule,
     V1Module,
     EventEmitterModule.forRoot(),
     ConfigModule.forRoot({

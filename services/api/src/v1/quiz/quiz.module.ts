@@ -4,6 +4,7 @@ import { QuestionsModule } from './questions/questions.module';
 import { QuizAttemptsModule } from './quiz-attempts/quiz-attempts.module';
 import { AnswersModule } from './answers/answers.module';
 import { QuizzesModule } from './quizzes/Quizzes.module';
+import { QuizEvaluationService } from './services/quiz-evaluation.service';
 
 @Module({
   imports: [
@@ -23,11 +24,7 @@ import { QuizzesModule } from './quizzes/Quizzes.module';
       },
     ]),
   ],
-  exports: [
-    QuizzesModule,
-    QuestionsModule,
-    QuizAttemptsModule,
-    AnswersModule,
-  ],
+  providers: [QuizEvaluationService],
+  exports: [QuizEvaluationService],
 })
 export class QuizModule {}

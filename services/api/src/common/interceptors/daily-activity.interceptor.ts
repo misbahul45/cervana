@@ -4,7 +4,7 @@ import {
   ExecutionContext,
   CallHandler,
 } from '@nestjs/common';
-import { Observable } from 'rxjs';
+import { Observable, tap } from 'rxjs';
 import { DailylogsRepo } from '@/v1/gamify/daily-logs/daily-logs.repo';
 import { StreaksRepo } from '@/v1/gamify/streaks/streaks.repo';
 import { StreakActivity } from '@prisma/client';
@@ -37,11 +37,21 @@ export class ActivityDetectorInterceptor implements NestInterceptor {
       });
 
       await this.streaksRepo.incrementOrReset(userId, StreakActivity.DAILY_LOGIN);
-      console.log(`🔥 Streak updated for user ${userId}`);
     }
   }
 
   intercept(context: ExecutionContext, next: CallHandler): Observable<any> {
-    return next.handle();
+    const req = context.switchToHttp().getRequest();
+    const userId = req?.user?.id as string | undefined;
+
+    return next.handle().pipe(
+      tap({
+        next: async () => {
+          if (!userId) return;
+          await this.detect(userId);
+        },
+        error: () => undefined,
+      }),
+    );
   }
 }

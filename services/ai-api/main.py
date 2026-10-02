@@ -4,15 +4,11 @@ from config.envs import ENVS
 from v1.router import v1Router
 from fastapi.middleware.cors import CORSMiddleware
 import logging
-import subprocess
-
-logger = logging.getLogger("uvicorn")
 
 app = FastAPI(
     title="ReduCera AI Service",
     version="1.0.0",
 )
-
 
 app.add_middleware(
     CORSMiddleware,
@@ -24,21 +20,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-@app.on_event("startup")
-def start_celery_worker():
-    global worker_process
-    worker_process = subprocess.Popen(
-        ["celery", "-A", "config.celery:celery_app", "worker", "--loglevel=info"]
-    )
-    print("Celery worker started in background.")
-
-@app.on_event("shutdown")
-def stop_celery_worker():
-    global worker_process
-    if worker_process:
-        worker_process.terminate()
-        print("Celery worker stopped.")
 
 @app.exception_handler(404)
 async def not_found_exception_handler(request: Request, exc: HTTPException):
@@ -57,5 +38,3 @@ if __name__ == "__main__":
     import uvicorn
     port = ENVS.get("PORT", 8000)
     uvicorn.run("main:app", host="0.0.0.0", port=port, reload=True)
-
-    

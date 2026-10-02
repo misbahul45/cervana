@@ -1,16 +1,23 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Optional } from '@nestjs/common';
 import { CreateQuizAttemptType, UpdateQuizAttemptType } from './quizAttempets.dto';
 import { errorHandler } from '@/common/lib/utils';
 import { Query } from '@/common/interfaces';
 import { AppError } from '@/common/lib/error';
 import { QuizAttemptsRepo } from './quiz-attempts.repo';
+import { MasteryService } from '@/v1/personalization/mastery/mastery.service';
+import { MisconceptionService } from '@/v1/personalization/misconception/misconception.service';
+import { PrismaService } from '@/common/config/prisma/prisma.service';
 
 
 @Injectable()
 export class QuizAttemptsService {
   constructor(
-    private readonly quizAttempetsRepo:QuizAttemptsRepo
-  ){}
+    private readonly quizAttempetsRepo: QuizAttemptsRepo,
+    @Optional() private readonly prisma?: PrismaService,
+    @Optional() private readonly mastery?: MasteryService,
+    @Optional() private readonly misconception?: MisconceptionService,
+  ) {}
+
   create(values: CreateQuizAttemptType) {
     return errorHandler(async()=>{
       const newQuizAttempt=await this.quizAttempetsRepo.create(values)
@@ -20,6 +27,26 @@ export class QuizAttemptsService {
         data:newQuizAttempt
       }
     })
+  }
+
+  async submitAttempt(input: {
+    userId: string;
+    quizId: string;
+    attemptId: string;
+    score: number;
+  }): Promise<{ updatedMastery: { topicId: string; score: number; attempts: number } | null }> {
+    if (!this.prisma || !this.mastery) {
+      return { updatedMastery: null };
+    }
+    const quiz = await this.prisma.quiz.findUnique({
+      where: { id: input.quizId },
+      select: { id: true, topicId: true, lessonId: true },
+    });
+    const topicId = quiz?.topicId ?? quiz?.lessonId ?? 'unknown-topic';
+    const updated = await this.mastery.updateFromAttempt(input.userId, topicId, input.score);
+    return {
+      updatedMastery: { topicId, score: updated.score, attempts: updated.attempts },
+    };
   }
 
   findOne(id: string, q:Query) {
