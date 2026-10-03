@@ -1,9 +1,11 @@
+import { Role } from '@prisma/client';
 import { RequireOwnership, RequireParentOwnership } from '@/v1/common/guards/ownership.decorator';
-import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/common';
+import { Controller, Get, Post, Param, Delete, Body } from '@nestjs/common';
 import { AnswersService } from './answers.service';
-import { CreateAnswerDto, CreateAnswerType, UpdateAnswerDto, UpdateAnswerType } from './answers.dto';
+import { CreateAnswerDto, CreateAnswerType } from './answers.dto';
 import { ApiCrudDocs } from '@/common/lib/docs';
 import { BaseAnswerSchema } from '@/common/docs/answer.doc';
+import { Roles } from '@/v1/auth/auth.decorator';
 
 @Controller('answers')
 export class AnswersController {
@@ -23,15 +25,9 @@ export class AnswersController {
     return this.answersService.findOne(id);
   }
 
-  @Patch(':id')
-  @ApiCrudDocs.update(UpdateAnswerDto, 'Answer')
-  @RequireOwnership('answer')
-  update(@Param('id') id: string, @Body() updateAnswerDto: UpdateAnswerType) {
-    return this.answersService.update(id, updateAnswerDto);
-  }
-
   @Delete(':id')
   @ApiCrudDocs.delete('Answer')
+  @Roles(Role.ADMIN)
   @RequireOwnership('answer')
   remove(@Param('id') id: string) {
     return this.answersService.remove(id);

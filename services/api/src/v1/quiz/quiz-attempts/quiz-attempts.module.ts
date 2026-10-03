@@ -9,6 +9,7 @@ import { StreaksModule } from '@/v1/gamify/streaks/streaks.module';
 import { MasteryModule } from '@/v1/personalization/mastery/mastery.module';
 import { MisconceptionModule } from '@/v1/personalization/misconception/misconception.module';
 import { AnalyticsModule } from '@/v1/analytics/analytics.module';
+import { QuizModule } from '@/v1/quiz/services/quiz.module';
 
 @Module({
   controllers: [QuizAttemptsController],
@@ -20,6 +21,7 @@ import { AnalyticsModule } from '@/v1/analytics/analytics.module';
     MasteryModule,
     MisconceptionModule,
     AnalyticsModule,
+    QuizModule,
   ],
   exports: [QuizAttemptsService, QuizAttemptsRepo],
 })

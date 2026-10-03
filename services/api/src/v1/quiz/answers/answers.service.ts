@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { CreateAnswerType, UpdateAnswerType } from './answers.dto';
+import { CreateAnswerType } from './answers.dto';
 import { errorHandler } from '@/common/lib/utils';
 import { AppError } from '@/common/lib/error';
 import { AnswersRepo } from './answers.repo';
@@ -31,9 +31,9 @@ export class AnswersService {
     })
   }
 
-  update(id: string, values: UpdateAnswerType) {
+  update(id: string, values: unknown) {
     return errorHandler(async()=>{
-      const updateData=await this.answersRepo.update(id, values)
+      const updateData=await this.answersRepo.update(id, values as any)
 
       if(!updateData?.id){
         throw new AppError('Answer not found', 404)

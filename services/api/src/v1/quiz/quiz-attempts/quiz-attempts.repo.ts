@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../../common/config/prisma/prisma.service';
 import { Query } from '@/common/interfaces';
 import { errorHandler, validation } from '@/common/lib/utils';
-import { CreateQuizAttemptDto, CreateQuizAttemptType, UpdateQuizAttemptDto, UpdateQuizAttemptType } from './quizAttempets.dto';
+import { CreateQuizAttemptDto, CreateQuizAttemptType } from './quizAttempets.dto';
 import { QuizAttempt } from '@prisma/client';
 
 @Injectable()
@@ -101,15 +101,13 @@ export class QuizAttemptsRepo {
     }
 
 
-    async update(id:string, values:UpdateQuizAttemptType){
+    async update(id:string, values:unknown){
         return errorHandler(async()=>{
-            const data=validation(UpdateQuizAttemptDto, values)
-
             return await this.prisma.quizAttempt.update({
                 where:{
                     id
                 },
-                data
+                data: values as any
             })
         })
     }

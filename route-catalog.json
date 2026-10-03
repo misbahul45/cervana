@@ -1,0 +1,1862 @@
+[
+  {
+    "file": "services/api/src/v1/articles/admin-articles.controller.ts",
+    "method": "GET",
+    "path": "admin/articles",
+    "handler": "queue"
+  },
+  {
+    "file": "services/api/src/v1/articles/admin-articles.controller.ts",
+    "method": "GET",
+    "path": "admin/articles/:id",
+    "handler": "findOne"
+  },
+  {
+    "file": "services/api/src/v1/articles/admin-articles.controller.ts",
+    "method": "POST",
+    "path": "admin/articles/:id/approve",
+    "handler": "approve"
+  },
+  {
+    "file": "services/api/src/v1/articles/admin-articles.controller.ts",
+    "method": "POST",
+    "path": "admin/articles/:id/archive",
+    "handler": "archive"
+  },
+  {
+    "file": "services/api/src/v1/articles/admin-articles.controller.ts",
+    "method": "POST",
+    "path": "admin/articles/:id/reinstate",
+    "handler": "reinstate"
+  },
+  {
+    "file": "services/api/src/v1/articles/admin-articles.controller.ts",
+    "method": "POST",
+    "path": "admin/articles/:id/reject",
+    "handler": "reject"
+  },
+  {
+    "file": "services/api/src/v1/articles/admin-articles.controller.ts",
+    "method": "POST",
+    "path": "admin/articles/:id/suspend",
+    "handler": "suspend"
+  },
+  {
+    "file": "services/api/src/v1/classes/admin-classes.controller.ts",
+    "method": "GET",
+    "path": "admin/classes",
+    "handler": "queue"
+  },
+  {
+    "file": "services/api/src/v1/classes/admin-classes.controller.ts",
+    "method": "GET",
+    "path": "admin/classes/:id",
+    "handler": "findOne"
+  },
+  {
+    "file": "services/api/src/v1/classes/admin-classes.controller.ts",
+    "method": "POST",
+    "path": "admin/classes/:id/approve",
+    "handler": "approve"
+  },
+  {
+    "file": "services/api/src/v1/classes/admin-classes.controller.ts",
+    "method": "POST",
+    "path": "admin/classes/:id/archive",
+    "handler": "archive"
+  },
+  {
+    "file": "services/api/src/v1/classes/admin-classes.controller.ts",
+    "method": "POST",
+    "path": "admin/classes/:id/reinstate",
+    "handler": "reinstate"
+  },
+  {
+    "file": "services/api/src/v1/classes/admin-classes.controller.ts",
+    "method": "POST",
+    "path": "admin/classes/:id/reject",
+    "handler": "reject"
+  },
+  {
+    "file": "services/api/src/v1/classes/admin-classes.controller.ts",
+    "method": "POST",
+    "path": "admin/classes/:id/suspend",
+    "handler": "suspend"
+  },
+  {
+    "file": "services/api/src/v1/entitlements/admin-entitlements.controller.ts",
+    "method": "POST",
+    "path": "admin/entitlements/backfill/topic",
+    "handler": "backfillTopic"
+  },
+  {
+    "file": "services/api/src/v1/payments/admin-payments.controller.ts",
+    "method": "POST",
+    "path": "admin/payments/expire-due",
+    "handler": "expireDue"
+  },
+  {
+    "file": "services/api/src/v1/payments/admin-payments.controller.ts",
+    "method": "POST",
+    "path": "admin/payments/intents/:intentId/reconcile",
+    "handler": "reconcile"
+  },
+  {
+    "file": "services/api/src/v1/payments/admin-payments.controller.ts",
+    "method": "GET",
+    "path": "admin/payments/manual/submissions",
+    "handler": "queue"
+  },
+  {
+    "file": "services/api/src/v1/payments/admin-payments.controller.ts",
+    "method": "GET",
+    "path": "admin/payments/manual/submissions/:id",
+    "handler": "findOne"
+  },
+  {
+    "file": "services/api/src/v1/payments/admin-payments.controller.ts",
+    "method": "POST",
+    "path": "admin/payments/manual/submissions/:id/approve",
+    "handler": "approve"
+  },
+  {
+    "file": "services/api/src/v1/payments/admin-payments.controller.ts",
+    "method": "POST",
+    "path": "admin/payments/manual/submissions/:id/reject",
+    "handler": "reject"
+  },
+  {
+    "file": "services/api/src/v1/payments/admin-payments.controller.ts",
+    "method": "POST",
+    "path": "admin/payments/manual/submissions/:id/start-review",
+    "handler": "startReview"
+  },
+  {
+    "file": "services/api/src/v1/payouts/payouts.controller.ts",
+    "method": "GET",
+    "path": "admin/payouts",
+    "handler": "queue"
+  },
+  {
+    "file": "services/api/src/v1/payouts/payouts.controller.ts",
+    "method": "GET",
+    "path": "admin/payouts/:id",
+    "handler": "findOne"
+  },
+  {
+    "file": "services/api/src/v1/payouts/payouts.controller.ts",
+    "method": "POST",
+    "path": "admin/payouts/:id/approve",
+    "handler": "approve"
+  },
+  {
+    "file": "services/api/src/v1/payouts/payouts.controller.ts",
+    "method": "POST",
+    "path": "admin/payouts/:id/mark-paid",
+    "handler": "markPaid"
+  },
+  {
+    "file": "services/api/src/v1/payouts/payouts.controller.ts",
+    "method": "POST",
+    "path": "admin/payouts/:id/reject",
+    "handler": "reject"
+  },
+  {
+    "file": "services/api/src/v1/payouts/payouts.controller.ts",
+    "method": "POST",
+    "path": "admin/payouts/:id/start-review",
+    "handler": "startReview"
+  },
+  {
+    "file": "services/api/src/v1/refunds/refunds.controller.ts",
+    "method": "GET",
+    "path": "admin/refunds",
+    "handler": "queue"
+  },
+  {
+    "file": "services/api/src/v1/refunds/refunds.controller.ts",
+    "method": "POST",
+    "path": "admin/refunds",
+    "handler": "create"
+  },
+  {
+    "file": "services/api/src/v1/refunds/refunds.controller.ts",
+    "method": "GET",
+    "path": "admin/refunds/:id",
+    "handler": "findOne"
+  },
+  {
+    "file": "services/api/src/v1/refunds/refunds.controller.ts",
+    "method": "POST",
+    "path": "admin/refunds/:id/approve",
+    "handler": "approve"
+  },
+  {
+    "file": "services/api/src/v1/refunds/refunds.controller.ts",
+    "method": "POST",
+    "path": "admin/refunds/:id/process",
+    "handler": "process"
+  },
+  {
+    "file": "services/api/src/v1/refunds/refunds.controller.ts",
+    "method": "POST",
+    "path": "admin/refunds/:id/reject",
+    "handler": "reject"
+  },
+  {
+    "file": "services/api/src/v1/tenants/admin-tenants.controller.ts",
+    "method": "GET",
+    "path": "admin/tenants",
+    "handler": "list"
+  },
+  {
+    "file": "services/api/src/v1/tenants/admin-tenants.controller.ts",
+    "method": "POST",
+    "path": "admin/tenants/:id/activate",
+    "handler": "activate"
+  },
+  {
+    "file": "services/api/src/v1/tenants/admin-tenants.controller.ts",
+    "method": "POST",
+    "path": "admin/tenants/:id/suspend",
+    "handler": "suspend"
+  },
+  {
+    "file": "services/api/src/v1/quiz/answers/answers.controller.ts",
+    "method": "POST",
+    "path": "answers",
+    "handler": "?"
+  },
+  {
+    "file": "services/api/src/v1/quiz/answers/answers.controller.ts",
+    "method": "DELETE",
+    "path": "answers/:id",
+    "handler": "?"
+  },
+  {
+    "file": "services/api/src/v1/quiz/answers/answers.controller.ts",
+    "method": "GET",
+    "path": "answers/:id",
+    "handler": "?"
+  },
+  {
+    "file": "services/api/src/v1/quiz/answers/answers.controller.ts",
+    "method": "PATCH",
+    "path": "answers/:id",
+    "handler": "?"
+  },
+  {
+    "file": "services/api/src/v1/teacher/applications/applications.controller.ts",
+    "method": "GET",
+    "path": "applications",
+    "handler": "findAll"
+  },
+  {
+    "file": "services/api/src/v1/teacher/applications/applications.controller.ts",
+    "method": "POST",
+    "path": "applications",
+    "handler": "submit"
+  },
+  {
+    "file": "services/api/src/v1/teacher/applications/applications.controller.ts",
+    "method": "GET",
+    "path": "applications/:id",
+    "handler": "findOne"
+  },
+  {
+    "file": "services/api/src/v1/teacher/applications/applications.controller.ts",
+    "method": "PATCH",
+    "path": "applications/:id",
+    "handler": "update"
+  },
+  {
+    "file": "services/api/src/v1/teacher/applications/applications.controller.ts",
+    "method": "POST",
+    "path": "applications/:id/approve",
+    "handler": "approve"
+  },
+  {
+    "file": "services/api/src/v1/teacher/applications/applications.controller.ts",
+    "method": "POST",
+    "path": "applications/:id/reject",
+    "handler": "reject"
+  },
+  {
+    "file": "services/api/src/v1/articles/articles.controller.ts",
+    "method": "GET",
+    "path": "articles",
+    "handler": "list"
+  },
+  {
+    "file": "services/api/src/v1/articles/articles.controller.ts",
+    "method": "POST",
+    "path": "articles",
+    "handler": "create"
+  },
+  {
+    "file": "services/api/src/v1/articles/articles.controller.ts",
+    "method": "GET",
+    "path": "articles/:id",
+    "handler": "findOne"
+  },
+  {
+    "file": "services/api/src/v1/articles/articles.controller.ts",
+    "method": "PATCH",
+    "path": "articles/:id",
+    "handler": "update"
+  },
+  {
+    "file": "services/api/src/v1/articles/articles.controller.ts",
+    "method": "POST",
+    "path": "articles/:id/archive",
+    "handler": "archive"
+  },
+  {
+    "file": "services/api/src/v1/articles/articles.controller.ts",
+    "method": "POST",
+    "path": "articles/:id/submit-review",
+    "handler": "submitReview"
+  },
+  {
+    "file": "services/api/src/v1/articles/articles.controller.ts",
+    "method": "POST",
+    "path": "articles/:id/withdraw",
+    "handler": "withdraw"
+  },
+  {
+    "file": "services/api/src/v1/auth/auth.controller.ts",
+    "method": "GET",
+    "path": "auth/check",
+    "handler": "?"
+  },
+  {
+    "file": "services/api/src/v1/auth/auth.controller.ts",
+    "method": "POST",
+    "path": "auth/forgot-password",
+    "handler": "?"
+  },
+  {
+    "file": "services/api/src/v1/auth/auth.controller.ts",
+    "method": "GET",
+    "path": "auth/google",
+    "handler": "?"
+  },
+  {
+    "file": "services/api/src/v1/auth/auth.controller.ts",
+    "method": "GET",
+    "path": "auth/google/callback",
+    "handler": "?"
+  },
+  {
+    "file": "services/api/src/v1/auth/auth.controller.ts",
+    "method": "POST",
+    "path": "auth/login",
+    "handler": "?"
+  },
+  {
+    "file": "services/api/src/v1/auth/auth.controller.ts",
+    "method": "DELETE",
+    "path": "auth/logout",
+    "handler": "?"
+  },
+  {
+    "file": "services/api/src/v1/auth/auth.controller.ts",
+    "method": "GET",
+    "path": "auth/profile",
+    "handler": "?"
+  },
+  {
+    "file": "services/api/src/v1/auth/auth.controller.ts",
+    "method": "POST",
+    "path": "auth/refresh-token",
+    "handler": "?"
+  },
+  {
+    "file": "services/api/src/v1/auth/auth.controller.ts",
+    "method": "POST",
+    "path": "auth/register",
+    "handler": "?"
+  },
+  {
+    "file": "services/api/src/v1/auth/auth.controller.ts",
+    "method": "POST",
+    "path": "auth/resend-token",
+    "handler": "?"
+  },
+  {
+    "file": "services/api/src/v1/auth/auth.controller.ts",
+    "method": "POST",
+    "path": "auth/reset-password",
+    "handler": "?"
+  },
+  {
+    "file": "services/api/src/v1/auth/auth.controller.ts",
+    "method": "POST",
+    "path": "auth/verify-email",
+    "handler": "?"
+  },
+  {
+    "file": "services/api/src/v1/categories/categories.controller.ts",
+    "method": "DELETE",
+    "path": "categories/:categoryId/topics/topicId",
+    "handler": "removeTopicToCategorory"
+  },
+  {
+    "file": "services/api/src/v1/categories/categories.controller.ts",
+    "method": "POST",
+    "path": "categories/:categoryId/topics/topicId",
+    "handler": "addTopicToCategorory"
+  },
+  {
+    "file": "services/api/src/v1/categories/categories.controller.ts",
+    "method": "DELETE",
+    "path": "categories/:id",
+    "handler": "?"
+  },
+  {
+    "file": "services/api/src/v1/categories/categories.controller.ts",
+    "method": "PATCH",
+    "path": "categories/:id",
+    "handler": "?"
+  },
+  {
+    "file": "services/api/src/v1/categories/categories.controller.ts",
+    "method": "GET",
+    "path": "categories//",
+    "handler": "?"
+  },
+  {
+    "file": "services/api/src/v1/categories/categories.controller.ts",
+    "method": "POST",
+    "path": "categories//",
+    "handler": "create"
+  },
+  {
+    "file": "services/api/src/v1/categories/categories.controller.ts",
+    "method": "GET",
+    "path": "categories//:id",
+    "handler": "?"
+  },
+  {
+    "file": "services/api/src/v1/teacher/certifications/certifications.controller.ts",
+    "method": "GET",
+    "path": "certifications",
+    "handler": "?"
+  },
+  {
+    "file": "services/api/src/v1/teacher/certifications/certifications.controller.ts",
+    "method": "POST",
+    "path": "certifications",
+    "handler": "?"
+  },
+  {
+    "file": "services/api/src/v1/teacher/certifications/certifications.controller.ts",
+    "method": "DELETE",
+    "path": "certifications/:id",
+    "handler": "?"
+  },
+  {
+    "file": "services/api/src/v1/teacher/certifications/certifications.controller.ts",
+    "method": "GET",
+    "path": "certifications/:id",
+    "handler": "?"
+  },
+  {
+    "file": "services/api/src/v1/teacher/certifications/certifications.controller.ts",
+    "method": "PATCH",
+    "path": "certifications/:id",
+    "handler": "?"
+  },
+  {
+    "file": "services/api/src/v1/chat/chat-messages/chat-messages.controller.ts",
+    "method": "POST",
+    "path": "chat-messages",
+    "handler": "?"
+  },
+  {
+    "file": "services/api/src/v1/chat/chat-messages/chat-messages.controller.ts",
+    "method": "DELETE",
+    "path": "chat-messages/:id",
+    "handler": "?"
+  },
+  {
+    "file": "services/api/src/v1/chat/chat-messages/chat-messages.controller.ts",
+    "method": "PATCH",
+    "path": "chat-messages/:id",
+    "handler": "?"
+  },
+  {
+    "file": "services/api/src/v1/chat/chats/chats.controller.ts",
+    "method": "POST",
+    "path": "chats",
+    "handler": "?"
+  },
+  {
+    "file": "services/api/src/v1/chat/chats/chats.controller.ts",
+    "method": "DELETE",
+    "path": "chats/:id",
+    "handler": "?"
+  },
+  {
+    "file": "services/api/src/v1/chat/chats/chats.controller.ts",
+    "method": "GET",
+    "path": "chats/:id",
+    "handler": "?"
+  },
+  {
+    "file": "services/api/src/v1/chat/chats/chats.controller.ts",
+    "method": "GET",
+    "path": "chats/:id/messages",
+    "handler": "?"
+  },
+  {
+    "file": "services/api/src/v1/classes/classes.controller.ts",
+    "method": "GET",
+    "path": "classes",
+    "handler": "list"
+  },
+  {
+    "file": "services/api/src/v1/classes/classes.controller.ts",
+    "method": "POST",
+    "path": "classes",
+    "handler": "create"
+  },
+  {
+    "file": "services/api/src/v1/classes/classes.controller.ts",
+    "method": "GET",
+    "path": "classes/:id",
+    "handler": "findOne"
+  },
+  {
+    "file": "services/api/src/v1/classes/classes.controller.ts",
+    "method": "PATCH",
+    "path": "classes/:id",
+    "handler": "update"
+  },
+  {
+    "file": "services/api/src/v1/classes/classes.controller.ts",
+    "method": "POST",
+    "path": "classes/:id/archive",
+    "handler": "archive"
+  },
+  {
+    "file": "services/api/src/v1/classes/classes.controller.ts",
+    "method": "GET",
+    "path": "classes/:id/enrollments",
+    "handler": "enrollments"
+  },
+  {
+    "file": "services/api/src/v1/classes/classes.controller.ts",
+    "method": "POST",
+    "path": "classes/:id/sessions",
+    "handler": "addSession"
+  },
+  {
+    "file": "services/api/src/v1/classes/classes.controller.ts",
+    "method": "PATCH",
+    "path": "classes/:id/sessions/:sessionId",
+    "handler": "updateSession"
+  },
+  {
+    "file": "services/api/src/v1/classes/classes.controller.ts",
+    "method": "POST",
+    "path": "classes/:id/sessions/:sessionId/cancel",
+    "handler": "cancelSession"
+  },
+  {
+    "file": "services/api/src/v1/classes/classes.controller.ts",
+    "method": "POST",
+    "path": "classes/:id/submit-review",
+    "handler": "submitReview"
+  },
+  {
+    "file": "services/api/src/v1/classes/classes.controller.ts",
+    "method": "POST",
+    "path": "classes/:id/withdraw",
+    "handler": "withdraw"
+  },
+  {
+    "file": "services/api/src/v1/chat/contents/contents.controller.ts",
+    "method": "GET",
+    "path": "contents",
+    "handler": "?"
+  },
+  {
+    "file": "services/api/src/v1/chat/contents/contents.controller.ts",
+    "method": "POST",
+    "path": "contents",
+    "handler": "?"
+  },
+  {
+    "file": "services/api/src/v1/chat/contents/contents.controller.ts",
+    "method": "DELETE",
+    "path": "contents/:id",
+    "handler": "?"
+  },
+  {
+    "file": "services/api/src/v1/chat/contents/contents.controller.ts",
+    "method": "GET",
+    "path": "contents/similarity",
+    "handler": "?"
+  },
+  {
+    "file": "services/api/src/v1/creator-analytics/creator-analytics.controller.ts",
+    "method": "GET",
+    "path": "creator-analytics/:creatorId/diagnostics",
+    "handler": "?"
+  },
+  {
+    "file": "services/api/src/v1/creator-analytics/creator-analytics.controller.ts",
+    "method": "GET",
+    "path": "creator-analytics/:creatorId/earnings",
+    "handler": "?"
+  },
+  {
+    "file": "services/api/src/v1/gamify/daily-logs/daily-logs.controller.ts",
+    "method": "GET",
+    "path": "daily-logs",
+    "handler": "?"
+  },
+  {
+    "file": "services/api/src/v1/gamify/daily-logs/daily-logs.controller.ts",
+    "method": "POST",
+    "path": "daily-logs",
+    "handler": "?"
+  },
+  {
+    "file": "services/api/src/v1/gamify/daily-logs/daily-logs.controller.ts",
+    "method": "DELETE",
+    "path": "daily-logs/:id",
+    "handler": "?"
+  },
+  {
+    "file": "services/api/src/v1/gamify/daily-logs/daily-logs.controller.ts",
+    "method": "GET",
+    "path": "daily-logs/:id",
+    "handler": "?"
+  },
+  {
+    "file": "services/api/src/v1/gamify/daily-logs/daily-logs.controller.ts",
+    "method": "PATCH",
+    "path": "daily-logs/:id",
+    "handler": "?"
+  },
+  {
+    "file": "services/api/src/v1/gamify/daily-logs/daily-logs.controller.ts",
+    "method": "GET",
+    "path": "daily-logs/user/:userId",
+    "handler": "?"
+  },
+  {
+    "file": "services/api/src/v1/gamify/daily-logs/daily-logs.controller.ts",
+    "method": "GET",
+    "path": "daily-logs/user/:userId/today",
+    "handler": "?"
+  },
+  {
+    "file": "services/api/src/v1/teacher/experiences/experiences.controller.ts",
+    "method": "GET",
+    "path": "experiences",
+    "handler": "?"
+  },
+  {
+    "file": "services/api/src/v1/teacher/experiences/experiences.controller.ts",
+    "method": "POST",
+    "path": "experiences",
+    "handler": "?"
+  },
+  {
+    "file": "services/api/src/v1/teacher/experiences/experiences.controller.ts",
+    "method": "DELETE",
+    "path": "experiences/:id",
+    "handler": "?"
+  },
+  {
+    "file": "services/api/src/v1/teacher/experiences/experiences.controller.ts",
+    "method": "GET",
+    "path": "experiences/:id",
+    "handler": "?"
+  },
+  {
+    "file": "services/api/src/v1/teacher/experiences/experiences.controller.ts",
+    "method": "PATCH",
+    "path": "experiences/:id",
+    "handler": "?"
+  },
+  {
+    "file": "services/api/src/v1/internal/internal-resources.controller.ts",
+    "method": "GET",
+    "path": "internal/resources/:id",
+    "handler": "findOne"
+  },
+  {
+    "file": "services/api/src/v1/internal/internal-resources.controller.ts",
+    "method": "POST",
+    "path": "internal/resources/callback",
+    "handler": "callback"
+  },
+  {
+    "file": "services/api/src/v1/gamify/leaderboards/leaderboards.controller.ts",
+    "method": "GET",
+    "path": "leaderboards",
+    "handler": "?"
+  },
+  {
+    "file": "services/api/src/v1/gamify/leaderboards/leaderboards.controller.ts",
+    "method": "GET",
+    "path": "leaderboards/:id",
+    "handler": "?"
+  },
+  {
+    "file": "services/api/src/v1/learner-model/learner-model.controller.ts",
+    "method": "POST",
+    "path": "learner-model/backfill/topic-mastery",
+    "handler": "?"
+  },
+  {
+    "file": "services/api/src/v1/learning/learning-styles/learning-styles.controller.ts",
+    "method": "POST",
+    "path": "learning-styles",
+    "handler": "?"
+  },
+  {
+    "file": "services/api/src/v1/learning/learning-styles/learning-styles.controller.ts",
+    "method": "DELETE",
+    "path": "learning-styles/:id",
+    "handler": "?"
+  },
+  {
+    "file": "services/api/src/v1/learning/learning-styles/learning-styles.controller.ts",
+    "method": "GET",
+    "path": "learning-styles/:id",
+    "handler": "?"
+  },
+  {
+    "file": "services/api/src/v1/learning/learning-styles/learning-styles.controller.ts",
+    "method": "PATCH",
+    "path": "learning-styles/:id",
+    "handler": "?"
+  },
+  {
+    "file": "services/api/src/v1/learning/lesson-progresses/lesson-progresses.controller.ts",
+    "method": "GET",
+    "path": "lesson-progresses",
+    "handler": "?"
+  },
+  {
+    "file": "services/api/src/v1/learning/lesson-progresses/lesson-progresses.controller.ts",
+    "method": "POST",
+    "path": "lesson-progresses",
+    "handler": "?"
+  },
+  {
+    "file": "services/api/src/v1/learning/lesson-progresses/lesson-progresses.controller.ts",
+    "method": "DELETE",
+    "path": "lesson-progresses/:id",
+    "handler": "?"
+  },
+  {
+    "file": "services/api/src/v1/learning/lesson-progresses/lesson-progresses.controller.ts",
+    "method": "GET",
+    "path": "lesson-progresses/:id",
+    "handler": "?"
+  },
+  {
+    "file": "services/api/src/v1/learning/lesson-progresses/lesson-progresses.controller.ts",
+    "method": "PATCH",
+    "path": "lesson-progresses/:id",
+    "handler": "?"
+  },
+  {
+    "file": "services/api/src/v1/curriculum/lessons/lessons.controller.ts",
+    "method": "POST",
+    "path": "lessons",
+    "handler": "?"
+  },
+  {
+    "file": "services/api/src/v1/curriculum/lessons/lessons.controller.ts",
+    "method": "DELETE",
+    "path": "lessons/:id",
+    "handler": "?"
+  },
+  {
+    "file": "services/api/src/v1/curriculum/lessons/lessons.controller.ts",
+    "method": "GET",
+    "path": "lessons/:id",
+    "handler": "?"
+  },
+  {
+    "file": "services/api/src/v1/curriculum/lessons/lessons.controller.ts",
+    "method": "PATCH",
+    "path": "lessons/:id",
+    "handler": "?"
+  },
+  {
+    "file": "services/api/src/v1/marketplace/marketplace-discovery.controller.ts",
+    "method": "GET",
+    "path": "marketplace-discovery/recommendations",
+    "handler": "recommendations"
+  },
+  {
+    "file": "services/api/src/v1/articles/marketplace-articles.controller.ts",
+    "method": "GET",
+    "path": "marketplace/articles",
+    "handler": "list"
+  },
+  {
+    "file": "services/api/src/v1/articles/marketplace-articles.controller.ts",
+    "method": "GET",
+    "path": "marketplace/articles/:id",
+    "handler": "findOne"
+  },
+  {
+    "file": "services/api/src/v1/articles/marketplace-articles.controller.ts",
+    "method": "GET",
+    "path": "marketplace/articles/:id/access",
+    "handler": "access"
+  },
+  {
+    "file": "services/api/src/v1/articles/marketplace-articles.controller.ts",
+    "method": "GET",
+    "path": "marketplace/articles/:id/content",
+    "handler": "content"
+  },
+  {
+    "file": "services/api/src/v1/classes/marketplace-classes.controller.ts",
+    "method": "GET",
+    "path": "marketplace/classes",
+    "handler": "list"
+  },
+  {
+    "file": "services/api/src/v1/classes/marketplace-classes.controller.ts",
+    "method": "GET",
+    "path": "marketplace/classes/:id",
+    "handler": "findOne"
+  },
+  {
+    "file": "services/api/src/v1/classes/marketplace-classes.controller.ts",
+    "method": "GET",
+    "path": "marketplace/classes/:id/access",
+    "handler": "access"
+  },
+  {
+    "file": "services/api/src/v1/classes/marketplace-classes.controller.ts",
+    "method": "POST",
+    "path": "marketplace/classes/:id/cancel-enrollment",
+    "handler": "cancel"
+  },
+  {
+    "file": "services/api/src/v1/classes/marketplace-classes.controller.ts",
+    "method": "POST",
+    "path": "marketplace/classes/:id/complete",
+    "handler": "complete"
+  },
+  {
+    "file": "services/api/src/v1/classes/marketplace-classes.controller.ts",
+    "method": "POST",
+    "path": "marketplace/classes/:id/enroll",
+    "handler": "enroll"
+  },
+  {
+    "file": "services/api/src/v1/classes/marketplace-classes.controller.ts",
+    "method": "GET",
+    "path": "marketplace/classes/:id/materials",
+    "handler": "materials"
+  },
+  {
+    "file": "services/api/src/v1/classes/marketplace-classes.controller.ts",
+    "method": "POST",
+    "path": "marketplace/classes/:id/sessions/:sessionId/attend",
+    "handler": "attend"
+  },
+  {
+    "file": "services/api/src/v1/classes/marketplace-classes.controller.ts",
+    "method": "GET",
+    "path": "marketplace/classes/enrollments/mine",
+    "handler": "mine"
+  },
+  {
+    "file": "services/api/src/v1/observability/metrics.controller.ts",
+    "method": "GET",
+    "path": "metrics",
+    "handler": "?"
+  },
+  {
+    "file": "services/api/src/v1/notifications/notifications.controller.ts",
+    "method": "GET",
+    "path": "notifications",
+    "handler": "?"
+  },
+  {
+    "file": "services/api/src/v1/notifications/notifications.controller.ts",
+    "method": "POST",
+    "path": "notifications",
+    "handler": "?"
+  },
+  {
+    "file": "services/api/src/v1/notifications/notifications.controller.ts",
+    "method": "DELETE",
+    "path": "notifications/:id",
+    "handler": "?"
+  },
+  {
+    "file": "services/api/src/v1/notifications/notifications.controller.ts",
+    "method": "GET",
+    "path": "notifications/:id",
+    "handler": "?"
+  },
+  {
+    "file": "services/api/src/v1/notifications/notifications.controller.ts",
+    "method": "PATCH",
+    "path": "notifications/:id",
+    "handler": "?"
+  },
+  {
+    "file": "services/api/src/v1/orders/orders.controller.ts",
+    "method": "GET",
+    "path": "orders",
+    "handler": "?"
+  },
+  {
+    "file": "services/api/src/v1/orders/orders.controller.ts",
+    "method": "POST",
+    "path": "orders",
+    "handler": "?"
+  },
+  {
+    "file": "services/api/src/v1/orders/orders.controller.ts",
+    "method": "GET",
+    "path": "orders/:id",
+    "handler": "?"
+  },
+  {
+    "file": "services/api/src/v1/orders/orders.controller.ts",
+    "method": "POST",
+    "path": "orders/:id/cancel",
+    "handler": "?"
+  },
+  {
+    "file": "services/api/src/v1/refunds/refunds.controller.ts",
+    "method": "POST",
+    "path": "orders/:id/refund-requests",
+    "handler": "request"
+  },
+  {
+    "file": "services/api/src/v1/payments/payments.controller.ts",
+    "method": "GET",
+    "path": "payments/intents/:intentId",
+    "handler": "?"
+  },
+  {
+    "file": "services/api/src/v1/payments/payments.controller.ts",
+    "method": "GET",
+    "path": "payments/manual/intents/:intentId/submissions",
+    "handler": "?"
+  },
+  {
+    "file": "services/api/src/v1/payments/payments.controller.ts",
+    "method": "POST",
+    "path": "payments/manual/intents/:intentId/submissions",
+    "handler": "?"
+  },
+  {
+    "file": "services/api/src/v1/payments/payments.controller.ts",
+    "method": "GET",
+    "path": "payments/methods",
+    "handler": "?"
+  },
+  {
+    "file": "services/api/src/v1/payouts/payouts.controller.ts",
+    "method": "GET",
+    "path": "payouts",
+    "handler": "list"
+  },
+  {
+    "file": "services/api/src/v1/payouts/payouts.controller.ts",
+    "method": "POST",
+    "path": "payouts",
+    "handler": "request"
+  },
+  {
+    "file": "services/api/src/v1/payouts/payouts.controller.ts",
+    "method": "GET",
+    "path": "payouts/:id",
+    "handler": "findOne"
+  },
+  {
+    "file": "services/api/src/v1/payouts/payouts.controller.ts",
+    "method": "POST",
+    "path": "payouts/:id/cancel",
+    "handler": "cancel"
+  },
+  {
+    "file": "services/api/src/v1/learning/personality-quizzes/personality-quizzes.controller.ts",
+    "method": "GET",
+    "path": "personality-quizzes",
+    "handler": "?"
+  },
+  {
+    "file": "services/api/src/v1/learning/personality-quizzes/personality-quizzes.controller.ts",
+    "method": "POST",
+    "path": "personality-quizzes",
+    "handler": "?"
+  },
+  {
+    "file": "services/api/src/v1/learning/personality-quizzes/personality-quizzes.controller.ts",
+    "method": "DELETE",
+    "path": "personality-quizzes/:id",
+    "handler": "?"
+  },
+  {
+    "file": "services/api/src/v1/learning/personality-quizzes/personality-quizzes.controller.ts",
+    "method": "GET",
+    "path": "personality-quizzes/:id",
+    "handler": "?"
+  },
+  {
+    "file": "services/api/src/v1/learning/personality-quizzes/personality-quizzes.controller.ts",
+    "method": "PATCH",
+    "path": "personality-quizzes/:id",
+    "handler": "?"
+  },
+  {
+    "file": "services/api/src/v1/learning/personality-quizzes/personality-quizzes.controller.ts",
+    "method": "PATCH",
+    "path": "personality-quizzes//submit/:id",
+    "handler": "?"
+  },
+  {
+    "file": "services/api/src/v1/quiz/questions/questions.controller.ts",
+    "method": "POST",
+    "path": "questions",
+    "handler": "?"
+  },
+  {
+    "file": "services/api/src/v1/quiz/questions/questions.controller.ts",
+    "method": "DELETE",
+    "path": "questions/:id",
+    "handler": "?"
+  },
+  {
+    "file": "services/api/src/v1/quiz/questions/questions.controller.ts",
+    "method": "GET",
+    "path": "questions/:id",
+    "handler": "?"
+  },
+  {
+    "file": "services/api/src/v1/quiz/questions/questions.controller.ts",
+    "method": "PATCH",
+    "path": "questions/:id",
+    "handler": "?"
+  },
+  {
+    "file": "services/api/src/v1/quiz/quiz-attempts/quiz-attempts.controller.ts",
+    "method": "POST",
+    "path": "quiz-attempts",
+    "handler": "?"
+  },
+  {
+    "file": "services/api/src/v1/quiz/quiz-attempts/quiz-attempts.controller.ts",
+    "method": "DELETE",
+    "path": "quiz-attempts/:id",
+    "handler": "?"
+  },
+  {
+    "file": "services/api/src/v1/quiz/quiz-attempts/quiz-attempts.controller.ts",
+    "method": "GET",
+    "path": "quiz-attempts/:id",
+    "handler": "?"
+  },
+  {
+    "file": "services/api/src/v1/quiz/quiz-attempts/quiz-attempts.controller.ts",
+    "method": "PATCH",
+    "path": "quiz-attempts/:id",
+    "handler": "?"
+  },
+  {
+    "file": "services/api/src/v1/quiz/quiz-attempts/quiz-attempts.controller.ts",
+    "method": "GET",
+    "path": "quiz-attempts/:id/answers",
+    "handler": "?"
+  },
+  {
+    "file": "services/api/src/v1/quiz/quizzes/quizzes.controller.ts",
+    "method": "GET",
+    "path": "quizs",
+    "handler": "?"
+  },
+  {
+    "file": "services/api/src/v1/quiz/quizzes/quizzes.controller.ts",
+    "method": "POST",
+    "path": "quizs",
+    "handler": "?"
+  },
+  {
+    "file": "services/api/src/v1/quiz/quizzes/quizzes.controller.ts",
+    "method": "DELETE",
+    "path": "quizs/:id",
+    "handler": "?"
+  },
+  {
+    "file": "services/api/src/v1/quiz/quizzes/quizzes.controller.ts",
+    "method": "GET",
+    "path": "quizs/:id",
+    "handler": "?"
+  },
+  {
+    "file": "services/api/src/v1/quiz/quizzes/quizzes.controller.ts",
+    "method": "PATCH",
+    "path": "quizs/:id",
+    "handler": "?"
+  },
+  {
+    "file": "services/api/src/v1/quiz/quizzes/quizzes.controller.ts",
+    "method": "GET",
+    "path": "quizs/:id/questions",
+    "handler": "?"
+  },
+  {
+    "file": "services/api/src/v1/quiz/quizzes/quizzes.controller.ts",
+    "method": "GET",
+    "path": "quizs/:id/quiz-attempts",
+    "handler": "?"
+  },
+  {
+    "file": "services/api/src/v1/refunds/refunds.controller.ts",
+    "method": "GET",
+    "path": "refunds/mine",
+    "handler": "mine"
+  },
+  {
+    "file": "services/api/src/v1/material/resources/resources.controller.ts",
+    "method": "GET",
+    "path": "resources",
+    "handler": "findAll"
+  },
+  {
+    "file": "services/api/src/v1/material/resources/resources.controller.ts",
+    "method": "POST",
+    "path": "resources",
+    "handler": "create"
+  },
+  {
+    "file": "services/api/src/v1/material/resources/resources.controller.ts",
+    "method": "DELETE",
+    "path": "resources/:id",
+    "handler": "remove"
+  },
+  {
+    "file": "services/api/src/v1/material/resources/resources.controller.ts",
+    "method": "GET",
+    "path": "resources/:id",
+    "handler": "findOne"
+  },
+  {
+    "file": "services/api/src/v1/learning/step-progresses/step-progresses.controller.ts",
+    "method": "GET",
+    "path": "step-progresses",
+    "handler": "?"
+  },
+  {
+    "file": "services/api/src/v1/learning/step-progresses/step-progresses.controller.ts",
+    "method": "POST",
+    "path": "step-progresses",
+    "handler": "?"
+  },
+  {
+    "file": "services/api/src/v1/learning/step-progresses/step-progresses.controller.ts",
+    "method": "DELETE",
+    "path": "step-progresses/:id",
+    "handler": "?"
+  },
+  {
+    "file": "services/api/src/v1/learning/step-progresses/step-progresses.controller.ts",
+    "method": "GET",
+    "path": "step-progresses/:id",
+    "handler": "?"
+  },
+  {
+    "file": "services/api/src/v1/learning/step-progresses/step-progresses.controller.ts",
+    "method": "PATCH",
+    "path": "step-progresses/:id",
+    "handler": "?"
+  },
+  {
+    "file": "services/api/src/v1/curriculum/steps/steps.controller.ts",
+    "method": "GET",
+    "path": "steps",
+    "handler": "?"
+  },
+  {
+    "file": "services/api/src/v1/curriculum/steps/steps.controller.ts",
+    "method": "POST",
+    "path": "steps",
+    "handler": "?"
+  },
+  {
+    "file": "services/api/src/v1/curriculum/steps/steps.controller.ts",
+    "method": "DELETE",
+    "path": "steps/:id",
+    "handler": "?"
+  },
+  {
+    "file": "services/api/src/v1/curriculum/steps/steps.controller.ts",
+    "method": "GET",
+    "path": "steps/:id",
+    "handler": "?"
+  },
+  {
+    "file": "services/api/src/v1/curriculum/steps/steps.controller.ts",
+    "method": "PATCH",
+    "path": "steps/:id",
+    "handler": "?"
+  },
+  {
+    "file": "services/api/src/v1/gamify/streaks/streaks.controller.ts",
+    "method": "GET",
+    "path": "streaks",
+    "handler": "?"
+  },
+  {
+    "file": "services/api/src/v1/gamify/streaks/streaks.controller.ts",
+    "method": "DELETE",
+    "path": "streaks/:id",
+    "handler": "?"
+  },
+  {
+    "file": "services/api/src/v1/gamify/streaks/streaks.controller.ts",
+    "method": "GET",
+    "path": "streaks//latest",
+    "handler": "?"
+  },
+  {
+    "file": "services/api/src/v1/learning/subtopic-progresses/subtopic-progresses.controller.ts",
+    "method": "GET",
+    "path": "subtopic-progresses",
+    "handler": "?"
+  },
+  {
+    "file": "services/api/src/v1/learning/subtopic-progresses/subtopic-progresses.controller.ts",
+    "method": "POST",
+    "path": "subtopic-progresses",
+    "handler": "?"
+  },
+  {
+    "file": "services/api/src/v1/learning/subtopic-progresses/subtopic-progresses.controller.ts",
+    "method": "DELETE",
+    "path": "subtopic-progresses/:id",
+    "handler": "?"
+  },
+  {
+    "file": "services/api/src/v1/learning/subtopic-progresses/subtopic-progresses.controller.ts",
+    "method": "GET",
+    "path": "subtopic-progresses/:id",
+    "handler": "?"
+  },
+  {
+    "file": "services/api/src/v1/learning/subtopic-progresses/subtopic-progresses.controller.ts",
+    "method": "PATCH",
+    "path": "subtopic-progresses/:id",
+    "handler": "?"
+  },
+  {
+    "file": "services/api/src/v1/curriculum/subtopics/subtopics.controller.ts",
+    "method": "GET",
+    "path": "subtopics",
+    "handler": "?"
+  },
+  {
+    "file": "services/api/src/v1/curriculum/subtopics/subtopics.controller.ts",
+    "method": "POST",
+    "path": "subtopics",
+    "handler": "?"
+  },
+  {
+    "file": "services/api/src/v1/curriculum/subtopics/subtopics.controller.ts",
+    "method": "DELETE",
+    "path": "subtopics/:id",
+    "handler": "?"
+  },
+  {
+    "file": "services/api/src/v1/curriculum/subtopics/subtopics.controller.ts",
+    "method": "GET",
+    "path": "subtopics/:id",
+    "handler": "?"
+  },
+  {
+    "file": "services/api/src/v1/curriculum/subtopics/subtopics.controller.ts",
+    "method": "PATCH",
+    "path": "subtopics/:id",
+    "handler": "?"
+  },
+  {
+    "file": "services/api/src/v1/curriculum/subtopics/subtopics.controller.ts",
+    "method": "GET",
+    "path": "subtopics/:id/lessons",
+    "handler": "?"
+  },
+  {
+    "file": "services/api/src/v1/curriculum/subtopics/subtopics.controller.ts",
+    "method": "GET",
+    "path": "subtopics/:id/navigation",
+    "handler": "?"
+  },
+  {
+    "file": "services/api/src/v1/tenants/tenants.controller.ts",
+    "method": "GET",
+    "path": "tenants/current",
+    "handler": "getCurrent"
+  },
+  {
+    "file": "services/api/src/v1/tenants/tenants.controller.ts",
+    "method": "PATCH",
+    "path": "tenants/current",
+    "handler": "updateCurrent"
+  },
+  {
+    "file": "services/api/src/v1/tenants/tenants.controller.ts",
+    "method": "GET",
+    "path": "tenants/mine",
+    "handler": "listMine"
+  },
+  {
+    "file": "services/api/src/v1/gamify/themes/themes.controller.ts",
+    "method": "GET",
+    "path": "themes",
+    "handler": "?"
+  },
+  {
+    "file": "services/api/src/v1/gamify/themes/themes.controller.ts",
+    "method": "POST",
+    "path": "themes",
+    "handler": "?"
+  },
+  {
+    "file": "services/api/src/v1/gamify/themes/themes.controller.ts",
+    "method": "DELETE",
+    "path": "themes/:id",
+    "handler": "?"
+  },
+  {
+    "file": "services/api/src/v1/gamify/themes/themes.controller.ts",
+    "method": "GET",
+    "path": "themes/:id",
+    "handler": "?"
+  },
+  {
+    "file": "services/api/src/v1/gamify/themes/themes.controller.ts",
+    "method": "PATCH",
+    "path": "themes/:id",
+    "handler": "?"
+  },
+  {
+    "file": "services/api/src/v1/gamify/themes/themes.controller.ts",
+    "method": "POST",
+    "path": "themes/:id/archive",
+    "handler": "?"
+  },
+  {
+    "file": "services/api/src/v1/gamify/themes/themes.controller.ts",
+    "method": "GET",
+    "path": "themes/:id/icons",
+    "handler": "?"
+  },
+  {
+    "file": "services/api/src/v1/gamify/themes/themes.controller.ts",
+    "method": "POST",
+    "path": "themes/:id/publish",
+    "handler": "?"
+  },
+  {
+    "file": "services/api/src/v1/gamify/themes/themes.controller.ts",
+    "method": "POST",
+    "path": "themes/:id/set-default",
+    "handler": "?"
+  },
+  {
+    "file": "services/api/src/v1/gamify/themes/themes.controller.ts",
+    "method": "POST",
+    "path": "themes/:id/submit-review",
+    "handler": "?"
+  },
+  {
+    "file": "services/api/src/v1/gamify/themes/themes.controller.ts",
+    "method": "POST",
+    "path": "themes/:id/suspend",
+    "handler": "?"
+  },
+  {
+    "file": "services/api/src/v1/gamify/themes/themes.controller.ts",
+    "method": "GET",
+    "path": "themes/default",
+    "handler": "?"
+  },
+  {
+    "file": "services/api/src/v1/gamify/themes/themes.controller.ts",
+    "method": "POST",
+    "path": "themes/icons",
+    "handler": "?"
+  },
+  {
+    "file": "services/api/src/v1/gamify/themes/themes.controller.ts",
+    "method": "DELETE",
+    "path": "themes/icons/:id",
+    "handler": "?"
+  },
+  {
+    "file": "services/api/src/v1/gamify/themes/themes.controller.ts",
+    "method": "POST",
+    "path": "themes/propose",
+    "handler": "?"
+  },
+  {
+    "file": "services/api/src/v1/curriculum/topics/topics.controller.ts",
+    "method": "POST",
+    "path": "topics",
+    "handler": "create"
+  },
+  {
+    "file": "services/api/src/v1/curriculum/topics/topics.controller.ts",
+    "method": "DELETE",
+    "path": "topics/:id",
+    "handler": "?"
+  },
+  {
+    "file": "services/api/src/v1/curriculum/topics/topics.controller.ts",
+    "method": "PATCH",
+    "path": "topics/:id",
+    "handler": "?"
+  },
+  {
+    "file": "services/api/src/v1/curriculum/topics/topics.controller.ts",
+    "method": "GET",
+    "path": "topics/:slug",
+    "handler": "?"
+  },
+  {
+    "file": "services/api/src/v1/curriculum/topics/topics.controller.ts",
+    "method": "GET",
+    "path": "topics//",
+    "handler": "?"
+  },
+  {
+    "file": "services/api/src/v1/tutor/tutor.controller.ts",
+    "method": "POST",
+    "path": "tutor/message",
+    "handler": "message"
+  },
+  {
+    "file": "services/api/src/v1/uploads/uploads.controller.ts",
+    "method": "DELETE",
+    "path": "uploads",
+    "handler": "?"
+  },
+  {
+    "file": "services/api/src/v1/uploads/uploads.controller.ts",
+    "method": "POST",
+    "path": "uploads",
+    "handler": "?"
+  },
+  {
+    "file": "services/api/src/v1/learning/user-steps/user-steps.controller.ts",
+    "method": "GET",
+    "path": "user-steps",
+    "handler": "?"
+  },
+  {
+    "file": "services/api/src/v1/learning/user-steps/user-steps.controller.ts",
+    "method": "POST",
+    "path": "user-steps",
+    "handler": "?"
+  },
+  {
+    "file": "services/api/src/v1/learning/user-steps/user-steps.controller.ts",
+    "method": "DELETE",
+    "path": "user-steps/:id",
+    "handler": "?"
+  },
+  {
+    "file": "services/api/src/v1/learning/user-steps/user-steps.controller.ts",
+    "method": "GET",
+    "path": "user-steps/:id",
+    "handler": "?"
+  },
+  {
+    "file": "services/api/src/v1/learning/user-steps/user-steps.controller.ts",
+    "method": "PATCH",
+    "path": "user-steps/:id",
+    "handler": "?"
+  },
+  {
+    "file": "services/api/src/v1/learning/user-steps/user-steps.controller.ts",
+    "method": "POST",
+    "path": "user-steps//complete/:id",
+    "handler": "?"
+  },
+  {
+    "file": "services/api/src/v1/learning/user-steps/user-steps.controller.ts",
+    "method": "POST",
+    "path": "user-steps/placement-diagnostic",
+    "handler": "?"
+  },
+  {
+    "file": "services/api/src/v1/learning/user-topics/user-topics.controller.ts",
+    "method": "GET",
+    "path": "user-topics",
+    "handler": "?"
+  },
+  {
+    "file": "services/api/src/v1/learning/user-topics/user-topics.controller.ts",
+    "method": "POST",
+    "path": "user-topics",
+    "handler": "?"
+  },
+  {
+    "file": "services/api/src/v1/learning/user-topics/user-topics.controller.ts",
+    "method": "DELETE",
+    "path": "user-topics/:id",
+    "handler": "?"
+  },
+  {
+    "file": "services/api/src/v1/learning/user-topics/user-topics.controller.ts",
+    "method": "GET",
+    "path": "user-topics/:id",
+    "handler": "?"
+  },
+  {
+    "file": "services/api/src/v1/learning/user-topics/user-topics.controller.ts",
+    "method": "PATCH",
+    "path": "user-topics/:id",
+    "handler": "?"
+  },
+  {
+    "file": "services/api/src/v1/users/users.controller.ts",
+    "method": "GET",
+    "path": "users//",
+    "handler": "?"
+  },
+  {
+    "file": "services/api/src/v1/users/users.controller.ts",
+    "method": "POST",
+    "path": "users//",
+    "handler": "?"
+  },
+  {
+    "file": "services/api/src/v1/users/users.controller.ts",
+    "method": "DELETE",
+    "path": "users//:id",
+    "handler": "?"
+  },
+  {
+    "file": "services/api/src/v1/users/users.controller.ts",
+    "method": "GET",
+    "path": "users//:id",
+    "handler": "?"
+  },
+  {
+    "file": "services/api/src/v1/users/users.controller.ts",
+    "method": "PATCH",
+    "path": "users//:id",
+    "handler": "?"
+  },
+  {
+    "file": "services/api/src/v1/users/users.controller.ts",
+    "method": "POST",
+    "path": "users//:id/activation",
+    "handler": "setActivation"
+  },
+  {
+    "file": "services/api/src/v1/users/users.controller.ts",
+    "method": "POST",
+    "path": "users//:id/role",
+    "handler": "changeRole"
+  },
+  {
+    "file": "services/api/src/v1/admin/backup/backup.controller.ts",
+    "method": "GET",
+    "path": "v1/admin/backup",
+    "handler": "?"
+  },
+  {
+    "file": "services/api/src/v1/admin/backup/backup.controller.ts",
+    "method": "POST",
+    "path": "v1/admin/backup/restore",
+    "handler": "?"
+  },
+  {
+    "file": "services/api/src/v1/admin/backup/backup.controller.ts",
+    "method": "POST",
+    "path": "v1/admin/backup/run",
+    "handler": "?"
+  },
+  {
+    "file": "services/api/src/v1/admin/moderation/moderation.controller.ts",
+    "method": "POST",
+    "path": "v1/admin/moderation/articles/:id/approve",
+    "handler": "?"
+  },
+  {
+    "file": "services/api/src/v1/admin/moderation/moderation.controller.ts",
+    "method": "POST",
+    "path": "v1/admin/moderation/articles/:id/reject",
+    "handler": "?"
+  },
+  {
+    "file": "services/api/src/v1/admin/moderation/moderation.controller.ts",
+    "method": "POST",
+    "path": "v1/admin/moderation/classes/:id/approve",
+    "handler": "?"
+  },
+  {
+    "file": "services/api/src/v1/admin/moderation/moderation.controller.ts",
+    "method": "POST",
+    "path": "v1/admin/moderation/classes/:id/reject",
+    "handler": "?"
+  },
+  {
+    "file": "services/api/src/v1/admin/moderation/moderation.controller.ts",
+    "method": "GET",
+    "path": "v1/admin/moderation/pending",
+    "handler": "?"
+  },
+  {
+    "file": "services/api/src/v1/agents/decision-trace/decision-trace.controller.ts",
+    "method": "GET",
+    "path": "v1/agents/decision-trace/me",
+    "handler": "?"
+  },
+  {
+    "file": "services/api/src/v1/agents/decision-trace/decision-trace.controller.ts",
+    "method": "POST",
+    "path": "v1/agents/decision-trace/record",
+    "handler": "?"
+  },
+  {
+    "file": "services/api/src/v1/analytics/admin/admin-analytics.controller.ts",
+    "method": "GET",
+    "path": "v1/analytics/admin/overview",
+    "handler": "?"
+  },
+  {
+    "file": "services/api/src/v1/analytics/admin/admin-analytics.controller.ts",
+    "method": "GET",
+    "path": "v1/analytics/admin/top-topics",
+    "handler": "?"
+  },
+  {
+    "file": "services/api/src/v1/analytics/creator/creator-analytics.controller.ts",
+    "method": "GET",
+    "path": "v1/analytics/creator/me",
+    "handler": "?"
+  },
+  {
+    "file": "services/api/src/v1/analytics/events/event-log.controller.ts",
+    "method": "POST",
+    "path": "v1/analytics/events",
+    "handler": "?"
+  },
+  {
+    "file": "services/api/src/v1/analytics/events/event-log.controller.ts",
+    "method": "GET",
+    "path": "v1/analytics/events/me",
+    "handler": "?"
+  },
+  {
+    "file": "services/api/src/v1/analytics/snapshots/snapshot.controller.ts",
+    "method": "POST",
+    "path": "v1/analytics/snapshots/run",
+    "handler": "?"
+  },
+  {
+    "file": "services/api/src/v1/commerce/credit-packages/credit-package.controller.ts",
+    "method": "GET",
+    "path": "v1/commerce/credit-packages",
+    "handler": "?"
+  },
+  {
+    "file": "services/api/src/v1/commerce/credit-packages/credit-package.controller.ts",
+    "method": "POST",
+    "path": "v1/commerce/credit-packages/:slug/purchase",
+    "handler": "?"
+  },
+  {
+    "file": "services/api/src/v1/commerce/studio-earnings/studio-earnings.controller.ts",
+    "method": "GET",
+    "path": "v1/commerce/studio-earnings/history",
+    "handler": "?"
+  },
+  {
+    "file": "services/api/src/v1/commerce/studio-earnings/studio-earnings.controller.ts",
+    "method": "GET",
+    "path": "v1/commerce/studio-earnings/me",
+    "handler": "?"
+  },
+  {
+    "file": "services/api/src/v1/commerce/withdrawals/withdrawals.controller.ts",
+    "method": "GET",
+    "path": "v1/commerce/withdrawals",
+    "handler": "?"
+  },
+  {
+    "file": "services/api/src/v1/commerce/withdrawals/withdrawals.controller.ts",
+    "method": "POST",
+    "path": "v1/commerce/withdrawals",
+    "handler": "?"
+  },
+  {
+    "file": "services/api/src/v1/gamify/badges/badge-issuance.controller.ts",
+    "method": "GET",
+    "path": "v1/gamify/badges/me",
+    "handler": "?"
+  },
+  {
+    "file": "services/api/src/v1/gamify/level/level.controller.ts",
+    "method": "GET",
+    "path": "v1/gamify/level/me",
+    "handler": "?"
+  },
+  {
+    "file": "services/api/src/v1/personalization/mastery/mastery.controller.ts",
+    "method": "GET",
+    "path": "v1/personalization/mastery/me",
+    "handler": "?"
+  },
+  {
+    "file": "services/api/src/v1/personalization/memory/memory.controller.ts",
+    "method": "GET",
+    "path": "v1/personalization/memory",
+    "handler": "?"
+  },
+  {
+    "file": "services/api/src/v1/personalization/memory/memory.controller.ts",
+    "method": "POST",
+    "path": "v1/personalization/memory",
+    "handler": "?"
+  },
+  {
+    "file": "services/api/src/v1/personalization/memory/memory.controller.ts",
+    "method": "POST",
+    "path": "v1/personalization/memory/distill",
+    "handler": "?"
+  },
+  {
+    "file": "services/api/src/v1/personalization/misconception/misconception.controller.ts",
+    "method": "GET",
+    "path": "v1/personalization/misconceptions/active",
+    "handler": "?"
+  },
+  {
+    "file": "services/api/src/v1/personalization/policy/adaptive-policy.controller.ts",
+    "method": "GET",
+    "path": "v1/personalization/policy/me",
+    "handler": "?"
+  },
+  {
+    "file": "services/api/src/v1/personalization/policy/adaptive-policy.controller.ts",
+    "method": "GET",
+    "path": "v1/personalization/policy/next",
+    "handler": "?"
+  },
+  {
+    "file": "services/api/src/v1/personalization/skill-node/skill-node.controller.ts",
+    "method": "GET",
+    "path": "v1/personalization/skill-nodes/me",
+    "handler": "?"
+  },
+  {
+    "file": "services/api/src/v1/sandbox/sandbox.controller.ts",
+    "method": "GET",
+    "path": "v1/sandbox/graph",
+    "handler": "?"
+  },
+  {
+    "file": "services/api/src/v1/sandbox/sandbox.controller.ts",
+    "method": "POST",
+    "path": "v1/sandbox/journal/validate",
+    "handler": "?"
+  },
+  {
+    "file": "services/api/src/v1/sandbox/sandbox.controller.ts",
+    "method": "GET",
+    "path": "v1/sandbox/scenarios",
+    "handler": "?"
+  },
+  {
+    "file": "services/api/src/v1/simulator/simulator.controller.ts",
+    "method": "POST",
+    "path": "v1/simulator/companies",
+    "handler": "?"
+  },
+  {
+    "file": "services/api/src/v1/simulator/simulator.controller.ts",
+    "method": "GET",
+    "path": "v1/simulator/companies/:id",
+    "handler": "?"
+  },
+  {
+    "file": "services/api/src/v1/simulator/simulator.controller.ts",
+    "method": "POST",
+    "path": "v1/simulator/companies/:id/close-period",
+    "handler": "?"
+  },
+  {
+    "file": "services/api/src/v1/simulator/simulator.controller.ts",
+    "method": "GET",
+    "path": "v1/simulator/companies/:id/journal-entries",
+    "handler": "?"
+  },
+  {
+    "file": "services/api/src/v1/simulator/simulator.controller.ts",
+    "method": "POST",
+    "path": "v1/simulator/companies/:id/journal-entries",
+    "handler": "?"
+  },
+  {
+    "file": "services/api/src/v1/simulator/simulator.controller.ts",
+    "method": "POST",
+    "path": "v1/simulator/companies/:id/statements",
+    "handler": "?"
+  },
+  {
+    "file": "services/api/src/v1/simulator/simulator.controller.ts",
+    "method": "GET",
+    "path": "v1/simulator/scenarios",
+    "handler": "?"
+  },
+  {
+    "file": "services/api/src/v1/teacher/creator-profile/creator-profile.controller.ts",
+    "method": "GET",
+    "path": "v1/teacher/creators/:id",
+    "handler": "?"
+  },
+  {
+    "file": "services/api/src/v1/teacher/eligibility/creator-eligibility.controller.ts",
+    "method": "GET",
+    "path": "v1/teacher/eligibility",
+    "handler": "?"
+  },
+  {
+    "file": "services/api/src/v1/ledger/wallets.controller.ts",
+    "method": "GET",
+    "path": "wallets/:id",
+    "handler": "?"
+  },
+  {
+    "file": "services/api/src/v1/ledger/wallets.controller.ts",
+    "method": "GET",
+    "path": "wallets/:id/ledger",
+    "handler": "?"
+  },
+  {
+    "file": "services/api/src/v1/ledger/wallets.controller.ts",
+    "method": "GET",
+    "path": "wallets/mine",
+    "handler": "?"
+  },
+  {
+    "file": "services/api/src/v1/payments/payment-webhook.controller.ts",
+    "method": "POST",
+    "path": "webhooks/payments/:provider",
+    "handler": "?"
+  }
+]
