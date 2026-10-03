@@ -8,10 +8,26 @@ import { CommerceRefundService } from './commerce-refund.service';
 import { CommerceCoreModule } from './commerce-core.module';
 import { CreatorEarningsService } from './creator-earnings.service';
 import { CommerceFulfillmentService } from './fulfillment/commerce-fulfillment.service';
+import { CreditPackageModule } from './credit-packages/credit-package.module';
+import { ReservationCommitModule } from './reservations/reservation-commit.module';
+import { WithdrawalsModule } from './withdrawals/withdrawals.module';
+import { StudioEarningsModule } from './studio-earnings/studio-earnings.module';
+import { AnalyticsModule } from '@/v1/analytics/analytics.module';
 
 @Module({
-  imports: [CommerceCoreModule, OrdersModule, EntitlementsModule, LedgerModule, ClassesModule],
+  imports: [
+    CommerceCoreModule,
+    OrdersModule,
+    EntitlementsModule,
+    LedgerModule,
+    ClassesModule,
+    CreditPackageModule,
+    ReservationCommitModule,
+    WithdrawalsModule,
+    StudioEarningsModule,
+    AnalyticsModule,
+  ],
   providers: [CreatorEarningsService, CommerceLedgerService, CommerceFulfillmentService, CommerceRefundService],
-  exports: [CreatorEarningsService, CommerceLedgerService],
+  exports: [CreatorEarningsService, CommerceLedgerService, CreditPackageModule, ReservationCommitModule, WithdrawalsModule, StudioEarningsModule],
 })
 export class CommerceModule {}

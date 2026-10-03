@@ -3,7 +3,6 @@ node_modules/
 .pnpm-store/
 .next/
 .nuxt/
-.output/
 .svelte-kit/
 build/
 dist/

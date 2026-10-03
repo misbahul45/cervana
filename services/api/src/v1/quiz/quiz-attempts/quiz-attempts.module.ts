@@ -8,11 +8,19 @@ import { DailyLogsModule } from '@/v1/gamify/daily-logs/daily-logs.module';
 import { StreaksModule } from '@/v1/gamify/streaks/streaks.module';
 import { MasteryModule } from '@/v1/personalization/mastery/mastery.module';
 import { MisconceptionModule } from '@/v1/personalization/misconception/misconception.module';
+import { AnalyticsModule } from '@/v1/analytics/analytics.module';
 
 @Module({
   controllers: [QuizAttemptsController],
   providers: [QuizAttemptsService, QuizAttemptsRepo, ActivityDetectorInterceptor],
-  imports: [PrismaModule, DailyLogsModule, StreaksModule, MasteryModule, MisconceptionModule],
+  imports: [
+    PrismaModule,
+    DailyLogsModule,
+    StreaksModule,
+    MasteryModule,
+    MisconceptionModule,
+    AnalyticsModule,
+  ],
   exports: [QuizAttemptsService, QuizAttemptsRepo],
 })
 export class QuizAttemptsModule {}

@@ -2,6 +2,7 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse
 from config.envs import ENVS
 from v1.router import v1Router
+from v1.agents.router_endpoint import router as agents_router
 from fastapi.middleware.cors import CORSMiddleware
 import logging
 
@@ -33,6 +34,7 @@ async def root():
     return {"title": app.title, "version": app.version, "status": "running"}
 
 app.include_router(v1Router, prefix='/ai')
+app.include_router(agents_router, prefix='/ai')
 
 if __name__ == "__main__":
     import uvicorn

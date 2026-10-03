@@ -18,6 +18,7 @@ import {
 import { CommerceConfig } from '../commerce.config';
 import { CommerceLedgerService } from '../commerce-ledger.service';
 import { CreatorEarningsService } from '../creator-earnings.service';
+import { EventLogService } from '@/v1/analytics/events/event-log.service';
 
 @Injectable()
 export class CommerceFulfillmentService implements OnModuleInit {
@@ -30,6 +31,7 @@ export class CommerceFulfillmentService implements OnModuleInit {
     private readonly audit: AuditService,
     private readonly config: CommerceConfig,
     private readonly classEnrollments: ClassEnrollmentsService,
+    private readonly events?: EventLogService,
   ) {}
 
   onModuleInit() {
@@ -71,6 +73,15 @@ export class CommerceFulfillmentService implements OnModuleInit {
     }
 
     await this.lifecycle.markFulfilled(tx, order.id, ctx);
+
+    if (this.events) {
+      await this.events.record({
+        userId: order.userId,
+        action: 'PURCHASE_COMPLETED',
+        entityId: order.id,
+        metadata: { total: Number(order.total), currency: order.currency },
+      });
+    }
 
     for (const item of granted) {
       const body: EntitlementGrantedPayload = {

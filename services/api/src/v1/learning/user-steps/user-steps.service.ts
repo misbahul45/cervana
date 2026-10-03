@@ -1,15 +1,19 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Optional } from '@nestjs/common';
 import { Query } from '@/common/interfaces';
 import { errorHandler } from '@/common/lib/utils';
 import { AppError, AppErrorCode } from '@/common/lib/error';
 import { UserStepsRepo } from './user-steps.repo';
 import { CreateUserStepType, UpdateUserStepType } from './user-steps.dto';
+import { EventLogService } from '@/v1/analytics/events/event-log.service';
 
 const LEVEL_FALLBACK_TOPIC_ID = 'l1-t01-accounting-equation';
 
 @Injectable()
 export class UserStepsService {
-  constructor(private readonly userStepsRepo: UserStepsRepo) {}
+  constructor(
+    private readonly userStepsRepo: UserStepsRepo,
+    @Optional() private readonly events?: EventLogService,
+  ) {}
 
   placeDiagnostic(answers: string[]): {
     recommendedLevel: number;
@@ -95,6 +99,17 @@ export class UserStepsService {
   complete(id:string){
     return errorHandler(async()=>{
       const complete=await this.userStepsRepo.complete(id)
+      if (this.events) {
+        const step = await this.userStepsRepo.findOne('id', id);
+        if (step?.userId) {
+          await this.events.record({
+            userId: step.userId,
+            action: 'LESSON_COMPLETED',
+            entityId: id,
+            metadata: { stepId: id },
+          });
+        }
+      }
       return {
         message:'Nice congratulation',
         data:complete

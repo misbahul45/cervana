@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Optional, BadRequestException } from '@nestjs/common';
 import { Role, TeacherStatus } from '@prisma/client';
 import { errorHandler } from '@/common/lib/utils';
 import { AppError, AppErrorCode } from '@/common/lib/error';
@@ -8,6 +8,7 @@ import { AuditService } from '@/common/authz/audit.service';
 import { TenantProvisioningService } from '@/v1/tenants/tenant-provisioning.service';
 import { ApplicationsRepo } from './applications.repo';
 import { ApplicationListQueryType, SubmitApplicationType, UpdateApplicationType } from './applications.dto';
+import { CreatorEligibilityService } from '../eligibility/creator-eligibility.service';
 
 interface ReviewOptions {
   actor: Actor;
@@ -25,6 +26,7 @@ export class ApplicationsService {
     private readonly policy: PolicyService,
     private readonly audit: AuditService,
     private readonly provisioning: TenantProvisioningService,
+    @Optional() private readonly eligibility?: CreatorEligibilityService,
   ) {}
 
   submit(actor: Actor, values: SubmitApplicationType) {
@@ -35,6 +37,13 @@ export class ApplicationsService {
       const existing = await this.applicationsRepo.findByUserId(actor.id);
       if (existing) {
         throw new AppError('Teacher application already exists', 409, AppErrorCode.UNIQUE_CONSTRAINT_FAILED);
+      }
+      const topicId = (values as { expertiseTopicId?: string }).expertiseTopicId;
+      if (this.eligibility && topicId) {
+        const { eligible } = await this.eligibility.check({ userId: actor.id, topicId });
+        if (!eligible) {
+          throw new BadRequestException('mastery_threshold_not_met');
+        }
       }
       const created = await this.applicationsRepo.create(actor.id, values);
       return { message: 'Successfully created teacher application', data: created };

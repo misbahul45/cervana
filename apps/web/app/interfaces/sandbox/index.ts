@@ -73,3 +73,27 @@ export interface NextActivityDecision {
   level: number;
   rationaleKind: 'no_exploration' | 'remediation' | 'progression';
 }
+
+export interface UserAchievement {
+  id: string;
+  achievementId: string;
+  awardedAt: string;
+  achievement: {
+    id: string;
+    title: string;
+    description?: string;
+    icon?: string;
+  };
+}
+
+export interface SkillNodeRecord {
+  id: string;
+  topicId: string;
+  state: 'LOCKED' | 'AVAILABLE' | 'IN_PROGRESS' | 'MASTERED';
+  progress: number;
+}
+
+export interface LevelInfo {
+  level: number;
+  xp: number;
+}

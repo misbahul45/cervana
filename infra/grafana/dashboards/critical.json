@@ -1,0 +1,29 @@
+{
+  "title": "ReduCera Critical KPIs",
+  "panels": [
+    {
+      "title": "5xx rate (last 5m)",
+      "targets": [
+        'sum(rate(http_requests_total{status=~"5.."}[5m])) / sum(rate(http_requests_total[5m]))'
+      ]
+    },
+    {
+      "title": "Payment failure rate",
+      "targets": [
+        'sum(rate(payment_failures_total[5m])) / sum(rate(payment_attempts_total[5m]))'
+      ]
+    },
+    {
+      "title": "Queue depth (waiting)",
+      "targets": ['bull_queue_jobs{state="waiting"}']
+    },
+    {
+      "title": "Redis memory usage",
+      "targets": ['redis_memory_used_bytes / redis_memory_max_memory_known_bytes']
+    },
+    {
+      "title": "p95 chat latency",
+      "targets": ['histogram_quantile(0.95, http_request_duration_seconds_bucket{endpoint="/v1/chat"})']
+    }
+  ]
+}

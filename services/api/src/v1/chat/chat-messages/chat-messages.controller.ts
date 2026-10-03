@@ -8,6 +8,7 @@ import { BaseChatMessageSchema } from '@/common/docs/chat.doc';
 import { ChatsService } from '../chats/chats.service';
 import { ChatMessagesSseService } from '@/v1/sse/chat-messages-sse/chat-messages-sse.service';
 import { ActivityDetectorInterceptor } from '@/common/interceptors/daily-activity.interceptor';
+import { RateLimit } from '@/v1/common/rate-limit/rate-limit.guard';
 
 @Controller('chat-messages')
 export class ChatMessagesController {
@@ -19,6 +20,7 @@ export class ChatMessagesController {
   @Post()
   @ApiCrudDocs.create(BaseChatMessageSchema, CreateChatMessageDto, 'Chat Message')
   @RequireParentOwnership('chat', 'chatId')
+  @RateLimit({ scope: 'chat_message', limitPerMinute: 30 })
   @UseInterceptors(ActivityDetectorInterceptor)
   async create(@Body(new ZodPipe(CreateChatMessageDto)) createChatMessageDto: CreateChatMessageDtoType) {
     const res=await this.chatMessagesService.create(createChatMessageDto);

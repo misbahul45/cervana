@@ -61,7 +61,14 @@ model User {
   sandboxAttempts      SandboxAttempt[]
   episodes             Episode[]
   adaptivePolicies     AdaptivePolicy[]
+  skillNodes           SkillNode[]
+  reservations         Reservation[]
+  virtualCompanies     VirtualCompany[]
   decisionTraces       DecisionTrace[]
+  events               EventLog[]
+  masterySnapshots     MasterySnapshot[]
+  creatorOutcomeMetrics CreatorOutcomeMetric[]
+  rateLimits            RateLimit[]
   teacherOverridesGiven   TeacherOverride[] @relation("teacherOverridesGiven")
   teacherOverridesReceived TeacherOverride[] @relation("teacherOverridesReceived")
 
@@ -124,6 +131,7 @@ model TeacherApplication {
   cvUrl        String?
   portfolioUrl String?
   expertise    String?
+  expertiseTopicId String?
 
   status     TeacherStatus @default(PENDING)
   reviewedBy String?
@@ -784,6 +792,9 @@ model Order {
   ledger         LedgerTransaction[]
   paymentIntents PaymentIntent[]
 
+  creditPackageId String?
+  creditPackage   CreditPackage? @relation("OrderCreditPackage", fields: [creditPackageId], references: [id], onDelete: SetNull)
+
   /// DEPRECATED: Float money. Canonical amounts are subtotal, platformFee and total. No code reads or writes this column any more.
   amount   Float?
   currency String      @default("IDR")
@@ -958,6 +969,7 @@ enum Role {
   STUDENT
   ADMIN
   TEACHER
+  REVIEWER
 }
 
 enum AttemptStatus {
@@ -1465,6 +1477,8 @@ model Tenant {
   earnings    CreatorEarning[]
   wallets     Wallet[]
   payouts     PayoutRequest[]
+  revenueShareRules RevenueShareRule[]
+  virtualCompanies  VirtualCompany[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1957,6 +1971,8 @@ model Wallet {
   balance  Decimal  @default(0) @db.Decimal(14, 2)
   currency String   @default("IDR")
 
+  reservations Reservation[]
+
   ledger  LedgerTransaction[]
   payouts PayoutRequest[]
 
@@ -2012,6 +2028,8 @@ model PayoutRequest {
   creator         User         @relation("PayoutCreator", fields: [creatorId], references: [id], onDelete: Restrict)
   tenantId        String
   tenant          Tenant       @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+
+  holdWindow      HoldWindow?
   walletId        String
   wallet          Wallet       @relation(fields: [walletId], references: [id], onDelete: Restrict)
   amount          Decimal      @db.Decimal(14, 2)
@@ -2105,6 +2123,166 @@ model AICreditLedgerEntry {
 }
 
 // -----------------------------------------------------------------------------
+// Phase 5 credit loop
+// -----------------------------------------------------------------------------
+
+model VirtualCompany {
+  id          String                 @id @default(uuid())
+  tenantId    String
+  tenant      Tenant                 @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  ownerId     String
+  owner       User                   @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  name        String
+  scenarioSlug String
+  startDate   DateTime
+  endDate     DateTime
+  status      SimulatorCompanyStatus @default(ACTIVE)
+  createdAt   DateTime               @default(now())
+  updatedAt   DateTime               @updatedAt
+
+  journalEntries JournalEntry[]
+  ledgers        Ledger[]
+  statements     FinancialStatement[]
+
+  @@index([tenantId, ownerId])
+  @@index([scenarioSlug])
+}
+
+enum SimulatorCompanyStatus {
+  ACTIVE
+  CLOSED
+}
+
+model JournalEntry {
+  id           String          @id @default(uuid())
+  companyId    String
+  company      VirtualCompany  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  date         DateTime
+  debitAccount String
+  creditAccount String
+  amount       Decimal         @db.Decimal(14, 2)
+  memo         String?
+  createdAt    DateTime        @default(now())
+
+  @@index([companyId, date])
+}
+
+model Ledger {
+  id         String         @id @default(uuid())
+  companyId  String
+  company    VirtualCompany @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  accountName String
+  period      String
+  debitTotal  Decimal        @db.Decimal(14, 2) @default(0)
+  creditTotal Decimal        @db.Decimal(14, 2) @default(0)
+  balance     Decimal        @db.Decimal(14, 2) @default(0)
+  updatedAt   DateTime       @updatedAt
+
+  @@unique([companyId, accountName, period])
+}
+
+model FinancialStatement {
+  id            String                @id @default(uuid())
+  companyId     String
+  company       VirtualCompany        @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  period        String
+  statementType FinancialStatementType
+  data          Json
+  snapshotHash  String
+  createdAt     DateTime              @default(now())
+
+  @@unique([companyId, period, statementType])
+}
+
+enum FinancialStatementType {
+  INCOME_STATEMENT
+  BALANCE_SHEET
+  CASH_FLOW
+}
+
+// -----------------------------------------------------------------------------
+// Phase 5 credit loop
+// -----------------------------------------------------------------------------
+
+model CreditPackage {
+  id           String   @id @default(uuid())
+  slug         String   @unique
+  name         String
+  description  String?
+  creditAmount Decimal  @db.Decimal(14, 2)
+  priceAmount  Decimal  @db.Decimal(14, 2)
+  priceCurrency String  @default("IDR")
+  isActive     Boolean  @default(true)
+  sortOrder    Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  orders       Order[]  @relation("OrderCreditPackage")
+}
+
+enum ReservationPurpose {
+  PURCHASE_CREDITS
+  PURCHASE_CLASS
+  PAYOUT
+}
+
+enum ReservationStatus {
+  PENDING
+  COMMITTED
+  RELEASED
+  EXPIRED
+}
+
+model Reservation {
+  id             String              @id @default(uuid())
+  idempotencyKey String              @unique
+  userId         String
+  walletId       String
+  amount         Decimal             @db.Decimal(14, 2)
+  currency       String              @default("IDR")
+  purpose        ReservationPurpose
+  referenceId    String?
+  status         ReservationStatus   @default(PENDING)
+  expiresAt      DateTime
+  createdAt      DateTime            @default(now())
+  committedAt    DateTime?
+  releasedAt     DateTime?
+
+  user           User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  wallet         Wallet  @relation(fields: [walletId], references: [id], onDelete: Restrict)
+
+  @@index([userId, status])
+  @@index([expiresAt])
+}
+
+model HoldWindow {
+  id          String   @id @default(uuid())
+  payoutId    String   @unique
+  payout      PayoutRequest @relation(fields: [payoutId], references: [id], onDelete: Cascade)
+  releaseAt   DateTime
+  released    Boolean  @default(false)
+  releasedAt  DateTime?
+  openRefunds Int      @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([releaseAt, released])
+}
+
+model RevenueShareRule {
+  id             String   @id @default(uuid())
+  tenantId       String
+  tenant         Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  platformFeePct Decimal  @db.Decimal(5, 2)
+  creatorPct     Decimal  @db.Decimal(5, 2)
+  effectiveFrom  DateTime @default(now())
+  effectiveUntil DateTime?
+
+  @@index([tenantId, effectiveFrom])
+}
+
+// -----------------------------------------------------------------------------
 // Phase 2 personalization
 // -----------------------------------------------------------------------------
 
@@ -2119,4 +2297,128 @@ model AdaptivePolicy {
   user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, appliedAt])
+}
+
+enum SkillNodeState {
+  LOCKED
+  AVAILABLE
+  IN_PROGRESS
+  MASTERED
+}
+
+model SkillNode {
+  id        String         @id @default(cuid())
+  userId    String
+  topicId   String
+  state     SkillNodeState
+  progress  Float          @default(0)
+  updatedAt DateTime       @updatedAt
+  createdAt DateTime       @default(now())
+
+  user      User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, topicId])
+  @@index([userId, state])
+}
+
+model EventLog {
+  id          String       @id @default(uuid())
+  userId      String
+  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  action      EventAction
+  entityId    String?
+  metadata    Json?
+  piiRedacted Boolean      @default(true)
+  createdAt   DateTime     @default(now())
+
+  @@index([action, createdAt])
+  @@index([userId, createdAt])
+}
+
+enum EventAction {
+  LESSON_COMPLETED
+  QUIZ_SUBMITTED
+  PURCHASE_COMPLETED
+  PAYOUT_RELEASED
+  BADGE_ISSUED
+}
+
+model MasterySnapshot {
+  id         String   @id @default(uuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  topicId    String
+  score      Float
+  attempts   Int
+  snapshotAt DateTime @default(now())
+
+  @@index([userId, snapshotAt])
+  @@index([topicId, snapshotAt])
+}
+
+model EngagementMetric {
+  id          String            @id @default(uuid())
+  cohortId    String
+  window      EngagementWindow
+  uniqueUsers Int
+  totalEvents Int
+  createdAt   DateTime          @default(now())
+
+  @@unique([cohortId, window, createdAt])
+  @@index([cohortId, window])
+}
+
+enum EngagementWindow {
+  DAILY
+  WEEKLY
+  MONTHLY
+}
+
+model CreatorOutcomeMetric {
+  id             String   @id @default(uuid())
+  creatorId      String
+  creator        User     @relation(fields: [creatorId], references: [id], onDelete: Cascade)
+  windowStart    DateTime
+  windowEnd      DateTime
+  salesCount     Int      @default(0)
+  completionRate Float    @default(0)
+  satisfaction   Float    @default(0)
+  totalRevenue   Decimal  @db.Decimal(14, 2) @default(0)
+  createdAt      DateTime @default(now())
+
+  @@index([creatorId, windowStart])
+}
+
+model RateLimit {
+  id          String   @id @default(uuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  scope       String
+  windowStart DateTime
+  count       Int      @default(0)
+  createdAt   DateTime @default(now())
+
+  @@unique([userId, scope, windowStart])
+  @@index([scope, windowStart])
+}
+
+model BackupRecord {
+  id          String       @id @default(uuid())
+  tag         String       @unique
+  sizeBytes   BigInt
+  checksum    String
+  storageUri  String
+  status      BackupStatus  @default(PENDING)
+  startedAt   DateTime     @default(now())
+  completedAt DateTime?
+  restoredAt  DateTime?
+
+  @@index([status, startedAt])
+}
+
+enum BackupStatus {
+  PENDING
+  COMPLETED
+  FAILED
+  RESTORED
 }

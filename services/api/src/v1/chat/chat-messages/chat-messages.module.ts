@@ -8,11 +8,12 @@ import { ChatMessagesSseModule } from '@/v1/sse/chat-messages-sse/chat-messages-
 import { ActivityDetectorInterceptor } from '@/common/interceptors/daily-activity.interceptor';
 import { DailyLogsModule } from '@/v1/gamify/daily-logs/daily-logs.module';
 import { StreaksModule } from '@/v1/gamify/streaks/streaks.module';
+import { RateLimitModule } from '@/v1/common/rate-limit/rate-limit.module';
 
 @Module({
   controllers: [ChatMessagesController],
   providers: [ChatMessagesService, ChatMessagesRepo, ActivityDetectorInterceptor],
-  imports: [PrismaModule, ChatMessagesSseModule, DailyLogsModule, StreaksModule],
+  imports: [PrismaModule, ChatMessagesSseModule, DailyLogsModule, StreaksModule, RateLimitModule],
   exports: [ChatMessagesService, ChatMessagesRepo],
 })
 export class ChatMessagesModule {}

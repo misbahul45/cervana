@@ -17,7 +17,7 @@ export class UploadsController {
   @UseInterceptors(
     FileInterceptor('file', {
       storage: diskStorage({
-        destination: './tmp',
+        destination: process.env.UPLOAD_TMP_DIR ?? '/tmp/uploads',
         filename: (req, file, cb) => {
           const uniqueName = `${Date.now()}-${file.originalname}`;
           cb(null, uniqueName);

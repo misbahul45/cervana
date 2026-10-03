@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Optional } from '@nestjs/common';
 import { MasteryRepo } from '../mastery/mastery.repo';
 import { MisconceptionRepo } from '../misconception/misconception.repo';
 import { AdaptivePolicyRepo } from './adaptive-policy.repo';
@@ -29,8 +29,11 @@ export class AdaptivePolicyService {
     private readonly masteryRepo: MasteryRepo,
     private readonly misconceptionRepo: MisconceptionRepo,
     private readonly policyRepo: AdaptivePolicyRepo,
-    private readonly goldenGraph: GoldenGraph,
-  ) {}
+    @Optional() goldenGraph?: GoldenGraph,
+  ) {
+    this.goldenGraph = goldenGraph ?? { levels: [] };
+  }
+  private goldenGraph: GoldenGraph;
 
   async decideNext(userId: string): Promise<PolicyDecision> {
     const mastery = await this.masteryRepo.listByUser(userId);

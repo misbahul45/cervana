@@ -1,54 +1,56 @@
 <script setup lang="ts">
-import type { User } from '~/interfaces/auth';
-import { userStepService } from '~/services/learning/userStep';
-import { material } from '~/constants';
-import MarkdownIt from 'markdown-it';
-import type { ApiResponse } from '~/interfaces/api';
-import type { UserStep, UserStepDetailResponse } from '~/interfaces/learning/userSteps';
-import { useApi } from '~/composable/useApi';
+import { ref, computed, onMounted } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
+import RenderMarkdown from '~/components/ui/RenderMarkdown.vue';
+import ActionButton from '~/components/ui/ActionButton.vue';
+import QuizTaker from '~/components/learn/QuizTaker.vue';
 
-const route=useRoute()
+const route = useRoute();
+const router = useRouter();
+const stepId = computed(() => String(route.params.userStepId || ''));
 
-const { data:resUserStep }=await useAsyncData<ApiResponse<UserStepDetailResponse<true>>>(
-  `user-step-${route.params.userStepId}`,
-  () =>
-    userStepService.findOne(route.params.userStepId as string,{
-      include:'chat'
-    })
-)
+const step = ref<{ title: string; body: string; stepId: string; quizId?: string } | null>(null);
+const completed = ref(false);
 
+onMounted(async () => {
+  try {
+    const raw = localStorage.getItem(`step-${stepId.value}`);
+    if (raw) {
+      step.value = JSON.parse(raw);
+    } else {
+      step.value = {
+        stepId: stepId.value,
+        title: `Topik ${stepId.value}`,
+        body: `# Selamat Datang\n\nIni adalah pelajaran interaktif untuk topik **${stepId.value}**.\n\n## Materi Pembelajaran\n\n- Konsep dasar double-entry\n- Persamaan akuntansi\n- Jurnal umum\n\n## Contoh Praktis\n\nBerikut adalah simulasi singkat. Cobalah Anda sendiri di sandbox.`,
+        quizId: 'demo',
+      };
+    }
+  } catch {
+    step.value = null;
+  }
+});
 
-// const { data: authData, } = await useAsyncData<{
-//   accessToken:string;
-//   refreshToken:string;
-//   user:User;
-// }>('me', () =>
-//   $fetch('/api/auth/me')
-// )
-// const accessToken = computed(() => authData.value?.accessToken)
-// const refreshToken = computed(() => authData.value?.refreshToken)
-// const user = computed(() => authData.value?.user)
-
-const toast=useToast()
-
-const { call }=useApi(userStepService.complete)
-
-const GoNextUserStep=async()=>{
-  await call(route.params.userStepId as string)
-  toast.add({
-    title:"🔥 Level up: Understanding +1",
-    color:'warning'
-  })
+function next() {
+  completed.value = true;
+  setTimeout(() => router.push('/my-learning'), 500);
 }
-
 </script>
 
 <template>
-<div class="w-full flex flex-col gap-2 h-full relative rounded-lg p-2 md:px-6 md:py-4 backdrop-blur-sm">
-  <my-learning-reader-all-content :chat-id="resUserStep?.data?.chat?.id!" />
-  <div class="flex justify-between items-center px-6">
-    <u-button v-if="resUserStep?.success" @click="GoNextUserStep" variant="outline" trailing-icon="i-lucide-check" color="success" class="w-fit cursor-pointer">Saya Paham</u-button>
-    <my-learning-chatbot :chat-id="resUserStep?.data?.chat?.id!" :user-step-id="route.params.userStepId! as string" />
-  </div>
-</div>  
+  <main class="max-w-3xl mx-auto p-6 space-y-6">
+    <div v-if="!step" class="text-center py-8 text-[var(--rc-fg-muted,#6b7280)]">Pelajaran tidak ditemukan</div>
+    <div v-else>
+      <h1 class="text-3xl font-bold">{{ step.title }}</h1>
+      <p class="text-sm text-[var(--rc-fg-muted,#6b7280)]">Topik: {{ step.stepId }}</p>
+
+      <article class="bg-[var(--rc-bg-elevated,#f9fafb)] rounded-lg p-6 border border-[var(--rc-border)] prose dark:prose-invert max-w-full">
+        <RenderMarkdown :text="step.body" />
+      </article>
+
+      <div v-if="!completed" class="flex justify-end gap-3">
+        <ActionButton title="Lanjut ke Kuis" primary description="Uji pemahaman Anda" @click="next" />
+      </div>
+      <div v-else class="text-center text-green-600 font-semibold">✓ Pelajaran selesai! Mengarahkan ke dashboard...</div>
+    </div>
+  </main>
 </template>

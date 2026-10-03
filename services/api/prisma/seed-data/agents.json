@@ -1,0 +1,49 @@
+[
+  {
+    "name": "tutor",
+    "scope": "TUTOR",
+    "description": "Accounting tutor (lesson-scoped retrieval)",
+    "tools": [
+      { "name": "get_lesson", "endpoint": "/v1/learning/lessons/:id", "method": "GET", "description": "Fetch a lesson" },
+      { "name": "submit_attempt", "endpoint": "/v1/quiz/quiz-attempts", "method": "POST", "description": "Submit a quiz attempt" },
+      { "name": "list_scenarios", "endpoint": "/v1/sandbox/scenarios", "method": "GET", "description": "List sandbox scenarios" }
+    ]
+  },
+  {
+    "name": "curriculum",
+    "scope": "CURRICULUM",
+    "description": "Recommend next activity based on mastery + memory",
+    "tools": [
+      { "name": "next_activity", "endpoint": "/v1/personalization/policy/next", "method": "GET", "description": "Next activity recommendation" },
+      { "name": "list_mastery", "endpoint": "/v1/personalization/mastery/me", "method": "GET", "description": "User mastery scores" }
+    ]
+  },
+  {
+    "name": "assessment",
+    "scope": "ASSESSMENT",
+    "description": "Evaluate quiz + hint attempts",
+    "tools": [
+      { "name": "submit_attempt", "endpoint": "/v1/quiz/quiz-attempts", "method": "POST", "description": "Submit a quiz attempt" },
+      { "name": "evaluate_text", "endpoint": "/v1/quiz/evaluator/grade", "method": "POST", "description": "Grade a free-text answer via rubric" }
+    ]
+  },
+  {
+    "name": "creator-assistant",
+    "scope": "CREATOR_ASSISTANT",
+    "description": "Studio-side ideas, draft review, content improvement",
+    "tools": [
+      { "name": "list_my_articles", "endpoint": "/v1/articles/mine", "method": "GET", "description": "Creator's own articles" },
+      { "name": "list_my_classes", "endpoint": "/v1/classes/mine", "method": "GET", "description": "Creator's own classes" },
+      { "name": "list_earnings", "endpoint": "/v1/studio/earnings/me", "method": "GET", "description": "Creator earnings" }
+    ]
+  },
+  {
+    "name": "career",
+    "scope": "CAREER",
+    "description": "Career-aware recommendations grounded in mastery",
+    "tools": [
+      { "name": "list_mastery", "endpoint": "/v1/personalization/mastery/me", "method": "GET", "description": "User mastery scores" },
+      { "name": "list_marketplace_classes", "endpoint": "/v1/marketplace/classes", "method": "GET", "description": "Marketplace classes" }
+    ]
+  }
+]

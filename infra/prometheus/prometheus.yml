@@ -1,0 +1,74 @@
+global:
+  scrape_interval: 30s
+  evaluation_interval: 30s
+
+scrape_configs:
+  - job_name: 'reducera-api'
+    metrics_path: '/metrics'
+    static_configs:
+      - targets: ['api:3002']
+        labels:
+          service: 'api'
+
+  - job_name: 'reducera-ai-api'
+    metrics_path: '/metrics'
+    static_configs:
+      - targets: ['ai-api:3003']
+        labels:
+          service: 'ai-api'
+
+  - job_name: 'reducera-redis'
+    static_configs:
+      - targets: ['redis-exporter:9121']
+        labels:
+          service: 'redis'
+
+  - job_name: 'reducera-nginx'
+    static_configs:
+      - targets: ['nginx-exporter:9113']
+        labels:
+          service: 'nginx'
+
+  - job_name: 'reducera-node'
+    static_configs:
+      - targets: ['node-exporter:9100']
+        labels:
+          service: 'node'
+
+rule_files:
+  - /etc/prometheus/alerts.yml
+
+groups:
+  - name: 'reducera-critical'
+    rules:
+      - alert: 'High5xxRate'
+        expr: 'sum(rate(http_requests_total{status=~"5.."}[5m])) / sum(rate(http_requests_total[5m])) > 0.01'
+        for: '5m'
+        labels:
+          severity: 'critical'
+        annotations:
+          summary: '5xx rate > 1% for 5+ minutes'
+
+      - alert: 'PaymentFailureRate'
+        expr: 'sum(rate(payment_failures_total[5m])) / sum(rate(payment_attempts_total[5m])) > 0.005'
+        for: '10m'
+        labels:
+          severity: 'critical'
+        annotations:
+          summary: 'Payment failure rate > 0.5%'
+
+      - alert: 'QueueDepthHigh'
+        expr: 'bull_queue_jobs{state="waiting"} > 1000'
+        for: '15m'
+        labels:
+          severity: 'critical'
+        annotations:
+          summary: 'Queue depth > 1000 for 15+ minutes'
+
+      - alert: 'RedisMemoryHigh'
+        expr: 'redis_memory_used_bytes / redis_memory_max_memory_known_bytes > 0.8'
+        for: '10m'
+        labels:
+          severity: 'critical'
+        annotations:
+          summary: 'Redis memory > 80%'

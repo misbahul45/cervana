@@ -1,5 +1,6 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Inject, Optional } from '@nestjs/common';
 import { MasteryRepo } from './mastery.repo';
+import { SkillNodeService, GoldenGraphLite } from '../skill-node/skill-node.service';
 
 export interface ComputeNextScoreInput {
   previousScore: number | null;
@@ -15,9 +16,12 @@ export interface MasteryUpdateResult {
 
 @Injectable()
 export class MasteryService {
+  private readonly defaultAlpha = 0.3;
+
   constructor(
     private readonly repo: MasteryRepo,
-    private readonly defaultAlpha: number = 0.3,
+    @Optional() private readonly skillNode?: SkillNodeService,
+    @Optional() @Inject('GOLDEN_GRAPH') private readonly goldenGraph?: GoldenGraphLite,
   ) {}
 
   computeNextScore(input: ComputeNextScoreInput): number {
@@ -48,6 +52,13 @@ export class MasteryService {
       score: next,
       lastObservedAt: new Date(),
     });
+
+    if (this.skillNode) {
+      void this.skillNode
+        .upsertForUserTopic(userId, topicId, next)
+        .catch(() => undefined);
+    }
+
     return { score: upserted.score, attempts: upserted.evidenceCount };
   }
 

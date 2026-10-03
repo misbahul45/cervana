@@ -11,6 +11,12 @@ import { AuthzModule } from './common/authz/authz.module';
 import { LearningModule } from './v1/learning/learning.module';
 import { SandboxModule } from './v1/sandbox/sandbox.module';
 import { PersonalizationModule } from './v1/personalization/personalization.module';
+import { ModerationModule } from './v1/admin/moderation/moderation.module';
+import { SimulatorModule } from './v1/simulator/simulator.module';
+import { DecisionTraceModule } from './v1/agents/decision-trace/decision-trace.module';
+import { AnalyticsModule } from './v1/analytics/analytics.module';
+import { RateLimitModule } from './v1/common/rate-limit/rate-limit.module';
+import { BackupModule } from './v1/admin/backup/backup.module';
 import { EventEmitterModule } from '@nestjs/event-emitter';
 import { StreakService } from './common/streak/streak.service';
 
@@ -21,6 +27,12 @@ import { StreakService } from './common/streak/streak.service';
     LearningModule,
     SandboxModule,
     PersonalizationModule,
+    ModerationModule,
+    SimulatorModule,
+    DecisionTraceModule,
+    AnalyticsModule,
+    RateLimitModule,
+    BackupModule,
     V1Module,
     EventEmitterModule.forRoot(),
     ConfigModule.forRoot({

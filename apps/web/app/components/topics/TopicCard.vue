@@ -11,7 +11,8 @@ import { ordersService } from '~/services/order';
 const queryClient = useQueryClient()
 
 const router = useRouter()
-const props = defineProps<BaseTopic & { index: number, isLoading: boolean }>()
+type TopicCardProps = BaseTopic & { index: number, isLoading: boolean }
+const props = defineProps<TopicCardProps>()
 
 const toPage = (id: string, type: 'order' | 'detail') => {
   console.log('clicl')

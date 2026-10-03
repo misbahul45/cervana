@@ -1,0 +1,5 @@
+[
+  { "slug": "starter", "name": "Starter", "description": "Cocok untuk pemula", "creditAmount": 50000, "priceAmount": 50000, "priceCurrency": "IDR", "sortOrder": 1 },
+  { "slug": "standard", "name": "Standard", "description": "Paket standar untuk latihan 1 bulan", "creditAmount": 150000, "priceAmount": 125000, "priceCurrency": "IDR", "sortOrder": 2 },
+  { "slug": "pro", "name": "Pro", "description": "Paket untuk kreator dan pengguna aktif", "creditAmount": 500000, "priceAmount": 400000, "priceCurrency": "IDR", "sortOrder": 3 }
+]

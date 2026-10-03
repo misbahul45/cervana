@@ -1,19 +1,6 @@
 # syntax=docker/dockerfile:1.6
-# ---------- Build stage ----------
-FROM node:20-alpine AS builder
-WORKDIR /app
-
-RUN corepack enable && corepack prepare pnpm@10.15.0 --activate
-
-COPY package.json pnpm-lock.yaml .npmrc* ./
-RUN --mount=type=cache,target=/root/.local/share/pnpm/store \
-    pnpm install --frozen-lockfile
-
-COPY . .
-RUN pnpm build
-
-# ---------- Production stage ----------
-FROM node:20-alpine AS runner
+# ---------- Runtime stage (uses locally-built .output from host) ----------
+FROM node:20-alpine AS runtime
 WORKDIR /app
 
 ENV NODE_ENV=production \
@@ -21,11 +8,10 @@ ENV NODE_ENV=production \
     PORT=3000
 
 RUN apk add --no-cache wget dumb-init \
-    && addgroup -S reducera && adduser -S reducera -G reducera
+ && addgroup -S reducera && adduser -S reducera -G reducera
 
-# Copy hanya artefak production (.output) — node_modules sudah di-bundle oleh Nitro
-COPY --from=builder --chown=reducera:reducera /app/.output ./.output
-COPY --from=builder --chown=reducera:reducera /app/package.json ./package.json
+COPY --chown=reducera:reducera .output ./.output
+COPY --chown=reducera:reducera package.json ./package.json
 
 USER reducera
 

@@ -7,6 +7,7 @@ import { QuizAttemptsRepo } from './quiz-attempts.repo';
 import { MasteryService } from '@/v1/personalization/mastery/mastery.service';
 import { MisconceptionService } from '@/v1/personalization/misconception/misconception.service';
 import { PrismaService } from '@/common/config/prisma/prisma.service';
+import { EventLogService } from '@/v1/analytics/events/event-log.service';
 
 
 @Injectable()
@@ -16,6 +17,7 @@ export class QuizAttemptsService {
     @Optional() private readonly prisma?: PrismaService,
     @Optional() private readonly mastery?: MasteryService,
     @Optional() private readonly misconception?: MisconceptionService,
+    @Optional() private readonly events?: EventLogService,
   ) {}
 
   create(values: CreateQuizAttemptType) {
@@ -44,6 +46,14 @@ export class QuizAttemptsService {
     });
     const topicId = quiz?.topicId ?? quiz?.lessonId ?? 'unknown-topic';
     const updated = await this.mastery.updateFromAttempt(input.userId, topicId, input.score);
+    if (this.events) {
+      await this.events.record({
+        userId: input.userId,
+        action: 'QUIZ_SUBMITTED',
+        entityId: input.quizId,
+        metadata: { topicId, score: input.score, attemptId: input.attemptId },
+      });
+    }
     return {
       updatedMastery: { topicId, score: updated.score, attempts: updated.attempts },
     };

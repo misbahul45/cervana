@@ -15,11 +15,10 @@ export interface RecordMemoryInput {
 
 @Injectable()
 export class MemoryService {
-  constructor(
-    private readonly repo: MemoryRepo,
-    private readonly ttlDays: number = SHORT_TERM_TTL_DAYS,
-    private readonly cap: number = SHORT_TERM_CAP,
-  ) {}
+  private readonly ttlDays = SHORT_TERM_TTL_DAYS;
+  private readonly cap = SHORT_TERM_CAP;
+
+  constructor(private readonly repo: MemoryRepo) {}
 
   buildContent(input: RecordMemoryInput): { content: string; expiresAt: Date | null } {
     const content = typeof input.payload === 'string' ? input.payload : JSON.stringify(input.payload);

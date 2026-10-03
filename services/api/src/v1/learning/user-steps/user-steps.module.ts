@@ -7,9 +7,10 @@ import { LeaderboardsModule } from '@/v1/gamify/leaderboards/leaderboards.module
 import { ActivityDetectorInterceptor } from '@/common/interceptors/daily-activity.interceptor';
 import { DailyLogsModule } from '@/v1/gamify/daily-logs/daily-logs.module';
 import { StreaksModule } from '@/v1/gamify/streaks/streaks.module';
+import { AnalyticsModule } from '@/v1/analytics/analytics.module';
 
 @Module({
-  imports: [PrismaModule, LeaderboardsModule, DailyLogsModule, StreaksModule],
+  imports: [PrismaModule, LeaderboardsModule, DailyLogsModule, StreaksModule, AnalyticsModule],
   controllers: [UserStepsController],
   providers: [UserStepsService, UserStepsRepo, ActivityDetectorInterceptor],
   exports: [UserStepsRepo, UserStepsService],

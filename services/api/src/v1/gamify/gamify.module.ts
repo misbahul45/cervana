@@ -4,6 +4,8 @@ import { StreaksModule } from "./streaks/streaks.module";
 import { LeaderboardsModule } from "./leaderboards/leaderboards.module";
 import { RouterModule } from "@nestjs/core";
 import { ThemeModule } from "./themes/themes.module";
+import { BadgeIssuanceModule } from "./badges/badge-issuance.module";
+import { LevelModule } from "./level/level-calculation.module";
 
 @Module({
     imports:[
@@ -11,6 +13,8 @@ import { ThemeModule } from "./themes/themes.module";
         StreaksModule, 
         LeaderboardsModule,
         ThemeModule,
+        BadgeIssuanceModule,
+        LevelModule,
         RouterModule.register([
             {
                 path:'gamify',
@@ -19,11 +23,13 @@ import { ThemeModule } from "./themes/themes.module";
                     {path:'', module: StreaksModule},
                     {path:'', module: LeaderboardsModule},
                     {path:'', module: ThemeModule},
+                    {path:'badges', module: BadgeIssuanceModule},
+                    {path:'level', module: LevelModule},
                 ]
             }
         ])
     ],
-    exports:[DailyLogsModule, StreaksModule, LeaderboardsModule, ThemeModule]
+    exports:[DailyLogsModule, StreaksModule, LeaderboardsModule, ThemeModule, BadgeIssuanceModule, LevelModule]
 })
 
 export class GamifyModule{}

@@ -94,6 +94,304 @@ export const personalizationApi = {
       true,
       token ? { access_token: token } : undefined,
     ).then((res) => res.data as NextActivityDecision | undefined),
+  listSkillNodes: (token?: string) =>
+    request<SkillNodeRecord[]>(
+      `${getApiUrl()}/api/v1/personalization/skill-nodes/me`,
+      "GET",
+      undefined,
+      {},
+      true,
+      token ? { access_token: token } : undefined,
+    ).then((res) => res.data ?? []),
+};
+
+export const gamificationApi = {
+  listBadges: (token?: string) =>
+    request<UserAchievement[]>(
+      `${getApiUrl()}/api/v1/gamify/badges/me`,
+      "GET",
+      undefined,
+      {},
+      true,
+      token ? { access_token: token } : undefined,
+    ).then((res) => res.data ?? []),
+  level: (token?: string) =>
+    request<LevelInfo>(
+      `${getApiUrl()}/api/v1/gamify/level/me`,
+      "GET",
+      undefined,
+      {},
+      true,
+      token ? { access_token: token } : undefined,
+    ).then((res) => res.data as LevelInfo | undefined),
+};
+
+export const creatorApi = {
+  checkEligibility: (topicId: string, token?: string) =>
+    request<{ eligible: boolean; score: number | null }>(
+      `${getApiUrl()}/api/v1/teacher/eligibility?topicId=${encodeURIComponent(topicId)}`,
+      "GET",
+      undefined,
+      {},
+      true,
+      token ? { access_token: token } : undefined,
+    ).then((res) => res.data as { eligible: boolean; score: number | null } | undefined),
+  apply: (body: Record<string, unknown>, token?: string) =>
+    request(`${getApiUrl()}/api/v1/teacher/applications`, "POST", body, {}, true, token ? { access_token: token } : undefined),
+  profile: (id: string, token?: string) =>
+    request<Record<string, unknown>>(
+      `${getApiUrl()}/api/v1/teacher/creators/${id}`,
+      "GET",
+      undefined,
+      {},
+      true,
+      token ? { access_token: token } : undefined,
+    ).then((res) => res.data),
+};
+
+export const moderationApi = {
+  listPending: (token?: string) =>
+    request<{ articles: any[]; classes: any[] }>(
+      `${getApiUrl()}/api/v1/admin/moderation/pending`,
+      "GET",
+      undefined,
+      {},
+      true,
+      token ? { access_token: token } : undefined,
+    ).then((res) => res.data ?? { articles: [], classes: [] }),
+  approve: (kind: 'article' | 'class', id: string, token?: string) =>
+    request(
+      `${getApiUrl()}/api/v1/admin/moderation/${kind === 'article' ? 'articles' : 'classes'}/${id}/approve`,
+      "POST",
+      undefined,
+      {},
+      true,
+      token ? { access_token: token } : undefined,
+    ),
+  reject: (kind: 'article' | 'class', id: string, feedback: string, token?: string) =>
+    request(
+      `${getApiUrl()}/api/v1/admin/moderation/${kind === 'article' ? 'articles' : 'classes'}/${id}/reject`,
+      "POST",
+      { feedback },
+      {},
+      true,
+      token ? { access_token: token } : undefined,
+    ),
+};
+
+export const checkoutApi = {
+  listCreditPackages: (token?: string) =>
+    request<any[]>(
+      `${getApiUrl()}/api/v1/commerce/credit-packages`,
+      "GET",
+      undefined,
+      {},
+      true,
+      token ? { access_token: token } : undefined,
+    ).then((res) => res.data ?? []),
+  purchase: (slug: string, idempotencyKey: string, token?: string) =>
+    request<{ orderId: string; reservationId: string; deduplicated?: boolean }>(
+      `${getApiUrl()}/api/v1/commerce/credit-packages/${encodeURIComponent(slug)}/purchase`,
+      "POST",
+      undefined,
+      { 'Idempotency-Key': idempotencyKey, ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+      true,
+    ).then((res) => res.data as { orderId: string; reservationId: string; deduplicated?: boolean }),
+};
+
+export const walletApi = {
+  me: (token?: string) =>
+    request<{ balance: number; currency: string; recent: any[] }>(
+      `${getApiUrl()}/api/v1/commerce/wallet/me`,
+      "GET",
+      undefined,
+      {},
+      true,
+      token ? { access_token: token } : undefined,
+    ).then((res) => res.data),
+};
+
+export const earningsApi = {
+  me: (token?: string) =>
+    request<{ available: number; pending: number; currency: string }>(
+      `${getApiUrl()}/api/v1/commerce/studio-earnings/me`,
+      "GET",
+      undefined,
+      {},
+      true,
+      token ? { access_token: token } : undefined,
+    ).then((res) => res.data as { available: number; pending: number; currency: string }),
+  history: (token?: string) =>
+    request<any[]>(
+      `${getApiUrl()}/api/v1/commerce/studio-earnings/history`,
+      "GET",
+      undefined,
+      {},
+      true,
+      token ? { access_token: token } : undefined,
+    ).then((res) => res.data ?? []),
+};
+
+export const withdrawalApi = {
+  list: (token?: string) =>
+    request<any[]>(
+      `${getApiUrl()}/api/v1/commerce/withdrawals`,
+      "GET",
+      undefined,
+      {},
+      true,
+      token ? { access_token: token } : undefined,
+    ).then((res) => res.data ?? []),
+  request: (amount: number, idempotencyKey: string, token?: string) =>
+    request<any>(
+      `${getApiUrl()}/api/v1/commerce/withdrawals`,
+      "POST",
+      { amount },
+      { 'Idempotency-Key': idempotencyKey, ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+      true,
+    ).then((res) => res.data),
+};
+
+export const agentApi = {
+  run: (
+    body: { userId: string; intent: string; query: string; lessonId?: string },
+    token?: string,
+  ) =>
+    request<any>(`${getApiUrl()}/v1/agents/run`, "POST", body, {}, true, token ? { access_token: token } : undefined).then(
+      (res) => res.data,
+    ),
+  listTraces: (token?: string) =>
+    request<any[]>(
+      `${getApiUrl()}/v1/agents/decision-trace/me`,
+      "GET",
+      undefined,
+      {},
+      true,
+      token ? { access_token: token } : undefined,
+    ).then((res) => res.data ?? []),
+};
+
+export const analyticsApi = {
+  creatorMe: (token?: string) =>
+    request<{ metrics: any[]; recentOrders: any[]; refundCount: number }>(
+      `${getApiUrl()}/api/v1/analytics/creator/me`,
+      "GET",
+      undefined,
+      {},
+      true,
+      token ? { access_token: token } : undefined,
+    ).then((res) => res.data),
+  adminOverview: (token?: string) =>
+    request<{
+      totalUsers: number;
+      totalCreators: number;
+      totalContent: number;
+      totalAgentDecisions: number;
+      recentEngagement: any[];
+    }>(
+      `${getApiUrl()}/api/v1/analytics/admin/overview`,
+      "GET",
+      undefined,
+      {},
+      true,
+      token ? { access_token: token } : undefined,
+    ).then((res) => res.data),
+  topTopics: (token?: string) =>
+    request<Array<{ topicId: string; learners: number; avgScore: number }>>(
+      `${getApiUrl()}/api/v1/analytics/admin/top-topics`,
+      "GET",
+      undefined,
+      {},
+      true,
+      token ? { access_token: token } : undefined,
+    ).then((res) => res.data ?? []),
+  recordEvent: (
+    body: { action: string; entityId?: string; metadata?: Record<string, unknown> },
+    token?: string,
+  ) =>
+    request<any>(
+      `${getApiUrl()}/api/v1/analytics/events`,
+      "POST",
+      body,
+      {},
+      true,
+      token ? { access_token: token } : undefined,
+    ).then((res) => res.data),
+};
+
+export const simulatorApi = {
+  listScenarios: (token?: string) =>
+    request<{ slug: string; name: string; days: number }[]>(
+      `${getApiUrl()}/api/v1/simulator/scenarios`,
+      "GET",
+      undefined,
+      {},
+      true,
+      token ? { access_token: token } : undefined,
+    ).then((res) => res.data ?? []),
+  create: (body: { scenarioSlug: string; days?: number }, token?: string) =>
+    request<{ id: string }>(
+      `${getApiUrl()}/api/v1/simulator/companies`,
+      "POST",
+      body,
+      {},
+      true,
+      token ? { access_token: token } : undefined,
+    ).then((res) => res.data as { id: string }),
+  get: (id: string, token?: string) =>
+    request<any>(
+      `${getApiUrl()}/api/v1/simulator/companies/${id}`,
+      "GET",
+      undefined,
+      {},
+      true,
+      token ? { access_token: token } : undefined,
+    ).then((res) => res.data),
+  listEntries: (id: string, token?: string) =>
+    request<any[]>(
+      `${getApiUrl()}/api/v1/simulator/companies/${id}/journal-entries`,
+      "GET",
+      undefined,
+      {},
+      true,
+      token ? { access_token: token } : undefined,
+    ).then((res) => res.data ?? []),
+  addEntry: (
+    id: string,
+    body: { date: string; debitAccount: string; creditAccount: string; amount: number; memo?: string },
+    token?: string,
+  ) =>
+    request<any>(
+      `${getApiUrl()}/api/v1/simulator/companies/${id}/journal-entries`,
+      "POST",
+      body,
+      {},
+      true,
+      token ? { access_token: token } : undefined,
+    ).then((res) => res.data),
+  closePeriod: (id: string, period: string, token?: string) =>
+    request<{ snapshotHash: string }>(
+      `${getApiUrl()}/api/v1/simulator/companies/${id}/close-period`,
+      "POST",
+      { period },
+      {},
+      true,
+      token ? { access_token: token } : undefined,
+    ).then((res) => res.data as { snapshotHash: string }),
+  statements: (id: string, period: string, token?: string) =>
+    request<{
+      incomeStatement: any;
+      balanceSheet: any;
+      cashFlow: any;
+      snapshotHash: string;
+    }>(
+      `${getApiUrl()}/api/v1/simulator/companies/${id}/statements`,
+      "POST",
+      { period },
+      {},
+      true,
+      token ? { access_token: token } : undefined,
+    ).then((res) => res.data),
 };
 
 export async function request<T>(

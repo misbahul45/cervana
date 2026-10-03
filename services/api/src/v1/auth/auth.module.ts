@@ -42,7 +42,9 @@ import { SseJwtGuard } from './guards/sse-jwt.guard';
     SseJwtGuard,
     PrismaService,
     GoogleOAuthGuard,
-    GoogleStrategy,
+    ...(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET
+      ? [GoogleStrategy]
+      : []),
     VerificationTokenRepo,
     SessionRepo,
   ],
