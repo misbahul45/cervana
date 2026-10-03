@@ -57,7 +57,7 @@ useHead({
     { name: 'twitter:description', content: 'Access your ReduCera account and keep exploring the universe of knowledge.' },
     { name: 'twitter:image', content: '/meta/og-login.png' },
   ],
-  link: [{ rel: 'icon', type: 'image/png', href: '/favicon.png' }],
+  link: [{ rel: 'icon', type: 'image/png', href: '/favicon-32x32.png' }],
 })
 
 </script>

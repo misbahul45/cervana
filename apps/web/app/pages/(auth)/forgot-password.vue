@@ -32,7 +32,7 @@ useHead({
     { name: 'twitter:image', content: '/meta/og-forgot-password.png' },
   ],
   link: [
-    { rel: 'icon', type: 'image/png', href: '/favicon.png' },
+    { rel: 'icon', type: 'image/png', href: '/favicon-32x32.png' },
   ],
 })
 

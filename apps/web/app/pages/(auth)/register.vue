@@ -58,7 +58,7 @@ useHead({
     { name: 'twitter:description', content: 'Start your ReduCera journey and explore the infinite universe of learning.' },
     { name: 'twitter:image', content: '/meta/og-register.png' },
   ],
-  link: [{ rel: 'icon', type: 'image/png', href: '/favicon.png' }],
+  link: [{ rel: 'icon', type: 'image/png', href: '/favicon-32x32.png' }],
 })
 
 

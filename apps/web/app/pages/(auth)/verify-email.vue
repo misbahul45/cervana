@@ -103,7 +103,7 @@ useHead({
     { name: 'twitter:description', content: 'Activate your ReduCera account and embark on your cosmic learning adventure.' },
     { name: 'twitter:image', content: '/meta/og-verify-email.png' },
   ],
-  link: [{ rel: 'icon', type: 'image/png', href: '/favicon.png' }],
+  link: [{ rel: 'icon', type: 'image/png', href: '/favicon-32x32.png' }],
 })
 
 

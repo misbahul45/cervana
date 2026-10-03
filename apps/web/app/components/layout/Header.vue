@@ -8,8 +8,9 @@
     <div class="flex items-center gap-3">
       <NuxtLink :to="user ? '/learn/topics' : '/'" class="cursor-pointer hover:scale-105 transition-all duration-100">
         <div class="relative w-32 h-10">
-          <NuxtImg
-            src="/pictures/logo.svg"
+          <img
+            src="/logo.png"
+            alt="ReduCera"
             class="w-28 absolute inset-0 top-3 m-auto"
           />
         </div>

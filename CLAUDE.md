@@ -15,7 +15,7 @@ Monorepo with a single root `.git` and a single root `.env` (never create `.env`
 | `apps/web/` | `web` | Nuxt 4, Nuxt UI, Pinia, TanStack Query | 3000 |
 | `infra/nginx/`, `infra/postgres/`, `infra/qdrant/` | infra config | | 80/443 |
 
-`readme.md` mentions a SvelteKit `admin` app; it does not exist in this repo (CORS/env still reference `ADMIN_URL`).
+There is no admin app in this repo, but `ADMIN_URL` is still a required env var (compose passes it and `services/ai-api/main.py` puts it in the CORS origins).
 
 Nginx routes `/` → web, `/api/` → api, `/ai/` → ai-api. API is served under `/api/v1` (Swagger at `/api/v1/docs`); FastAPI routes are mounted under `/ai` (`v1Router` in `services/ai-api/v1/router.py`).
 
@@ -42,7 +42,10 @@ pnpm jest src/v1/learner-model          # single file/dir
 pnpm jest -t "test name"                # single test by name
 pnpm test:e2e                           # test/jest-e2e.json
 pnpm prisma migrate dev --name <name>   # new migration; pnpm seed runs prisma/seed.ts via tsx
+pnpm seed:theme                         # also seed:golden-graph
 ```
+
+CI (`.github/workflows/ci.yml`) runs only two jobs: `bash scripts/check-ownership-rules.sh` (the `AGENTS.md` detection greps) and the `api` suite (`prisma migrate deploy` against a Postgres 15 service, then `pnpm jest --silent`). `ai-api` and `web` tests are not in CI, so run them locally. Run the ownership script after any cross-service change. `bash infra/scripts/check-theme-sync.sh` fails when `services/api/prisma/seed-data/reducera-ocean.theme.json` and `apps/web/app/theme/reducera-ocean.theme.json` differ; the two copies must stay byte-identical.
 
 `services/ai-api/` (uv):
 
@@ -54,9 +57,9 @@ uvicorn main:app --reload --port 3003
 celery -A config.celery:celery_app worker --loglevel=info
 ```
 
-Pytest `testpaths` are `tests`, `config/__tests__`, `utils/tools/__tests__`, and `v1` (tests colocated with features).
+Pytest `testpaths` are `tests`, `__tests__`, `config/__tests__`, `utils/tools/__tests__`, and `v1` (tests colocated with features). `python_files` includes `*.py`, so pytest collects and imports every module under those paths, not only `test_*.py`; an import-time side effect in `v1/` breaks collection.
 
-`apps/web/` (pnpm): `pnpm dev`, `pnpm build`, `pnpm preview`. No lint/test scripts are defined yet (the execution plan adds vitest).
+`apps/web/` (pnpm): `pnpm dev`, `pnpm build`, `pnpm preview`, `pnpm test` (`vitest run`, node environment, picks up `app/**/*.test.ts` and `app/**/__tests__/**`), `pnpm vitest run <path>` for one file, `pnpm build:assets` (`scripts/build-brand-assets.mjs`). There is no lint script.
 
 Web is SSR (`ssr: true`): content and theme must be in the first HTML, no `Math.random()`/`Date.now()`/`window` during render, server calls use `API_URL_INTERNAL` not the public URL, and no `swr`/`isr`/`prerender` on pages that render user state. Full list in `AGENTS.md` ("Web Rendering Rules").
 
@@ -77,11 +80,13 @@ Redis serves three roles: app cache, BullMQ broker (`api`, see `services/api/src
 
 ### Dev vs prod discrepancy
 
-`services/ai-api/main.py` spawns a Celery worker as a subprocess on FastAPI startup, and `docker-compose.yml` has no `celery-worker` service. `docker-compose.prod.yml` has a dedicated `celery-worker`, and `AGENTS.md` forbids the subprocess pattern. Keep this in mind before touching startup code or assuming a worker exists in dev.
+`main.py` no longer spawns Celery (`services/ai-api/__tests__/test_main_no_subprocess_spawn.py` fails if `Popen` returns), and the `ai-api` image only runs uvicorn. `docker-compose.prod.yml` has a dedicated `celery-worker`; `docker-compose.yml` does not. So in dev nothing consumes the Celery tasks in `v1/*/workers.py` (resource extract and embedding, lesson content generation, personality quiz generation; the routers enqueue them with `.delay()`) unless you start a worker yourself with the `celery -A config.celery:celery_app worker` command above. Check this first when one of those requests never completes in dev.
+
+`AGENTS.md` refers to `docker-compose.build.yml` for production builds; that file does not exist in the repo.
 
 ### API layout (`services/api/src`)
 
-`app.module.ts` → `v1/v1.module.ts` aggregates feature modules under `v1/` (auth, chat, curriculum, learning, learner-model, gamify, quiz, sse, queue, orders, teacher, ...). Cross-cutting code is in `common/` (response interceptor, exception filters, idempotency, logging). Path alias `@/*` → `src/*` (resolved by `tsc-alias` at build). Responses are wrapped globally by `ResponseInterceptor`; validation is Zod-based. Prisma schema/migrations: `services/api/prisma/`.
+`app.module.ts` → `v1/v1.module.ts` aggregates feature modules under `v1/`: learning side (auth, chat, curriculum, learning, learner-model, misconception, quiz, gamify, sse, queue, tutor, teacher) and money/tenancy side (tenants, orders, payments, commerce, entitlements, ledger, payouts, refunds, marketplace, classes, articles, simulator, internal). Cross-cutting code is in `common/` (response interceptor, exception filters, idempotency, logging). Path alias `@/*` → `src/*` (resolved by `tsc-alias` at build). Responses are wrapped globally by `ResponseInterceptor`; validation is Zod-based. Prisma schema/migrations: `services/api/prisma/`.
 
 ### Access control (`services/api`)
 
@@ -98,9 +103,10 @@ Redis serves three roles: app cache, BullMQ broker (`api`, see `services/api/src
 - Order → `PaymentService` → provider adapter. Approval, gateway settlement or any other verification ends in `PaymentService.markVerified`, which publishes `PaymentVerified`; `CommerceFulfillmentService` reacts (order paid, entitlement, creator earning, ledger, order fulfilled). Never grant access or write earnings from a controller.
 - Events go through `DomainEventBus.publish(event, tx)` inside the caller's transaction and are persisted in `DomainEvent`; a consumer error rolls the whole transaction back. Every event needs a stable `dedupeKey`.
 - Lock order is Order, then PaymentIntent (`PaymentService.lockIntent`). Keep it, or approve/cancel/expiry can deadlock.
-- A new gateway is a `PaymentProviderAdapter` registered in `PaymentsModule`, selected by `PAYMENT_PROVIDER`. `POST /webhooks/payments/:provider` returns `501` until one exists. Refund, wallet credit and payout are not built yet.
+- A new gateway is a `PaymentProviderAdapter` registered in `PaymentsModule`, selected by `PAYMENT_PROVIDER`; only `providers/manual` exists. `POST /webhooks/payments/:provider` returns `501` until one exists.
+- Refunds, wallets and payouts are now in code (`refunds/`, `payouts/`, `ledger/wallet.service.ts`, `commerce/wallet`, `commerce/withdrawals`, `commerce/commerce-refund.service.ts`, state tables `refunds/refund-state.ts` and `payouts/payout-state.ts`, migration `*_payout_refund_guards`). `PAYMENT_ARCHITECTURE.md` and `PHASE_3_REPORT.md` (2026-09-30) still call them "next phase"; trust the code and the `refunds`/`payouts`/`ledger-wallet` integration specs over those docs.
 - Payment settings: `PAYMENT_PROVIDER`, `PAYMENT_INTENT_TTL_MINUTES`, `PLATFORM_FEE_PERCENT`, `MANUAL_PAYMENT_MAX_SUBMISSIONS`, `MANUAL_PAYMENT_ACCOUNTS` (JSON). Without accounts, paid orders answer `503`.
-- Payment integration tests (`src/v1/__tests__/payment-flow.int.spec.ts`) commit rows to `TEST_DATABASE_URL` and append-only tables cannot be cleaned: use a disposable database.
+- The `*.int.spec.ts` files in `src/v1/__tests__/` (`payment-flow`, `payouts`, `refunds`, `ledger-wallet`, `financial-hardening`, ...) commit rows to `TEST_DATABASE_URL` and append-only tables cannot be cleaned: use a disposable database.
 
 ### Database and tests
 
@@ -116,7 +122,9 @@ Feature packages under `v1/` (`learning`, `resources`, `users_steps`), each with
 
 ## Docs
 
-`docs/README.md` explains the Business Flow → Data Flow → System Flow triplet structure (`BF-XXX`/`DF-XXX`/`SF-XXX`); `docs/progress-tracker.md` is the task list. The audit/plans/operations docs currently sit in the working tree as `docs/audit/`, `docs/plans/`, `docs/operations/` (renamed from `docs/01-audit` etc.), so links in `docs/README.md` and the tracker to `01-audit`/`03-plans`/`04-operations` are stale. `docs/STYLE-GUIDE.md` governs doc format.
+`docs/README.md` explains the Business Flow → Data Flow → System Flow triplet structure (`BF-XXX`/`DF-XXX`/`SF-XXX`); `docs/progress-tracker.md` is the task list. The audit/plans/operations docs live in `docs/audit/`, `docs/plans/`, `docs/operations/` (renamed from `docs/01-audit` etc.); `docs/progress-tracker.md` still links to the old `01-audit`/`03-plans`/`04-operations` paths, `docs/README.md` does not. `docs/STYLE-GUIDE.md` governs doc format.
+
+`docs/architecture/CURRENT_STATE.md` is a pre-Phase-1 snapshot (its own banner says so), and the Phase 1 and Phase 3 reports predate the payout/refund/ledger/simulator work; check the code before quoting them. `docs/superpowers/{specs,plans}/` hold dated design specs and implementation plans. `docs/repomix-output.xml` is a generated 540 KB dump: do not read it.
 
 ## Conventions that differ from defaults
 
