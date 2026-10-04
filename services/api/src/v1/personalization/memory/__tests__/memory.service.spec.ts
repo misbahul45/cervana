@@ -16,7 +16,7 @@ describe('MemoryService (Phase 2)', () => {
       listAllByUser: jest.fn().mockResolvedValue([]),
       trimForLesson: jest.fn().mockResolvedValue(0),
     };
-    service = new MemoryService(repo as any, 90, 20);
+    service = new MemoryService(repo as any);
   });
 
   it('records a short-term item with expiresAt 90 days out', async () => {

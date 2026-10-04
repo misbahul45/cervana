@@ -30,6 +30,7 @@ import { ClassesModule } from './classes/classes.module';
 import { PayoutsModule } from './payouts/payouts.module';
 import { RefundsModule } from './refunds/refunds.module';
 import { EventsModule } from '@/common/events/events.module';
+import { AiCreditsModule } from './ai-credits/ai-credits.module';
 
 @Module({
   imports:[
@@ -64,7 +65,8 @@ import { EventsModule } from '@/common/events/events.module';
     ClassesModule,
     PayoutsModule,
     RefundsModule,
-    CommerceModule
+    CommerceModule,
+    AiCreditsModule
   ],
   exports:[
     AuthModule, 

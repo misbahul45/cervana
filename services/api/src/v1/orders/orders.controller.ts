@@ -4,6 +4,7 @@ import { ZodPipe } from '@/common/pipes/zod.pipe';
 import { TraceId } from '@/common/authz/trace-id.decorator';
 import { AuthUser } from '@/common/interfaces/auth.interface';
 import { GetUser } from '../auth/auth.decorator';
+import { RequireIdempotencyKey } from '@/common/idempotency/require-idempotency-key.decorator';
 import { OrdersService } from './orders.service';
 import {
   CreateOrderRequestDto,
@@ -18,6 +19,7 @@ export class OrdersController {
 
   @Post()
   @AuthenticatedOnly()
+  @RequireIdempotencyKey()
   create(
     @Body(new ZodPipe(CreateOrderRequestDto)) dto: CreateOrderRequestDtoType,
     @GetUser() user: AuthUser,
@@ -47,6 +49,7 @@ export class OrdersController {
 
   @Post(':id/cancel')
   @AuthenticatedOnly()
+  @RequireIdempotencyKey()
   cancel(@Param('id', ParseUUIDPipe) id: string, @GetUser() user: AuthUser, @TraceId() traceId: string) {
     return this.ordersService.cancelOrder(user, id, traceId);
   }

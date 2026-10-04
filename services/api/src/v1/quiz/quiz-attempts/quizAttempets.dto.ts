@@ -10,31 +10,28 @@ export const baseQuizAttemptSchema = z.object({
   attemptNumber: z.number().int().min(1).default(1).describe('Attempt count for this user on the quiz'),
 });
 
-export const CreateQuizAttemptDto = extendApi(
-  z.union([baseQuizAttemptSchema, z.array(baseQuizAttemptSchema)]),
-  {
-    title: 'CreateQuizAttemptDto',
-    example: [
-      {
-        userId: 'uuid-user-1234',
-        quizId: 'uuid-quiz-5678',
-        attemptNumber: 1,
-      },
-      {
-        userId: 'uuid-user-9876',
-        quizId: 'uuid-quiz-4321',
-        attemptNumber: 2,
-      },
-    ],
-  }
-);
+const single = baseQuizAttemptSchema.strict();
+const array = z.array(baseQuizAttemptSchema.strict());
+
+export const CreateQuizAttemptDto = extendApi(z.union([single, array]), {
+  title: 'CreateQuizAttemptDto',
+  example: [
+    {
+      userId: 'uuid-user-1234',
+      quizId: 'uuid-quiz-5678',
+      attemptNumber: 1,
+    },
+  ],
+});
 
 export type CreateQuizAttemptType = z.infer<typeof CreateQuizAttemptDto>;
 
 export const StartQuizAttemptDto = extendApi(
-  z.object({
-    quizId: z.string().min(1, 'Quiz ID is required'),
-  }),
+  z
+    .object({
+      quizId: z.string().min(1, 'Quiz ID is required'),
+    })
+    .strict(),
   {
     title: 'StartQuizAttemptDto',
     example: { quizId: 'uuid-quiz-5678' },
@@ -44,20 +41,21 @@ export const StartQuizAttemptDto = extendApi(
 export type StartQuizAttemptDtoType = z.infer<typeof StartQuizAttemptDto>;
 
 export const SubmitQuizAttemptDto = extendApi(
-  z.object({
-    answers: z.record(
-      z.string().min(1, 'Question ID is required'),
-      z.unknown(),
-    ),
-    hintUsed: z.boolean().optional().default(false),
-  }),
+  z
+    .object({
+      answers: z.record(
+        z.string().min(1, 'Question ID is required'),
+        z.unknown(),
+      ),
+      hintUsed: z.boolean().optional().default(false),
+    })
+    .strict(),
   {
     title: 'SubmitQuizAttemptDto',
     example: {
       answers: {
         'uuid-question-1': 'A',
         'uuid-question-2': 'Inheritance',
-        'uuid-question-3': true,
       },
       hintUsed: false,
     },

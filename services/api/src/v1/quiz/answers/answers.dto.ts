@@ -7,23 +7,18 @@ export const baseAnswerSchema = z.object({
   userAnswer: z.unknown().describe('User submitted answer in JSON format'),
 });
 
-export const CreateAnswerDto = extendApi(
-  z.union([baseAnswerSchema, z.array(baseAnswerSchema)]),
-  {
-    title: 'CreateAnswerDto',
-    example: [
-      {
-        attemptId: 'uuid-attempt-1234',
-        questionId: 'uuid-question-5678',
-        userAnswer: 'Programming Language',
-      },
-      {
-        attemptId: 'uuid-attempt-9876',
-        questionId: 'uuid-question-4321',
-        userAnswer: false,
-      },
-    ],
-  }
-);
+const single = baseAnswerSchema.strict();
+const array = z.array(baseAnswerSchema.strict());
+
+export const CreateAnswerDto = extendApi(z.union([single, array]), {
+  title: 'CreateAnswerDto',
+  example: [
+    {
+      attemptId: 'uuid-attempt-1234',
+      questionId: 'uuid-question-5678',
+      userAnswer: 'Programming Language',
+    },
+  ],
+});
 
 export type CreateAnswerType = z.infer<typeof CreateAnswerDto>;

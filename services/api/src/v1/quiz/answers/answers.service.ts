@@ -31,18 +31,9 @@ export class AnswersService {
     })
   }
 
-  update(id: string, values: unknown) {
+  update(id: string, _values: unknown) {
     return errorHandler(async()=>{
-      const updateData=await this.answersRepo.update(id, values as any)
-
-      if(!updateData?.id){
-        throw new AppError('Answer not found', 404)
-      }
-
-      return {
-        message:'Successfully update answer',
-        data:null
-      }
+      throw new AppError('Answer update is not supported; submit the attempt via POST /quiz-attempts/:id/submit', 405)
     })
   }
 

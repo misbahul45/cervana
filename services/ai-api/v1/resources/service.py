@@ -8,7 +8,6 @@ from urllib.parse import urlparse, parse_qs
 
 import requests
 import pdfplumber
-import whisper
 from youtube_transcript_api import YouTubeTranscriptApi
 
 from config.envs import ENVS
@@ -81,6 +80,7 @@ def download_audio(url: str, output_path="audio.wav"):
 
 @functools.lru_cache(maxsize=1)
 def get_whisper_model(model_size="tiny"):
+    import whisper
     return whisper.load_model(model_size)
 
 

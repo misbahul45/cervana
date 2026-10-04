@@ -1,4 +1,5 @@
 import logging
+from typing import Tuple
 from config.embedding_pipeline import get_embedding_pipeline
 from config.prompt_segmentation import (
     build_segmented_prompt,
@@ -107,7 +108,7 @@ Output: 3 sentences + bullet focused next + bullet learning plan
     return state
 
 
-def retrieve_material_rag(state: GenerateContentMaterialPipeline) -> str:
+def retrieve_material_rag(state: GenerateContentMaterialPipeline) -> tuple[str, list[dict]]:
     query = f"{state.topic.title if state.topic else ''} {state.lesson.title if state.lesson else ''} {state.step.title if state.step else ''}"
     try:
         results = pipeline.retrieve(query=query, metadata_filter={"source": "material"}, top_k=10)
@@ -115,9 +116,21 @@ def retrieve_material_rag(state: GenerateContentMaterialPipeline) -> str:
             "text": f"Retrieved {len(results)} RAG materials for query: {query}",
             "status":"PROCESSING"
         })
-        return "\n".join([r["text"] for r in results]) if results else ""
+        if not results:
+            return "", []
+        text = "\n".join([r["text"] for r in results])
+        citations = [
+            {
+                "source": r.get("metadata", {}).get("source", "reducera-embedding"),
+                "score": float(r.get("score", 0.0)),
+                "snippet": (r.get("text", "") or "")[:200],
+            }
+            for r in results
+            if r.get("score", 0.0) > 0.0
+        ]
+        return text, citations
     except:
-        return ""
+        return "", []
 
 
 def retrieve_material_web(state: GenerateContentMaterialPipeline) -> str:
@@ -133,7 +146,7 @@ def retrieve_material_web(state: GenerateContentMaterialPipeline) -> str:
 
 
 def generate_material(state: GenerateContentMaterialPipeline) -> GenerateContentMaterialPipeline:
-    rag = retrieve_material_rag(state)
+    rag, rag_citations = retrieve_material_rag(state)
     web = retrieve_material_web(state)
 
     update_message_chat(state.messageId, state.token, {
@@ -203,15 +216,15 @@ def generate_material(state: GenerateContentMaterialPipeline) -> GenerateContent
     state.generate = {
         "chatId": state.chatId,
         "chatMessageId": state.messageId,
-        "data":content,
-        "citatetions": [],
+        "data": content,
+        "citations": rag_citations,
         "metadata": {
             "topicId": state.topicId,
             "lessonId": state.lessonId,
             "stepId": state.stepId,
             "userStepId": state.userStepId,
             "userId": state.userId,
-        }
+        },
     }
 
     # Simpan memory agar personalisasi ke depan tetap konsisten

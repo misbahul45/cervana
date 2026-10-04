@@ -1,10 +1,11 @@
-import { Body, Controller, Get, Param, ParseUUIDPipe, Post, Query } from '@nestjs/common';
+import { Body, Controller, Get, ParseUUIDPipe, Post, Query, Param } from '@nestjs/common';
 import { Role } from '@prisma/client';
 import { AuthenticatedOnly } from '@/common/authz/access';
 import { TraceId } from '@/common/authz/trace-id.decorator';
 import { ZodPipe } from '@/common/pipes/zod.pipe';
 import { AuthUser } from '@/common/interfaces/auth.interface';
 import { GetUser, Roles } from '../auth/auth.decorator';
+import { RequireIdempotencyKey } from '@/common/idempotency/require-idempotency-key.decorator';
 import { ReasonDto, ReasonDtoType } from '../marketplace/marketplace.dto';
 import {
   AdminCreateRefundDto,
@@ -35,6 +36,7 @@ export class OrderRefundsController {
 
   @AuthenticatedOnly()
   @Post(':id/refund-requests')
+  @RequireIdempotencyKey()
   request(
     @Param('id', ParseUUIDPipe) id: string,
     @Body(new ZodPipe(RequestRefundDto)) dto: RequestRefundDtoType,
@@ -57,6 +59,7 @@ export class AdminRefundsController {
 
   @Roles(Role.ADMIN)
   @Post()
+  @RequireIdempotencyKey()
   create(@Body(new ZodPipe(AdminCreateRefundDto)) dto: AdminCreateRefundDtoType, @GetUser() user: AuthUser, @TraceId() traceId: string) {
     return this.refunds.request(user, dto.orderId, dto.reason, traceId);
   }
@@ -69,12 +72,14 @@ export class AdminRefundsController {
 
   @Roles(Role.ADMIN)
   @Post(':id/approve')
+  @RequireIdempotencyKey()
   approve(@Param('id', ParseUUIDPipe) id: string, @GetUser() user: AuthUser, @TraceId() traceId: string) {
     return this.refunds.approve(user, id, traceId);
   }
 
   @Roles(Role.ADMIN)
   @Post(':id/reject')
+  @RequireIdempotencyKey()
   reject(
     @Param('id', ParseUUIDPipe) id: string,
     @Body(new ZodPipe(ReasonDto)) dto: ReasonDtoType,
@@ -86,6 +91,7 @@ export class AdminRefundsController {
 
   @Roles(Role.ADMIN)
   @Post(':id/process')
+  @RequireIdempotencyKey()
   process(
     @Param('id', ParseUUIDPipe) id: string,
     @Body(new ZodPipe(ProcessRefundDto)) dto: ProcessRefundDtoType,

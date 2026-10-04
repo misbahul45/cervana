@@ -160,6 +160,12 @@ class EmbeddingPipeline:
         response = self.llm.invoke([{"role": "user", "content": prompt}])
         return response.content.strip()
 
+    def _resolve_filter_operator(self):
+        if FilterOperator is not None:
+            return FilterOperator
+        from llama_index.core.vector_stores import FilterOperator as _op
+        return _op
+
     # ---------------------------
     # LLM CONTROL — THINKING MODE
     # ---------------------------
@@ -233,6 +239,18 @@ class EmbeddingPipeline:
             query = self.translate(query)
 
         filters = None
+        if metadata_filter:
+            op = self._resolve_filter_operator()
+            conditions = []
+            for key, value in metadata_filter.items():
+                if isinstance(value, dict):
+                    inner = []
+                    for op_name, op_value in value.items():
+                        inner.append(MetadataFilter(key=f"metadata.{key}", value=op_value, operator=getattr(op, op_name.upper(), op.EQ)))
+                    conditions.append(MetadataFilters(filters=inner))
+                else:
+                    conditions.append(MetadataFilter(key=f"metadata.{key}", value=value, operator=op.EQ))
+            filters = MetadataFilters(filters=conditions)
 
         retriever = self.index.as_retriever(
             similarity_top_k=top_k,

@@ -79,6 +79,86 @@ metadata:
 - The theme must render from static CSS when the API is unreachable, and the color scheme is stored in a cookie so the server renders the right class.
 - Load below-the-fold sections with lazy hydration and avoid duplicate requests: one key per dataset, hydrated from the server payload.
 
+## API Architecture Rules
+
+The Application API (`services/api`, NestJS at :3002) is the only authoritative business system. These rules apply to every controller, service, repository, and migration in `services/api`. Detailed findings live in `docs/audit/api-*.md`; this section is the operational summary.
+
+### Decision authority
+
+The API owns and is the only writer of:
+
+- identity, authentication, authorization, tenant context
+- users, roles, tenants, memberships
+- payments, orders, intents, transactions, refunds
+- wallet, payout, earning, ledger, gamification ledger
+- entitlement, mastery, misconception
+- learning event, episode, decision trace
+- authorization, ownership, RBAC, signed internal contract
+
+The AI service proposes, retrieves, reasons, and explains. It does not write authoritative business state.
+
+### URL standard
+
+- All routes under `/api/v1`. Mount point: `setGlobalPrefix('api/${APP_VERSION}')` in `main.ts:54`.
+- Swagger at `/api/v1/docs`. Every route must be represented; the `route-access.spec.ts` ratchet fails CI if a route lacks an explicit access decision.
+- Stable error envelope via `AppExceptionsFilter`: `{ success, message, code, meta: { requestId, timestamp, statusCode } }`. Do not leak stack traces in production.
+
+### Request contract
+
+- Identity comes from the authenticated context (JWT or signed internal contract). Never trust `userId` / `tenantId` / `role` from the request body or query.
+- `Idempotency-Key` header required on every money-mutating POST/PATCH (orders create/cancel, refunds request/approve/process, payouts request/approve/mark-paid/reject, manual payment start-review/approve/reject, wallet top-up, AI credit reserve/settle/release). The `IdempotencyService.execute` deduplicates within 24 h; same key + different body returns `400 IDEMPOTENCY_CONFLICT`.
+- All timestamps ISO-8601 UTC.
+
+### DTO integrity
+
+- All write DTOs use Zod with `.strict()`; never spread unvalidated objects into Prisma updates.
+- Client DTOs never include derived state: `score`, `isCorrect`, `pointsEarned`, `status` (server-computed via `QuizEvaluationService`).
+- Forbidden client-writable fields: `role`, `isActive`, `publishedAt`, `processedAt`, `tenantId` in non-tenant-scoped paths, system timestamps.
+
+### Authorization
+
+Seven decision decorators: `@Public()`, `@Roles(...)`, `@RequireOwnership(...)`, `@RequireParentOwnership(...)`, `@ScopeToUser()`, `@TenantScoped(...)`, `@InternalOnly()`. Every controller route has at least one; the ratchet in `src/common/authz/__tests__/route-access.spec.ts` enforces this.
+
+### State machines
+
+- Six explicit state tables: `order-state.ts`, `payment-state.ts`, `refund-state.ts`, `payout-state.ts`, `content-state.ts`, `theme-state.ts`.
+- Sensitive transitions go through intent endpoints (`/cancel`, `/approve`, `/reject`, `/start-review`, `/mark-paid`, `/submit-review`, `/publish`), not `PATCH status`.
+
+### Money and credits
+
+- Money is `Prisma.Decimal` at 2-decimal half-up. `compute/money.ts:5-7`.
+- Wallets carry `balance` and `reserved` with `CHECK (balance >= 0)` and `CHECK (reserved <= balance)` from the migration.
+- AI credit reservations acquire `pg_advisory_xact_lock('aicredit-wallet:<userId>', 0)` at the top of the transaction (advisory-lock pattern; orders service already uses this).
+- All money mutations are atomic in one `prisma.$transaction`. No partial application.
+
+### Concurrency and idempotency
+
+- Use `prisma.$transaction` for any read-then-write that crosses multiple rows.
+- Use `pg_advisory_xact_lock` for cross-row invariants (orders, AI credits).
+- Use unique constraints + P2002 catch for last-write-wins races (streak, gamification, user achievements).
+- The `IdempotencyService` table (`idempotencyKey`) deduplicates within 24 h.
+
+### Database
+
+- Migrations are hand-written via `prisma migrate diff --from-config-datasource --to-schema prisma/schema.prisma --script` and applied with `prisma migrate deploy`. Never edit an applied migration.
+- Test only on scratch databases (`TEST_DATABASE_URL`); never on the dev `reducera` database.
+- Append-only tables (`LedgerTransaction`, `AICreditLedgerEntry`, `GamificationLedger`, `DomainEvent`) are protected by `forbid_row_mutation` triggers.
+
+### Internal contract with `ai-api`
+
+- `InternalServiceGuard` enforces signed headers: `x-service-id`, `x-service-timestamp`, `x-service-signature`, `x-idempotency-key` (for non-GET), `x-acting-user-id`, `x-trace-id`.
+- Signature is HMAC-SHA256 over `(timestamp, method, target, sha256(body))`.
+- The application API re-authorizes the `acting-user-id` against the resource. The AI service does not gain privileges from internal calls.
+- Replay cache is in-process memory (single-replica safe); multi-replica deployments must move it to Redis. The signature + idempotency-key make replay safe at the request level; the cache is a defense-in-depth.
+
+### Tests
+
+- All controllers have `.security.spec.ts` covering role, ownership, and tenant scope.
+- Idempotency on money routes is covered by `IdempotencyService.execute` unit spec and the route-level decorator reflection.
+- Concurrency on `ai-credits.service.ts:reserve` is covered by the advisory-lock unit spec.
+- Every route has an explicit access decision (route-access ratchet).
+- The 18 integration suites in `__tests__/*.int.spec.ts` skip without `TEST_DATABASE_URL`; CI must run them in a Postgres service.
+
 ## Network Architecture
 
 - Browser → Nginx (port 80/443).

@@ -5,6 +5,7 @@ import { ZodPipe } from '@/common/pipes/zod.pipe';
 import { AuthUser } from '@/common/interfaces/auth.interface';
 import { AuditService } from '@/common/authz/audit.service';
 import { GetUser, Roles } from '../auth/auth.decorator';
+import { RequireIdempotencyKey } from '@/common/idempotency/require-idempotency-key.decorator';
 import { PaymentService } from './payment.service';
 import { ManualPaymentService } from './providers/manual/manual-payment.service';
 import {
@@ -38,12 +39,14 @@ export class AdminPaymentsController {
 
   @Roles(Role.ADMIN)
   @Post('manual/submissions/:id/start-review')
+  @RequireIdempotencyKey()
   startReview(@Param('id', ParseUUIDPipe) id: string, @GetUser() user: AuthUser, @TraceId() traceId: string) {
     return this.manual.startReview(user, id, traceId);
   }
 
   @Roles(Role.ADMIN)
   @Post('manual/submissions/:id/approve')
+  @RequireIdempotencyKey()
   approve(
     @Param('id', ParseUUIDPipe) id: string,
     @Body(new ZodPipe(ApproveManualPaymentDto)) dto: ApproveManualPaymentDtoType,
@@ -55,6 +58,7 @@ export class AdminPaymentsController {
 
   @Roles(Role.ADMIN)
   @Post('manual/submissions/:id/reject')
+  @RequireIdempotencyKey()
   reject(
     @Param('id', ParseUUIDPipe) id: string,
     @Body(new ZodPipe(RejectManualPaymentDto)) dto: RejectManualPaymentDtoType,
@@ -66,6 +70,7 @@ export class AdminPaymentsController {
 
   @Roles(Role.ADMIN)
   @Post('intents/:intentId/reconcile')
+  @RequireIdempotencyKey()
   async reconcile(
     @Param('intentId', ParseUUIDPipe) intentId: string,
     @GetUser() user: AuthUser,
@@ -80,6 +85,7 @@ export class AdminPaymentsController {
 
   @Roles(Role.ADMIN)
   @Post('expire-due')
+  @RequireIdempotencyKey()
   async expireDue(@GetUser() user: AuthUser, @TraceId() traceId: string) {
     const expired = await this.payments.expireDue();
     await this.audit.record({

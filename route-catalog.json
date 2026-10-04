@@ -93,13 +93,13 @@
     "file": "services/api/src/v1/payments/admin-payments.controller.ts",
     "method": "POST",
     "path": "admin/payments/expire-due",
-    "handler": "expireDue"
+    "handler": "?"
   },
   {
     "file": "services/api/src/v1/payments/admin-payments.controller.ts",
     "method": "POST",
     "path": "admin/payments/intents/:intentId/reconcile",
-    "handler": "reconcile"
+    "handler": "?"
   },
   {
     "file": "services/api/src/v1/payments/admin-payments.controller.ts",
@@ -117,19 +117,19 @@
     "file": "services/api/src/v1/payments/admin-payments.controller.ts",
     "method": "POST",
     "path": "admin/payments/manual/submissions/:id/approve",
-    "handler": "approve"
+    "handler": "?"
   },
   {
     "file": "services/api/src/v1/payments/admin-payments.controller.ts",
     "method": "POST",
     "path": "admin/payments/manual/submissions/:id/reject",
-    "handler": "reject"
+    "handler": "?"
   },
   {
     "file": "services/api/src/v1/payments/admin-payments.controller.ts",
     "method": "POST",
     "path": "admin/payments/manual/submissions/:id/start-review",
-    "handler": "startReview"
+    "handler": "?"
   },
   {
     "file": "services/api/src/v1/payouts/payouts.controller.ts",
@@ -147,25 +147,25 @@
     "file": "services/api/src/v1/payouts/payouts.controller.ts",
     "method": "POST",
     "path": "admin/payouts/:id/approve",
-    "handler": "approve"
+    "handler": "?"
   },
   {
     "file": "services/api/src/v1/payouts/payouts.controller.ts",
     "method": "POST",
     "path": "admin/payouts/:id/mark-paid",
-    "handler": "markPaid"
+    "handler": "?"
   },
   {
     "file": "services/api/src/v1/payouts/payouts.controller.ts",
     "method": "POST",
     "path": "admin/payouts/:id/reject",
-    "handler": "reject"
+    "handler": "?"
   },
   {
     "file": "services/api/src/v1/payouts/payouts.controller.ts",
     "method": "POST",
     "path": "admin/payouts/:id/start-review",
-    "handler": "startReview"
+    "handler": "?"
   },
   {
     "file": "services/api/src/v1/refunds/refunds.controller.ts",
@@ -177,7 +177,7 @@
     "file": "services/api/src/v1/refunds/refunds.controller.ts",
     "method": "POST",
     "path": "admin/refunds",
-    "handler": "create"
+    "handler": "?"
   },
   {
     "file": "services/api/src/v1/refunds/refunds.controller.ts",
@@ -189,19 +189,19 @@
     "file": "services/api/src/v1/refunds/refunds.controller.ts",
     "method": "POST",
     "path": "admin/refunds/:id/approve",
-    "handler": "approve"
+    "handler": "?"
   },
   {
     "file": "services/api/src/v1/refunds/refunds.controller.ts",
     "method": "POST",
     "path": "admin/refunds/:id/process",
-    "handler": "process"
+    "handler": "?"
   },
   {
     "file": "services/api/src/v1/refunds/refunds.controller.ts",
     "method": "POST",
     "path": "admin/refunds/:id/reject",
-    "handler": "reject"
+    "handler": "?"
   },
   {
     "file": "services/api/src/v1/tenants/admin-tenants.controller.ts",
@@ -236,12 +236,6 @@
   {
     "file": "services/api/src/v1/quiz/answers/answers.controller.ts",
     "method": "GET",
-    "path": "answers/:id",
-    "handler": "?"
-  },
-  {
-    "file": "services/api/src/v1/quiz/answers/answers.controller.ts",
-    "method": "PATCH",
     "path": "answers/:id",
     "handler": "?"
   },
@@ -684,6 +678,30 @@
     "handler": "?"
   },
   {
+    "file": "services/api/src/v1/ai-credits/ai-credits-internal.controller.ts",
+    "method": "POST",
+    "path": "internal/credits/reservations",
+    "handler": "?"
+  },
+  {
+    "file": "services/api/src/v1/ai-credits/ai-credits-internal.controller.ts",
+    "method": "POST",
+    "path": "internal/credits/reservations/:id/release",
+    "handler": "?"
+  },
+  {
+    "file": "services/api/src/v1/ai-credits/ai-credits-internal.controller.ts",
+    "method": "POST",
+    "path": "internal/credits/reservations/:id/settle",
+    "handler": "?"
+  },
+  {
+    "file": "services/api/src/v1/ai-credits/ai-credits-internal.controller.ts",
+    "method": "POST",
+    "path": "internal/credits/top-up",
+    "handler": "?"
+  },
+  {
     "file": "services/api/src/v1/internal/internal-resources.controller.ts",
     "method": "GET",
     "path": "internal/resources/:id",
@@ -939,7 +957,7 @@
     "file": "services/api/src/v1/refunds/refunds.controller.ts",
     "method": "POST",
     "path": "orders/:id/refund-requests",
-    "handler": "request"
+    "handler": "?"
   },
   {
     "file": "services/api/src/v1/payments/payments.controller.ts",
@@ -975,7 +993,7 @@
     "file": "services/api/src/v1/payouts/payouts.controller.ts",
     "method": "POST",
     "path": "payouts",
-    "handler": "request"
+    "handler": "?"
   },
   {
     "file": "services/api/src/v1/payouts/payouts.controller.ts",
@@ -987,7 +1005,7 @@
     "file": "services/api/src/v1/payouts/payouts.controller.ts",
     "method": "POST",
     "path": "payouts/:id/cancel",
-    "handler": "cancel"
+    "handler": "?"
   },
   {
     "file": "services/api/src/v1/learning/personality-quizzes/personality-quizzes.controller.ts",
@@ -1069,14 +1087,20 @@
   },
   {
     "file": "services/api/src/v1/quiz/quiz-attempts/quiz-attempts.controller.ts",
-    "method": "PATCH",
-    "path": "quiz-attempts/:id",
+    "method": "GET",
+    "path": "quiz-attempts/:id/answers",
     "handler": "?"
   },
   {
     "file": "services/api/src/v1/quiz/quiz-attempts/quiz-attempts.controller.ts",
-    "method": "GET",
-    "path": "quiz-attempts/:id/answers",
+    "method": "POST",
+    "path": "quiz-attempts/:id/submit",
+    "handler": "?"
+  },
+  {
+    "file": "services/api/src/v1/quiz/quiz-attempts/quiz-attempts.controller.ts",
+    "method": "POST",
+    "path": "quiz-attempts/start",
     "handler": "?"
   },
   {

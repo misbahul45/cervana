@@ -9,7 +9,7 @@ describe('MasteryService.updateScore (deterministic EMA)', () => {
       findByUserAndTopic: jest.fn(),
       listByUser: jest.fn(),
     };
-    service = new MasteryService(repo as any, undefined, undefined, 0.3);
+    service = new MasteryService(repo as any);
   });
 
   it('first attempt initializes score to attempt score', () => {
@@ -57,7 +57,7 @@ describe('MasteryService.updateScore (deterministic EMA)', () => {
       upsert: jest.fn().mockImplementation(async (input: any) => ({ id: 'm1', ...input })),
       listByUser: jest.fn(),
     };
-    const svc = new MasteryService(repo as any, undefined, undefined, 0.3);
+    const svc = new MasteryService(repo as any);
     const result = await svc.updateFromAttempt('u-1', 't-1', 0.9);
     expect(result.score).toBeCloseTo(0.3 * 0.9 + 0.7 * 0.5);
     expect(repo.upsert).toHaveBeenCalled();

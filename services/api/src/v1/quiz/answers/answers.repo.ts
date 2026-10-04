@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../../common/config/prisma/prisma.service';
-import { errorHandler, validation } from '@/common/lib/utils'
-import { CreateAnswerDto, CreateAnswerType, UpdateAnswerDto, UpdateAnswerType } from './answers.dto';
+import { errorHandler, validation } from '@/common/lib/utils';
+import { CreateAnswerDto, CreateAnswerType } from './answers.dto';
 import { Answer } from '@prisma/client';
 
 @Injectable()
@@ -17,7 +17,7 @@ export class AnswersRepo {
         return errorHandler(async()=>{
             return await this.prisma.answer.findFirst({
                 where: { [key]:value },
-            });
+            })
         })
     }
 
@@ -35,26 +35,15 @@ export class AnswersRepo {
 
             if (Array.isArray(data)) {
                 return this.prisma.answer.createMany({
-                    data,
+                    data: data as any,
                     skipDuplicates: true,
                 });
             } else {
                 return this.prisma.answer.create({
-                    data,
+                    data: data as any,
                 });
             }
         });
-    }
-
-
-    async update(id:string, values:UpdateAnswerType){
-        return errorHandler(async()=>{
-            const data=validation(UpdateAnswerDto, values)
-            return await this.prisma.answer.update({
-                where:{id},
-                data
-            })
-        })
     }
 
     async delete(id:string){

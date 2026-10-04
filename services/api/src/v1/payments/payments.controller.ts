@@ -8,6 +8,7 @@ import { AuthUser } from '@/common/interfaces/auth.interface';
 import { PolicyService } from '@/common/authz/policy.service';
 import { GetUser } from '../auth/auth.decorator';
 import { RequireOwnership } from '../common/guards/ownership.decorator';
+import { RequireIdempotencyKey } from '@/common/idempotency/require-idempotency-key.decorator';
 import { PaymentService } from './payment.service';
 import { ManualPaymentService } from './providers/manual/manual-payment.service';
 import { SubmitManualPaymentDto, SubmitManualPaymentDtoType } from './providers/manual/manual-payment.dto';
@@ -51,6 +52,7 @@ export class PaymentsController {
   }
 
   @Post('manual/intents/:intentId/submissions')
+  @RequireIdempotencyKey()
   @RequireOwnership('payment-intent', { param: 'intentId' })
   submit(
     @Param('intentId', ParseUUIDPipe) intentId: string,

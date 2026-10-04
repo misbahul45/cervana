@@ -5,6 +5,7 @@ import { TraceId } from '@/common/authz/trace-id.decorator';
 import { ZodPipe } from '@/common/pipes/zod.pipe';
 import { AuthUser } from '@/common/interfaces/auth.interface';
 import { GetUser, Roles } from '../auth/auth.decorator';
+import { RequireIdempotencyKey } from '@/common/idempotency/require-idempotency-key.decorator';
 import { ReasonDto, ReasonDtoType } from '../marketplace/marketplace.dto';
 import {
   AdminPayoutQueryDto,
@@ -24,6 +25,7 @@ export class PayoutsController {
 
   @Roles(Role.TEACHER)
   @Post()
+  @RequireIdempotencyKey()
   request(@Body(new ZodPipe(RequestPayoutDto)) dto: RequestPayoutDtoType, @GetUser() user: AuthUser, @TraceId() traceId: string) {
     return this.payouts.request(user, dto, traceId);
   }
@@ -42,6 +44,7 @@ export class PayoutsController {
 
   @Roles(Role.TEACHER)
   @Post(':id/cancel')
+  @RequireIdempotencyKey()
   cancel(@Param('id', ParseUUIDPipe) id: string, @GetUser() user: AuthUser, @TraceId() traceId: string) {
     return this.payouts.cancel(user, id, traceId);
   }
@@ -65,18 +68,21 @@ export class AdminPayoutsController {
 
   @Roles(Role.ADMIN)
   @Post(':id/start-review')
+  @RequireIdempotencyKey()
   startReview(@Param('id', ParseUUIDPipe) id: string, @GetUser() user: AuthUser, @TraceId() traceId: string) {
     return this.payouts.startReview(user, id, traceId);
   }
 
   @Roles(Role.ADMIN)
   @Post(':id/approve')
+  @RequireIdempotencyKey()
   approve(@Param('id', ParseUUIDPipe) id: string, @GetUser() user: AuthUser, @TraceId() traceId: string) {
     return this.payouts.approve(user, id, traceId);
   }
 
   @Roles(Role.ADMIN)
   @Post(':id/mark-paid')
+  @RequireIdempotencyKey()
   markPaid(
     @Param('id', ParseUUIDPipe) id: string,
     @Body(new ZodPipe(MarkPaidDto)) dto: MarkPaidDtoType,
@@ -88,6 +94,7 @@ export class AdminPayoutsController {
 
   @Roles(Role.ADMIN)
   @Post(':id/reject')
+  @RequireIdempotencyKey()
   reject(
     @Param('id', ParseUUIDPipe) id: string,
     @Body(new ZodPipe(ReasonDto)) dto: ReasonDtoType,

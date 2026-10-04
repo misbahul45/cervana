@@ -2,7 +2,7 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-`AGENTS.md` at the repo root is the authoritative rulebook (Docker/compose/Dockerfile rules, service ownership, forbidden actions, git policy, verification checklist). Read it before infra or cross-service changes. The points below are the ones that most often affect day-to-day work.
+`AGENTS.md` at the repo root is the authoritative rulebook (Docker/compose/Dockerfile rules, **API architecture rules** including decision authority, URL standard, request contract, DTO integrity, authorization, state machines, money/credits, concurrency, idempotency, database, internal contract with `ai-api`, tests; service ownership; forbidden actions; git policy; verification checklist). Read it before infra, cross-service, or API/business-rule changes. The points below are the ones that most often affect day-to-day work.
 
 ## Repository shape
 

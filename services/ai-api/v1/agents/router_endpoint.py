@@ -6,7 +6,7 @@ from pydantic import BaseModel
 from v1.agents.router import dispatch
 from v1.agents.creator_assistant_agent import run_creator_assistant
 from v1.agents.career_agent import run_career
-from v1.learning.service import run_curriculum
+from v1.agents.curriculum_agent import run_curriculum
 
 router = APIRouter(prefix="/v1/agents", tags=["Agents"])
 

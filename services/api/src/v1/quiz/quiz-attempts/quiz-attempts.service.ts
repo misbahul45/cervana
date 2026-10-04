@@ -41,7 +41,8 @@ export class QuizAttemptsService {
     actor: { id: string; role: string },
     dto: StartQuizAttemptDtoType,
   ) {
-    if (!this.prisma) {
+    const prisma = this.prisma;
+    if (!prisma) {
       throw new AppError(
         'Prisma is not available',
         500,
@@ -49,13 +50,13 @@ export class QuizAttemptsService {
       );
     }
     return errorHandler(async () => {
-      const lastAttempt = await this.prisma.quizAttempt.findFirst({
+      const lastAttempt = await prisma.quizAttempt.findFirst({
         where: { userId: actor.id, quizId: dto.quizId },
         orderBy: { attemptNumber: 'desc' },
       });
       const nextAttemptNumber = (lastAttempt?.attemptNumber ?? 0) + 1;
 
-      const attempt = await this.prisma.quizAttempt.create({
+      const attempt = await prisma.quizAttempt.create({
         data: {
           userId: actor.id,
           quizId: dto.quizId,
@@ -74,7 +75,6 @@ export class QuizAttemptsService {
 
   async submitAttempt(input: {
     userId: string;
-    quizId: string;
     attemptId: string;
     answers: Record<string, unknown>;
     hintUsed?: boolean;
@@ -85,8 +85,10 @@ export class QuizAttemptsService {
     if (!this.evaluator) {
       throw new AppError('Evaluator is not available', 500, AppErrorCode.INTERNAL_SERVER_ERROR);
     }
+    const prisma = this.prisma;
+    const evaluator = this.evaluator;
 
-    const result = await this.prisma.$transaction(async (tx) => {
+    const result = await prisma.$transaction(async (tx) => {
       const attempt = await tx.quizAttempt.findUnique({ where: { id: input.attemptId } });
       if (!attempt) {
         throw new AppError('Quiz attempt not found', 404, AppErrorCode.NOT_FOUND);
@@ -114,7 +116,7 @@ export class QuizAttemptsService {
       for (const q of quiz.questions) {
         pointsTotal += q.points;
         const userAnswer = input.answers[q.id];
-        const evaluation = this.evaluator.evaluate({
+        const evaluation = evaluator.evaluate({
           questionType: q.questionType,
           userAnswer,
           correctAnswer: q.correctAnswer as unknown,
@@ -143,7 +145,7 @@ export class QuizAttemptsService {
             isCorrect: evaluation.isCorrect,
             pointsEarned: evaluation.pointsEarned,
           },
-        } as any);
+        } as unknown as Parameters<typeof tx.answer.upsert>[0]);
       }
 
       const scorePercent = pointsTotal > 0 ? Math.round((scoreTotal / pointsTotal) * 100) : 0;
@@ -166,31 +168,35 @@ export class QuizAttemptsService {
 
     let updatedMastery: { topicId: string; score: number; attempts: number } | null = null;
     if (result.topicId && this.mastery) {
-      const updated = await this.mastery.updateFromAttempt(input.userId, result.topicId, result.score);
-      updatedMastery = { topicId: result.topicId, score: updated.score, attempts: updated.attempts };
+      const masteryTopicId = result.topicId;
+      const updated = await this.mastery.updateFromAttempt(input.userId, masteryTopicId, result.score);
+      updatedMastery = { topicId: masteryTopicId, score: updated.score, attempts: updated.attempts };
     }
 
-    if (this.misconception) {
+    const misconception = this.misconception;
+    if (misconception) {
       for (const a of result.perAnswer) {
         if (!a.isCorrect && a.patternCode) {
-          await this.misconception.recordFromAnswer({
+          const userAnswerForRecord = input.answers[a.questionId];
+          await misconception.recordFromAnswer({
             userId: input.userId,
-            topicId: result.topicId,
+            topicId: result.topicId ?? '',
             questionId: a.questionId,
-            userAnswer: input.answers[a.questionId],
-            correctAnswer: input.answers[a.questionId],
+            userAnswer: typeof userAnswerForRecord === 'string' ? userAnswerForRecord : JSON.stringify(userAnswerForRecord ?? null),
+            correctAnswer: '',
             isCorrect: false,
           });
         }
       }
     }
 
-    if (this.events) {
-      await this.events.record({
+    const events = this.events;
+    if (events) {
+      await events.record({
         userId: input.userId,
         action: 'QUIZ_SUBMITTED',
-        entityId: input.quizId,
-        metadata: { attemptId: input.attemptId, score: result.score, answerCount: result.perAnswer.length },
+        entityId: input.attemptId,
+        metadata: { score: result.score, answerCount: result.perAnswer.length },
       });
     }
 

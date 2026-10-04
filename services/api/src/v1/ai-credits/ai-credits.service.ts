@@ -53,15 +53,12 @@ export class AiCreditsService {
     if (req.amount <= 0) throw new BadRequestException('amount must be > 0');
 
     const result = await this.prisma.$transaction(async (tx) => {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${`aicredit-wallet:${req.userId}`}, 0))`;
       const wallet = await this.ensureWallet(tx, req.userId);
       const available = wallet.balance - wallet.reserved;
       if (available < req.amount) {
         return { ok: false as const, available };
       }
-      await tx.aICreditWallet.update({
-        where: { userId: req.userId },
-        data: { reserved: { increment: req.amount } },
-      });
       const reservation = await tx.aICreditLedgerEntry.create({
         data: {
           userId: req.userId,
@@ -73,6 +70,10 @@ export class AiCreditsService {
           idempotencyKey: `reserve:${req.operationId}`,
           metadata: { state: 'RESERVED' } as Prisma.InputJsonValue,
         },
+      });
+      await tx.aICreditWallet.update({
+        where: { userId: req.userId },
+        data: { reserved: { increment: req.amount } },
       });
       return { ok: true as const, reservationId: reservation.id };
     });

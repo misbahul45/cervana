@@ -1,7 +1,7 @@
 import { Role } from '@prisma/client';
 import { ScopeToUser } from '@/common/authz/access';
 import { RequireOwnership } from '@/v1/common/guards/ownership.decorator';
-import { Controller, Get, Body, Param, Delete, Query, Post } from '@nestjs/common';
+import { Controller, Get, Body, Param, Delete, Post, Query, UseInterceptors } from '@nestjs/common';
 import { QuizAttemptsService } from './quiz-attempts.service';
 import {
   CreateQuizAttemptType,
@@ -46,12 +46,12 @@ export class QuizAttemptsController {
   ) {
     return this.quizAttemptsService.submitAttempt({
       userId: user.id,
-      quizId: '',
       attemptId: id,
       answers: dto.answers,
       hintUsed: dto.hintUsed,
     });
   }
+
 
   @Get(':id/answers')
   @RequireOwnership('quiz-attempt')

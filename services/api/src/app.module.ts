@@ -4,7 +4,7 @@ import { APP_GUARD, Reflector } from '@nestjs/core';
 import { JwtAuthGuard } from './v1/auth/guards/jwt.guard';
 import { RolesGuard } from './v1/auth/guards/roles.guard';
 import { OwnershipGuard } from './v1/common/guards/ownership.guard';
-import { ArcjetModule, shield } from '@arcjet/nest';
+import { ArcjetModule, shield } from '@arcjest/nest';
 import { ConfigModule } from '@nestjs/config';
 import { QuizModule } from './v1/quiz/quiz.module';
 import { AuthzModule } from './common/authz/authz.module';
@@ -19,6 +19,8 @@ import { RateLimitModule } from './v1/common/rate-limit/rate-limit.module';
 import { BackupModule } from './v1/admin/backup/backup.module';
 import { EventEmitterModule } from '@nestjs/event-emitter';
 import { StreakService } from './common/streak/streak.service';
+import { IdempotencyModule } from './common/idempotency/idempotency.module';
+import { IdempotencyKeyGuard } from './common/idempotency/idempotency-key.guard';
 
 @Module({
   imports: [
@@ -33,6 +35,7 @@ import { StreakService } from './common/streak/streak.service';
     AnalyticsModule,
     RateLimitModule,
     BackupModule,
+    IdempotencyModule,
     V1Module,
     EventEmitterModule.forRoot(),
     ConfigModule.forRoot({
@@ -62,6 +65,10 @@ import { StreakService } from './common/streak/streak.service';
     {
       provide: APP_GUARD,
       useClass: OwnershipGuard,
+    },
+    {
+      provide: APP_GUARD,
+      useClass: IdempotencyKeyGuard,
     },
   ],
 })
