@@ -4,7 +4,7 @@ import { GetUser, Roles } from '@/v1/auth/auth.decorator';
 import { Role } from '@prisma/client';
 import { StudioEarningsService } from './studio-earnings.service';
 
-@Controller('v1/commerce/studio-earnings')
+@Controller('commerce/studio-earnings')
 @UseGuards(JwtAuthGuard)
 export class StudioEarningsController {
   constructor(private readonly earnings: StudioEarningsService) {}

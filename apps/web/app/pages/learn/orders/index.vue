@@ -1,126 +1,87 @@
 <script setup lang="ts">
-interface OrderRow {
-  id: string;
-  status: string;
-  total: number;
-  currency: string;
-  createdAt: string;
-  items: Array<{
-    id: string;
-    quantity: number;
-    unitPrice: number;
-    totalPrice: number;
-    articleId: string | null;
-    classId: string | null;
-    topicId: string | null;
-  }>;
-}
+import { ordersApi } from '~/lib/api';
+import { describeApiError } from '~/lib/api-error';
+import { formatDate, formatMoney } from '~/lib/format';
+import { orderStatusMeta, orderTitle } from '~/lib/order-status';
 
-const orders = ref<OrderRow[]>([]);
-const error = ref<string | null>(null);
-const loading = ref(true);
-
-async function load() {
-  loading.value = true;
-  try {
-    const res = await $fetch<{ data: { data: OrderRow[] } }>('/v1/orders');
-    orders.value = res.data.data;
-  } catch (err) {
-    error.value = 'Tidak bisa memuat pesanan.';
-    console.error(err);
-  } finally {
-    loading.value = false;
-  }
-}
-
-onMounted(load);
-
-useHead({
-  title: 'Pesanan Saya | ReduCera',
+definePageMeta({
+  title: 'Pesanan Saya — ReduCera',
+  protection: { kind: 'authenticated' },
+  layout: 'learner',
 });
 
-function statusLabel(status: string): string {
-  return status
-    .toLowerCase()
-    .split('_')
-    .map((s) => s.charAt(0).toUpperCase() + s.slice(1))
-    .join(' ');
-}
-
-function statusColor(status: string): string {
-  switch (status) {
-    case 'PAID':
-    case 'FULFILLED':
-      return 'var(--rc-primary)';
-    case 'PENDING':
-    case 'PAYMENT_SUBMITTED':
-    case 'REFUND_PENDING':
-      return 'var(--rc-secondary)';
-    case 'FAILED':
-    case 'EXPIRED':
-    case 'CANCELLED':
-    case 'REFUNDED':
-      return 'var(--rc-accent)';
-    default:
-      return 'var(--rc-muted)';
-  }
-}
+const { data: orders, status, error, refresh } = useAsyncData('orders:list', () => ordersApi.list(), { lazy: true });
 </script>
 
 <template>
-  <div class="min-h-screen px-4 py-10 md:py-14 mx-auto max-w-4xl" :style="{ backgroundColor: 'var(--rc-bg)', color: 'var(--rc-fg)' }">
-    <header class="mb-8">
-      <h1 class="text-3xl font-bold" :style="{ color: 'var(--rc-fg)' }">Pesanan Saya</h1>
-      <p class="mt-1 text-sm" :style="{ color: 'var(--rc-muted)' }">Riwayat pesanan dan status pembayaran.</p>
-    </header>
+  <main id="main" aria-labelledby="orders-h">
+    <h1 id="orders-h">Pesanan Saya</h1>
 
-    <div v-if="error" class="p-4 rounded-md" :style="{ backgroundColor: 'var(--rc-foam)', color: 'var(--rc-fg)' }">
-      {{ error }}
-    </div>
-
-    <div v-if="loading" class="p-6 rounded-lg text-center" :style="{ backgroundColor: 'var(--rc-surface)', border: '1px solid var(--rc-border)' }">
-      <p :style="{ color: 'var(--rc-muted)' }">Memuat…</p>
-    </div>
-
-    <div v-else-if="orders.length === 0" class="p-6 rounded-lg text-center" :style="{ backgroundColor: 'var(--rc-surface)', border: '1px solid var(--rc-border)' }">
-      <p :style="{ color: 'var(--rc-muted)' }">Belum ada pesanan.</p>
-      <UButton to="/marketplace" color="primary" class="mt-4">Jelajahi Marketplace</UButton>
-    </div>
-
-    <ul v-else class="space-y-3">
-      <li
-        v-for="o in orders"
-        :key="o.id"
-        class="p-4 rounded-xl"
-        :style="{ backgroundColor: 'var(--rc-surface)', border: '1px solid var(--rc-border)' }"
-      >
-        <header class="flex items-baseline justify-between">
-          <code class="text-sm font-mono" :style="{ color: 'var(--rc-muted)' }">#{{ o.id.slice(0, 8) }}</code>
-          <span
-            class="text-xs uppercase tracking-wide font-semibold"
-            :style="{ color: statusColor(o.status) }"
-          >
-            {{ statusLabel(o.status) }}
-          </span>
+    <LoadingSkeleton v-if="status === 'pending'" variant="row" :count="3" />
+    <ErrorState
+      v-else-if="error"
+      title="Gagal memuat pesanan"
+      :message="describeApiError(error)"
+      @retry="refresh()"
+    />
+    <EmptyState
+      v-else-if="!orders || orders.length === 0"
+      title="Belum ada pesanan"
+      message="Mulai belanja di marketplace untuk melihat pesanan Anda di sini."
+      cta-label="Buka marketplace"
+      cta-to="/marketplace"
+    />
+    <ul v-else class="rc-orders__list">
+      <li v-for="o in orders" :key="o.id" class="rc-orders__item">
+        <header class="rc-orders__item-head">
+          <div>
+            <p class="rc-orders__item-date">{{ formatDate(o.createdAt) }}</p>
+            <h2>{{ orderTitle(o.items) }}</h2>
+          </div>
+          <StatusBadge :tone="orderStatusMeta(o.status).tone" :label="orderStatusMeta(o.status).label" />
         </header>
-        <div class="mt-2 flex items-baseline justify-between">
-          <span class="text-xs" :style="{ color: 'var(--rc-muted)' }">
-            {{ new Date(o.createdAt).toLocaleString('id-ID') }} · {{ o.items.length }} item
-          </span>
-          <span class="font-mono">Rp {{ o.total.toLocaleString('id-ID') }}</span>
-        </div>
-        <div class="mt-3 flex gap-2">
-          <UButton
-            v-if="['PENDING', 'PAYMENT_SUBMITTED'].includes(o.status)"
-            :to="`/learn/orders/${o.id}/pay`"
-            color="primary"
-            size="xs"
-          >
-            Selesaikan Pembayaran
-          </UButton>
-          <UButton :to="`/v1/orders/${o.id}`" variant="outline" size="xs">Detail</UButton>
-        </div>
+        <footer class="rc-orders__item-foot">
+          <span class="rc-orders__item-amount">{{ formatMoney(o.total, o.currency) }}</span>
+          <NuxtLink :to="o.status === 'PENDING' && o.payment ? `/learn/orders/${o.id}/pay` : `/learn/orders/${o.id}`">
+            {{ o.status === 'PENDING' && o.payment ? 'Bayar' : 'Detail' }}
+          </NuxtLink>
+        </footer>
       </li>
     </ul>
-  </div>
+  </main>
 </template>
+
+<style scoped>
+.rc-orders__list {
+  list-style: none;
+  margin: 1rem 0;
+  padding: 0;
+  display: grid;
+  gap: 0.75rem;
+}
+.rc-orders__item {
+  padding: 1rem;
+  border-radius: 0.75rem;
+  border: 1px solid var(--ui-border, rgba(0, 0, 0, 0.08));
+  background: var(--ui-bg, white);
+}
+.rc-orders__item-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 0.75rem;
+}
+.rc-orders__item-date {
+  font-size: 0.75rem;
+  color: var(--ui-text-muted);
+}
+.rc-orders__item-foot {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 0.5rem;
+}
+.rc-orders__item-amount {
+  font-weight: 600;
+}
+</style>

@@ -4,7 +4,7 @@ import { GetUser, Roles } from '@/v1/auth/auth.decorator';
 import { Role } from '@prisma/client';
 import { SkillNodeRepo } from './skill-node.repo';
 
-@Controller('v1/personalization/skill-nodes')
+@Controller('personalization/skill-nodes')
 @UseGuards(JwtAuthGuard)
 export class SkillNodeController {
   constructor(private readonly repo: SkillNodeRepo) {}

@@ -4,7 +4,7 @@ import { APP_GUARD, Reflector } from '@nestjs/core';
 import { JwtAuthGuard } from './v1/auth/guards/jwt.guard';
 import { RolesGuard } from './v1/auth/guards/roles.guard';
 import { OwnershipGuard } from './v1/common/guards/ownership.guard';
-import { ArcjetModule, shield } from '@arcjest/nest';
+import { ArcjetModule, shield } from '@arcjet/nest';
 import { ConfigModule } from '@nestjs/config';
 import { QuizModule } from './v1/quiz/quiz.module';
 import { AuthzModule } from './common/authz/authz.module';

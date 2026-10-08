@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, Header, Query
+from fastapi import APIRouter, HTTPException, Header, Query, Request
 from typing import Dict
 import logging
 from v1.resources.service import get_resource
@@ -13,7 +13,8 @@ router = APIRouter(prefix="/resources", tags=["Resources"])
 @router.post("/extract")
 @rate_limit(capacity_per_minute=30, burst=5)
 async def extract_resource(
-    type: str = Query(..., regex="^(PDF|IMAGE|VIDEO)$"),
+    request: Request,
+    type: str = Query(..., pattern="^(PDF|IMAGE|VIDEO)$"),
     resource_id: str = Query(...),
     Authorization: str | None = Header(None),
 ) -> Dict[str, str]:
@@ -28,6 +29,7 @@ async def extract_resource(
 @router.post("/embedding/{resource_id}")
 @rate_limit(capacity_per_minute=30, burst=5)
 async def embed_single(
+    request: Request,
     resource_id: str,
     Authorization: str | None = Header(None)
 ) -> Dict[str, str]:

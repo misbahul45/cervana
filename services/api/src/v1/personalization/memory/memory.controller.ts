@@ -4,7 +4,7 @@ import { GetUser, Roles } from '@/v1/auth/auth.decorator';
 import { Role } from '@prisma/client';
 import { MemoryService } from './memory.service';
 
-@Controller('v1/personalization/memory')
+@Controller('personalization/memory')
 @UseGuards(JwtAuthGuard)
 export class MemoryController {
   constructor(private readonly memory: MemoryService) {}

@@ -1,22 +1,30 @@
 <script setup lang="ts">
 import { ref } from 'vue';
 import { moderationApi } from '~/lib/api';
+import { describeApiError } from '~/lib/api-error';
 
 const data = ref<{ articles: any[]; classes: any[] }>({ articles: [], classes: [] });
 const acting = ref<string | null>(null);
 const error = ref<string | null>(null);
 
-try {
-  data.value = (await moderationApi.listPending()) ?? { articles: [], classes: [] };
-} catch (e: any) {
-  error.value = e?.message ?? 'load_failed';
+async function load() {
+  try {
+    data.value = (await moderationApi.listPending()) ?? { articles: [], classes: [] };
+    error.value = null;
+  } catch (e) {
+    error.value = describeApiError(e, 'Antrian moderasi gagal dimuat.');
+  }
 }
+
+await load();
 
 async function approve(kind: 'article' | 'class', id: string) {
   acting.value = `${kind}:${id}`;
   try {
     await moderationApi.approve(kind, id);
-    await refreshNuxtData();
+    await load();
+  } catch (e) {
+    error.value = describeApiError(e, 'Gagal menyetujui konten.');
   } finally {
     acting.value = null;
   }
@@ -28,7 +36,9 @@ async function reject(kind: 'article' | 'class', id: string) {
   acting.value = `${kind}:${id}`;
   try {
     await moderationApi.reject(kind, id, feedback);
-    await refreshNuxtData();
+    await load();
+  } catch (e) {
+    error.value = describeApiError(e, 'Gagal menolak konten.');
   } finally {
     acting.value = null;
   }
@@ -40,7 +50,7 @@ useHead({ title: 'Antrian Moderasi — Admin ReduCera' });
 <template>
   <main>
     <h1>Antrian Moderasi</h1>
-    <p v-if="error" class="error">{{ error }}</p>
+    <p v-if="error" role="alert" class="error">{{ error }}</p>
 
     <section>
       <h2>Artikel</h2>

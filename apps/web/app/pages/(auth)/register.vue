@@ -1,3 +1,37 @@
+<script setup lang="ts">
+import FormRegister from "~/components/auth/FormRegister.vue";
+import DownStarAnimation from "~/components/ui/DownStarAnimation.vue";
+definePageMeta({
+  title: 'Daftar | ReduCera',
+  protection: { kind: 'guest-only' },
+  layout: 'auth',
+});
+const siteUrl = useRuntimeConfig().public.SITE_URL
+useHead({
+  title: 'Join the Cosmic Journey | ReduCera',
+  meta: [
+    {
+      name: 'description',
+      content:
+        'Create your ReduCera account and begin your cosmic learning adventure powered by AI and curiosity.',
+    },
+    { name: 'keywords', content: 'ReduCera, register, sign up, AI learning, cosmic' },
+    { property: 'og:title', content: 'Join the Cosmic Journey | ReduCera' },
+    { property: 'og:description', content: 'Start your ReduCera journey and explore the infinite universe of learning.' },
+    { property: 'og:type', content: 'website' },
+    { property: 'og:url', content: `${siteUrl}/register` },
+    { property: 'og:image', content: '/meta/og-register.png' },
+    { name: 'twitter:card', content: 'summary_large_image' },
+    { name: 'twitter:title', content: 'Join the Cosmic Journey | ReduCera' },
+    { name: 'twitter:description', content: 'Start your ReduCera journey and explore the infinite universe of learning.' },
+    { name: 'twitter:image', content: '/meta/og-register.png' },
+  ],
+  link: [{ rel: 'icon', type: 'image/png', href: '/favicon-32x32.png' }],
+})
+const registerDesc =
+"Siap memulai perjalananmu? Buat akun sekarang dan tingkatkan kemampuanmu dengan notebook pembelajaran bertenaga AI dari ReduCera!"
+</script>
+
 <template>
   <section
     class="px-4 sm:px-6 md:px-8 w-full pb-12 pt-28 sm:pt-24 md:pt-20 lg:pt-16 relative min-h-screen overflow-hidden flex items-center justify-center"
@@ -6,7 +40,7 @@
       <h1
         class="font-exo2 text-center mb-2 title font-bold text-transparent bg-clip-text bg-linear-to-r from-primary/80 to-primary/90 tracking-wide text-4xl sm:text-5xl md:text-6xl"
       >
-        REDUCERA
+        ReduCera
       </h1>
 
       <p
@@ -34,35 +68,4 @@
   </section>
 </template>
 
-<script setup lang="ts">
-import FormRegister from "~/components/auth/FormRegister.vue";
-import DownStarAnimation from "~/components/ui/DownStarAnimation.vue";
-const siteUrl = useRuntimeConfig().public.SITE_URL
 
-useHead({
-  title: 'Join the Cosmic Journey | ReduCera',
-  meta: [
-    {
-      name: 'description',
-      content:
-        'Create your ReduCera account and begin your cosmic learning adventure powered by AI and curiosity.',
-    },
-    { name: 'keywords', content: 'ReduCera, register, sign up, AI learning, cosmic' },
-    { property: 'og:title', content: 'Join the Cosmic Journey | ReduCera' },
-    { property: 'og:description', content: 'Start your ReduCera journey and explore the infinite universe of learning.' },
-    { property: 'og:type', content: 'website' },
-    { property: 'og:url', content: `${siteUrl}/register` },
-    { property: 'og:image', content: '/meta/og-register.png' },
-    { name: 'twitter:card', content: 'summary_large_image' },
-    { name: 'twitter:title', content: 'Join the Cosmic Journey | ReduCera' },
-    { name: 'twitter:description', content: 'Start your ReduCera journey and explore the infinite universe of learning.' },
-    { name: 'twitter:image', content: '/meta/og-register.png' },
-  ],
-  link: [{ rel: 'icon', type: 'image/png', href: '/favicon-32x32.png' }],
-})
-
-
-const registerDesc =
-"Siap memulai perjalananmu? Buat akun sekarang dan tingkatkan kemampuanmu dengan notebook pembelajaran bertenaga AI dari ReduCera!"
-
-</script>

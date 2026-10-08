@@ -5,8 +5,8 @@ import type {
   UpdatePersonalityQuizDto,
   PersonalityQuizUserAttemptItem
 } from "~/interfaces/learning/personalityQuiz"
-import { request, toQueryString } from "~/lib/api"
-import { useRuntimeConfig } from "#imports"
+import { apiUrl, request, toQueryString } from "~/lib/api"
+import { aiUrl } from "~/lib/ai"
 
 export const personalityQuizService = {
   async findAll(q: Query = {}, tokens?: Tokens) {
@@ -59,27 +59,22 @@ export const personalityQuizService = {
     },
     tokens?: Tokens
   ) {
-    const config = useRuntimeConfig()
-    const AI_URL = config.public.AI_URL
-
     const qs = new URLSearchParams({
       lessonId: payload.lessonId,
       topicId: payload.topicId,
       learningStyleId: payload.learningStyleId,
       userId: payload.userId,
-      token: tokens?.access_token ?? ""
+      idempotencyKey: crypto.randomUUID(),
     })
 
     return new EventSource(
-      `${AI_URL}/users-steps/generate-question?${qs.toString()}`,
+      aiUrl(`/users-steps/generate-question?${qs.toString()}`),
       { withCredentials: true }
     )
   },
 
   listenPersonalityQuizSse(tokens?: Tokens) {
-    const config = useRuntimeConfig()
-    const API_URL = config.public.API_URL
-    return new EventSource(`${API_URL}/personality-quiz-sse`, {
+    return new EventSource(apiUrl("/personality-quiz-sse"), {
       withCredentials: true
     })
   },

@@ -14,6 +14,7 @@ SERVICE_TIMESTAMP_HEADER = "x-service-timestamp"
 SERVICE_SIGNATURE_HEADER = "x-service-signature"
 TRACE_ID_HEADER = "x-trace-id"
 IDEMPOTENCY_KEY_HEADER = "x-idempotency-key"
+IDEMPOTENCY_KEY_GLOBAL_HEADER = "Idempotency-Key"
 ACTING_USER_HEADER = "x-acting-user-id"
 
 READ_METHODS = {"GET", "HEAD"}
@@ -54,7 +55,9 @@ def signed_headers(
         TRACE_ID_HEADER: trace_id or str(uuid.uuid4()),
     }
     if method.upper() not in READ_METHODS:
-        headers[IDEMPOTENCY_KEY_HEADER] = idempotency_key or str(uuid.uuid4())
+        key = idempotency_key or str(uuid.uuid4())
+        headers[IDEMPOTENCY_KEY_HEADER] = key
+        headers[IDEMPOTENCY_KEY_GLOBAL_HEADER] = key
     if acting_user_id:
         headers[ACTING_USER_HEADER] = acting_user_id
     return headers

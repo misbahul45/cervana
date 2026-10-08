@@ -5,7 +5,7 @@ import { Role } from '@prisma/client';
 import { PrismaService } from '@/common/config/prisma/prisma.service';
 import { SnapshotService } from '../snapshots/snapshot.service';
 
-@Controller('v1/analytics/creator')
+@Controller('analytics/creator')
 @UseGuards(JwtAuthGuard)
 export class CreatorAnalyticsController {
   constructor(

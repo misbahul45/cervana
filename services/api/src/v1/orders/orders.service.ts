@@ -32,6 +32,9 @@ const itemSelect = {
   articleId: true,
   classId: true,
   topicId: true,
+  article: { select: { title: true } },
+  classProduct: { select: { title: true } },
+  topic: { select: { title: true } },
 } satisfies Prisma.OrderItemSelect;
 
 @Injectable()

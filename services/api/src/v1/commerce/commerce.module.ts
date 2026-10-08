@@ -10,7 +10,6 @@ import { CreatorEarningsService } from './creator-earnings.service';
 import { CommerceFulfillmentService } from './fulfillment/commerce-fulfillment.service';
 import { CreditPackageModule } from './credit-packages/credit-package.module';
 import { ReservationCommitModule } from './reservations/reservation-commit.module';
-import { WithdrawalsModule } from './withdrawals/withdrawals.module';
 import { StudioEarningsModule } from './studio-earnings/studio-earnings.module';
 import { AnalyticsModule } from '@/v1/analytics/analytics.module';
 
@@ -23,11 +22,10 @@ import { AnalyticsModule } from '@/v1/analytics/analytics.module';
     ClassesModule,
     CreditPackageModule,
     ReservationCommitModule,
-    WithdrawalsModule,
     StudioEarningsModule,
     AnalyticsModule,
   ],
   providers: [CreatorEarningsService, CommerceLedgerService, CommerceFulfillmentService, CommerceRefundService],
-  exports: [CreatorEarningsService, CommerceLedgerService, CreditPackageModule, ReservationCommitModule, WithdrawalsModule, StudioEarningsModule],
+  exports: [CreatorEarningsService, CommerceLedgerService, CreditPackageModule, ReservationCommitModule, StudioEarningsModule],
 })
 export class CommerceModule {}

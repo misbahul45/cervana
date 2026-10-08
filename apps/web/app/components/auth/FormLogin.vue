@@ -109,10 +109,8 @@ import { LoginSchema, type LoginSchemaType } from '~/schemas'
 import { useApi } from '~/composable/useApi'
 import { authService } from '~/services/auth'
 import { type CheckResponse } from '~/interfaces/auth'
-import { getApiUrl } from '~/lib/api'
-import { useAuth } from '~/stores/auth'
+import { apiUrl } from '~/lib/api'
 
-const authStore=useAuth()
 const fields = [
   { name: 'email' as const, label: 'Email', placeholder: 'Masukkan email kamu', type: 'email' },
   { name: 'password' as const, label: 'Kata Sandi', placeholder: 'Masukkan kata sandi kamu', type: 'password' },
@@ -156,7 +154,6 @@ async function onSubmit(event: FormSubmitEvent<LoginSchemaType>) {
 watch(() => respon.value, async newVal => {
   if (newVal?.success && newVal.data) {
     const userState = useState ('user')
-    authStore.setTokens(newVal.data.access_token!,newVal.data.refresh_token!)
     await callCheck()
     userState.value = (responCheck.value?.data as CheckResponse).user || null
     router.push('/learn/topics')
@@ -173,7 +170,6 @@ watch(() => respon.value, async newVal => {
 })
 
 async function loginDenganGoogle() {
-  const API_URL = getApiUrl();
-  window.location.href = `${API_URL}/auth/google`;
+  window.location.href = apiUrl('/auth/google');
 }
 </script>

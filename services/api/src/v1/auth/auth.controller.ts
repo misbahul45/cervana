@@ -37,6 +37,7 @@ import {
   VerificationDtoType,
 } from './auth.dto';
 import { TokenPair } from '@/common/interfaces/auth.interface';
+import { SessionClaims } from './session-claims';
 import { GetUser, Public } from './auth.decorator';
 import { GoogleOAuthGuard } from './guards/google.guard';
 import { ApiAuthDocs, ApiProtectedDocs } from '@/common/lib/docs';
@@ -318,8 +319,8 @@ export class AuthController {
 
     return { message: 'Tokens refreshed successfully', data:{
         access_token:tokens.accessToken,
-        refresh_token:tokens.accessToken
-      } 
+        refresh_token:tokens.refreshToken
+      }
     };
   }
 
@@ -363,7 +364,6 @@ export class AuthController {
   async logout(
     @Res({ passthrough: true }) res: Response,
   ): Promise<{ message: string }> {
-    console.log("logoutingg ....")
     this.clearTokenCookies(res);
     return { message: 'Logged out successfully' };
   }
@@ -397,14 +397,15 @@ export class AuthController {
     @GetUser() user: User,
   ): Promise<{
     data: {
-      authenticated: boolean; user: Omit<User, 'password'>
+      authenticated: boolean; user: Omit<User, 'password'> & SessionClaims
     }
   }> {
     const { password, ...res }=user
+    const claims = await this.authService.getSessionClaims(user.id, user.role);
     return {
       data: {
         authenticated: true,
-        user:res,
+        user: { ...res, ...claims },
       }
     };
   }

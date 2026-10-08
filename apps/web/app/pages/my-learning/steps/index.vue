@@ -3,14 +3,12 @@ import { ref, watch } from 'vue'
 import type { User } from '~/interfaces/auth'
 import { personalityQuizService } from '~/services/learning/personalityQuiz'
 import { lessonProgressService } from '~/services/learning/lessonsProgress'
-import { useAuth } from '~/stores/auth'
 import { useApi } from '~/composable/useApi'
 import { useLearning } from '~/stores/learning'
 import { userStepService } from '~/services/learning/userStep'
 
 const route = useRoute()
 const user = useState<User | null>('user')
-const auth = useAuth()
 const learning = useLearning()
 const { call } = useApi(lessonProgressService.update)
 const isgenerating = ref(true)
@@ -62,10 +60,6 @@ async function startGenerate() {
       topicId: learning.topicId,
       learningStyleId: learning.learningStyleId,
       userId: user.value?.id as string
-    },
-    {
-      access_token: auth.access_token,
-      refresh_token: auth.refresh_token
     }
   )
 
@@ -119,10 +113,6 @@ const { data: resQuiz } = await useAsyncData(
         limit: 1,
         userId: user.value?.id,
         lessonId: route.query.lessonId as string
-      },
-      {
-        access_token: auth.access_token,
-        refresh_token: auth.refresh_token
       }
     )
 )

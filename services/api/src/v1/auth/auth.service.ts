@@ -18,6 +18,7 @@ import {
   VerifyOtpResponse,
 } from '@/common/interfaces/auth.interface';
 import { SessionRepo } from './sessions.repo';
+import { SessionClaims, deriveSessionClaims } from './session-claims';
 import { UsersRepo } from '../users/users.repo';
 import { VerificationTokenRepo } from './verificationToken.repo';
 import { AuthProvider, Role, User, VerificationType } from '@prisma/client';
@@ -398,6 +399,11 @@ export class AuthService {
   }
 
   // ==================== Helper ====================
+  async getSessionClaims(userId: string, role: Role): Promise<SessionClaims> {
+    const memberships = await this.userService.findActiveMembershipRoles(userId);
+    return deriveSessionClaims(role, memberships);
+  }
+
   transformUserResponse(user: User): AuthUser {
     const image = user.image as unknown as { url: string; fileId?: string } | string | null;
 

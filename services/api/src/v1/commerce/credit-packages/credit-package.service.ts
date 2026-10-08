@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '@/common/config/prisma/prisma.service';
 
 const RESERVATION_TTL_MS = 30 * 60 * 1000;
@@ -22,50 +22,64 @@ export class CreditPackageService {
   }) {
     if (!input.idempotencyKey) throw new BadRequestException('idempotency_key_required');
 
-    const existing = await this.prisma.reservation.findUnique({ where: { idempotencyKey: input.idempotencyKey } });
-    if (existing) {
-      return {
-        orderId: null,
-        reservationId: existing.id,
-        expiresAt: existing.expiresAt,
-        deduplicated: true,
-      };
-    }
+    const replay = await this.replayFor(input.userId, input.idempotencyKey);
+    if (replay) return replay;
 
     const pkg = await this.prisma.creditPackage.findUnique({ where: { slug: input.slug } });
     if (!pkg || !pkg.isActive) throw new NotFoundException('package_not_found');
 
-    const order = await this.prisma.order.create({
-      data: {
-        userId: input.userId,
-        total: pkg.priceAmount,
-        subtotal: pkg.priceAmount,
-        currency: pkg.priceCurrency,
-        creditPackageId: pkg.id,
-        status: 'PENDING' as any,
-      } as any,
-    });
+    try {
+      return await this.prisma.$transaction(async (tx) => {
+        const order = await tx.order.create({
+          data: {
+            userId: input.userId,
+            total: pkg.priceAmount,
+            subtotal: pkg.priceAmount,
+            currency: pkg.priceCurrency,
+            creditPackageId: pkg.id,
+            status: 'PENDING' as any,
+          } as any,
+        });
 
-    const expiresAt = new Date(Date.now() + RESERVATION_TTL_MS);
-    const reservation = await this.prisma.reservation.create({
-      data: {
-        idempotencyKey: input.idempotencyKey,
-        userId: input.userId,
-        walletId: input.walletId,
-        amount: pkg.creditAmount,
-        currency: pkg.priceCurrency,
-        purpose: 'PURCHASE_CREDITS',
-        referenceId: order.id,
-        status: 'PENDING',
-        expiresAt,
-      },
-    });
+        const reservation = await tx.reservation.create({
+          data: {
+            idempotencyKey: input.idempotencyKey,
+            userId: input.userId,
+            walletId: input.walletId,
+            amount: pkg.creditAmount,
+            currency: pkg.priceCurrency,
+            purpose: 'PURCHASE_CREDITS',
+            referenceId: order.id,
+            status: 'PENDING',
+            expiresAt: new Date(Date.now() + RESERVATION_TTL_MS),
+          },
+        });
 
+        return {
+          orderId: order.id,
+          reservationId: reservation.id,
+          expiresAt: reservation.expiresAt,
+          deduplicated: false,
+        };
+      });
+    } catch (error) {
+      if ((error as { code?: string })?.code === 'P2002') {
+        const raced = await this.replayFor(input.userId, input.idempotencyKey);
+        if (raced) return raced;
+      }
+      throw error;
+    }
+  }
+
+  private async replayFor(userId: string, idempotencyKey: string) {
+    const existing = await this.prisma.reservation.findUnique({ where: { idempotencyKey } });
+    if (!existing) return null;
+    if (existing.userId !== userId) throw new ConflictException('idempotency_key_conflict');
     return {
-      orderId: order.id,
-      reservationId: reservation.id,
-      expiresAt,
-      deduplicated: false,
+      orderId: existing.referenceId,
+      reservationId: existing.id,
+      expiresAt: existing.expiresAt,
+      deduplicated: true,
     };
   }
 }

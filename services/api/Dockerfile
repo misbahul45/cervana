@@ -36,6 +36,7 @@ RUN apk add --no-cache wget openssl dumb-init \
 COPY --from=builder --chown=reducera:reducera /app/node_modules ./node_modules
 COPY --from=builder --chown=reducera:reducera /app/dist ./dist
 COPY --from=builder --chown=reducera:reducera /app/prisma ./prisma
+COPY --from=builder --chown=reducera:reducera /app/scripts ./scripts
 COPY --from=builder --chown=reducera:reducera /app/package.json ./package.json
 COPY --from=builder --chown=reducera:reducera /app/src ./src
 

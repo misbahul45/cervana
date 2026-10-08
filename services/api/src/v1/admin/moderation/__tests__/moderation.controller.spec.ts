@@ -47,13 +47,13 @@ describe('ModerationController (Phase 4)', () => {
   });
 
   it('GET /pending returns queued items', async () => {
-    const res = await request(app.getHttpServer()).get('/v1/admin/moderation/pending');
+    const res = await request(app.getHttpServer()).get('/admin/moderation/pending');
     expect(res.status).toBe(200);
     expect(res.body.articles[0].id).toBe('a1');
   });
 
   it('POST /articles/:id/approve moves status to PUBLISHED', async () => {
-    const res = await request(app.getHttpServer()).post('/v1/admin/moderation/articles/a1/approve');
+    const res = await request(app.getHttpServer()).post('/admin/moderation/articles/a1/approve');
     expect(res.status).toBe(201);
     expect(res.body.status).toBe('PUBLISHED');
     expect(res.body.kind).toBe('article');
@@ -61,7 +61,7 @@ describe('ModerationController (Phase 4)', () => {
 
   it('POST /classes/:id/reject moves status to REJECTED', async () => {
     const res = await request(app.getHttpServer())
-      .post('/v1/admin/moderation/classes/c1/reject')
+      .post('/admin/moderation/classes/c1/reject')
       .send({ feedback: 'needs work' });
     expect(res.status).toBe(201);
     expect(res.body.status).toBe('REJECTED');

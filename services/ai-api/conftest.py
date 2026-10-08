@@ -28,3 +28,46 @@ os.environ.setdefault(
 )
 
 collect_ignore = ["utils/tools/__tests__/test_memory.py"]
+
+import pytest
+
+
+class ScriptedLLM:
+    def __init__(self):
+        self.replies = {"flash": [], "thinking": []}
+        self.calls = []
+
+    def reply(self, mode, *items):
+        self.replies[mode].extend(items)
+        return self
+
+    def fail(self, mode, message="scripted failure"):
+        return self.reply(mode, RuntimeError(message))
+
+    def factory(self, mode, route=None):
+        script = self
+
+        class Model:
+            def invoke(self, messages, **kwargs):
+                from langchain_core.messages import AIMessage
+
+                script.calls.append((mode, route, messages))
+                queue = script.replies[mode]
+                if not queue:
+                    raise RuntimeError(f"no scripted {mode} reply left")
+                item = queue.pop(0)
+                if isinstance(item, Exception):
+                    raise item
+                return item if not isinstance(item, str) else AIMessage(content=item)
+
+        return Model()
+
+
+@pytest.fixture
+def scripted_llm():
+    from config.model_router import ModelRouter, RoutingPolicy, configure_router
+
+    script = ScriptedLLM()
+    configure_router(ModelRouter(RoutingPolicy(version="routing-test"), model_factory=script.factory))
+    yield script
+    configure_router(None)

@@ -3,13 +3,22 @@ import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../common/config/prisma/prisma.service';
 import { Query } from '@/common/interfaces';
 import { CreateUserDto, CreateUserDtoType, UpdateUserDto, UpdateUserDtoType } from './users.dto';
-import { StreakActivity, User } from '@prisma/client';
+import { MembershipStatus, StreakActivity, User } from '@prisma/client';
 
 @Injectable()
 export class UsersRepo {
     constructor(
         private readonly prisma:PrismaService
     ){}
+
+    async findActiveMembershipRoles(userId: string) {
+        return errorHandler(async () =>
+            this.prisma.tenantMembership.findMany({
+                where: { userId, status: MembershipStatus.ACTIVE },
+                select: { role: true },
+            }),
+        );
+    }
 
     async findOne<K extends keyof User>(
         key: K,

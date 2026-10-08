@@ -4,9 +4,9 @@ from typing import List
 
 import numpy as np
 import requests
-from langchain_openai import ChatOpenAI
 from llama_index.core.base.embeddings.base import BaseEmbedding
 
+from config import llm_registry
 from config.envs import ENVS
 
 logger = logging.getLogger("providers")
@@ -15,8 +15,8 @@ RETRY_STATUSES = frozenset({429, 500, 502, 503, 504})
 MAX_ATTEMPTS = 3
 BACKOFF_SECONDS = 2.0
 REQUEST_TIMEOUT_SECONDS = 60
-LLM_TIMEOUT_SECONDS = 60
-LLM_MAX_RETRIES = 2
+LLM_TIMEOUT_SECONDS = llm_registry.LLM_TIMEOUT_SECONDS
+LLM_MAX_RETRIES = llm_registry.LLM_MAX_RETRIES
 EMBED_BATCH_SIZE = 32
 
 
@@ -114,25 +114,5 @@ def build_embedding_model() -> HuggingFaceEmbedding:
     )
 
 
-def build_chat_model(mode: str = "flash") -> ChatOpenAI:
-    if not ENVS["OPENAI_API_KEY"]:
-        logger.warning("OPENAI_API_KEY is not set, LLM calls will fail")
-
-    if mode == "thinking":
-        return ChatOpenAI(
-            api_key=ENVS["OPENAI_API_KEY"],
-            base_url=ENVS["OPENAI_BASE_URL"],
-            model=ENVS["OPENAI_MODEL_THINKING"],
-            max_tokens=ENVS["OPENAI_THINKING_MAX_TOKENS"],
-        )
-
-    options = {}
-    if ENVS["OPENAI_FLASH_TEMPERATURE"] is not None:
-        options["temperature"] = ENVS["OPENAI_FLASH_TEMPERATURE"]
-    return ChatOpenAI(
-        api_key=ENVS["OPENAI_API_KEY"],
-        base_url=ENVS["OPENAI_BASE_URL"],
-        model=ENVS["OPENAI_MODEL_FLASH"],
-        max_tokens=ENVS["OPENAI_MAX_TOKENS"],
-        **options,
-    )
+def build_chat_model(mode: str = "flash", route: str | None = None):
+    return llm_registry.build_chat_model(mode, route)

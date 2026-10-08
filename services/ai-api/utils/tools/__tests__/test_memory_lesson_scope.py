@@ -70,4 +70,4 @@ class TestMemoryLessonScope:
             )
 
         warnings = [r for r in caplog.records if r.levelname == "WARNING"]
-        assert any("Cross-lesson memory fallback" in r.getMessage() for r in warnings)
+        assert any("Unscoped memory fallback" in r.getMessage() for r in warnings)

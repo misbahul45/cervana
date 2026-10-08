@@ -1,57 +1,81 @@
+<script setup lang="ts">
+const props = withDefaults(
+  defineProps<{
+    size?: 'sm' | 'md' | 'lg';
+    to?: string;
+    tagline?: boolean;
+    suffix?: string;
+    label?: string;
+  }>(),
+  { size: 'md', to: '/', tagline: false, suffix: '', label: 'ReduCera' },
+);
+
+const gradientId = `brand-pearl-${useId()}`;
+
+const markSize = computed(() => ({ sm: 'size-7', md: 'size-9', lg: 'size-12' })[props.size]);
+const wordSize = computed(() => ({ sm: 'text-base', md: 'text-xl', lg: 'text-2xl' })[props.size]);
+</script>
+
 <template>
-  <NuxtLink to="/" :class="containerClass" aria-label="ReduCera – Ekosistem Belajar Akuntansi">
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      :class="markClass"
-      viewBox="0 0 32 32"
-      role="img"
-      aria-hidden="true"
-    >
+  <NuxtLink :to="to" class="rc-brand-logo" :aria-label="label">
+    <svg :class="markSize" viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false">
       <defs>
-        <radialGradient id="brand-pearl" cx="0.4" cy="0.4" r="0.6">
-          <stop offset="0" stop-color="var(--rc-surface)" />
-          <stop offset="0.6" stop-color="var(--rc-primary)" stop-opacity="0.8" />
-          <stop offset="1" stop-color="var(--rc-secondary)" />
+        <radialGradient :id="gradientId" cx="0.38" cy="0.32" r="0.75">
+          <stop offset="0" :style="{ stopColor: 'var(--rc-surface)' }" />
+          <stop offset="0.55" :style="{ stopColor: 'var(--rc-primary)' }" />
+          <stop offset="1" :style="{ stopColor: 'var(--rc-secondary)' }" />
         </radialGradient>
       </defs>
-      <circle cx="16" cy="16" r="15" fill="url(#brand-pearl)" stroke="currentColor" stroke-width="1" />
-      <circle cx="11" cy="11" r="4" fill="var(--rc-fg)" fill-opacity="0.3" />
+      <circle cx="20" cy="15" r="11" :fill="`url(#${gradientId})`" />
+      <ellipse cx="16.5" cy="11.5" rx="3.2" ry="2" :style="{ fill: 'var(--rc-surface)', opacity: 0.75 }" />
+      <path d="M3 28 Q11.5 22 20 28 T37 28" fill="none" :style="{ stroke: 'var(--rc-primary)' }" stroke-width="3" stroke-linecap="round" />
+      <path d="M3 35 Q11.5 29 20 35 T37 35" fill="none" :style="{ stroke: 'var(--rc-secondary)' }" stroke-width="3" stroke-linecap="round" />
     </svg>
-    <div :class="textClass">
-      <p class="font-bold leading-none">ReduCera</p>
-      <p :class="taglineClass">Ekosistem Belajar Akuntansi</p>
-    </div>
+    <span class="rc-brand-logo__text">
+      <span :class="['rc-brand-logo__word', wordSize]">ReduCera<span v-if="suffix" class="rc-brand-logo__suffix">{{ suffix }}</span></span>
+      <span v-if="tagline" class="rc-brand-logo__tagline">Ekosistem Belajar Akuntansi</span>
+    </span>
   </NuxtLink>
 </template>
 
-<script setup lang="ts">
-import { NuxtLink } from '#components';
+<style scoped>
+.rc-brand-logo {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.625rem;
+  color: var(--rc-fg);
+  text-decoration: none;
+}
 
-const props = withDefaults(defineProps<{ size?: 'sm' | 'md' | 'lg' }>(), {
-  size: 'md',
-});
+.rc-brand-logo__text {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.05;
+}
 
-const containerClass = computed(() => ({
-  sm: 'flex items-center gap-2',
-  md: 'flex items-center gap-3',
-  lg: 'flex items-center gap-4',
-}[props.size]));
+.rc-brand-logo__word {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.375rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
 
-const markClass = computed(() => ({
-  sm: 'w-6 h-6',
-  md: 'w-8 h-8',
-  lg: 'w-12 h-12',
-}[props.size]));
+.rc-brand-logo__suffix {
+  padding: 0.0625rem 0.5rem;
+  border-radius: 999px;
+  background-color: var(--rc-foam);
+  color: var(--rc-primary);
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
 
-const textClass = computed(() => ({
-  sm: 'text-sm',
-  md: 'text-base',
-  lg: 'text-lg',
-}[props.size]));
-
-const taglineClass = computed(() => ({
-  sm: 'text-[10px] font-medium opacity-70',
-  md: 'text-xs font-medium opacity-70',
-  lg: 'text-sm font-medium opacity-70',
-}[props.size]));
-</script>
+.rc-brand-logo__tagline {
+  margin-top: 0.125rem;
+  color: var(--rc-muted);
+  font-size: 0.6875rem;
+  font-weight: 500;
+}
+</style>

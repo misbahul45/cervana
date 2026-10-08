@@ -4,7 +4,7 @@ import { GetUser, Roles } from '@/v1/auth/auth.decorator';
 import { Role } from '@prisma/client';
 import { SimulatorService } from './simulator.service';
 
-@Controller('v1/simulator')
+@Controller('simulator')
 @UseGuards(JwtAuthGuard)
 export class SimulatorController {
   constructor(private readonly simulator: SimulatorService) {}

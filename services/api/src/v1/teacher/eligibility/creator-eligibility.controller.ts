@@ -4,7 +4,7 @@ import { GetUser, Roles } from '@/v1/auth/auth.decorator';
 import { Role } from '@prisma/client';
 import { CreatorEligibilityService } from './creator-eligibility.service';
 
-@Controller('v1/teacher/eligibility')
+@Controller('teacher/eligibility')
 @UseGuards(JwtAuthGuard)
 export class CreatorEligibilityController {
   constructor(private readonly eligibility: CreatorEligibilityService) {}

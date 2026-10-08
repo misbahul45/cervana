@@ -1,54 +1,41 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
-import StatCard from '~/components/charts/StatCard.vue';
-import Form from '~/components/ui/Form.vue';
-import { personalizationApi } from '~/lib/api';
-
-const mastery = ref<Array<{ topicId: string; score: number }>>([]);
-const loading = ref(true);
-
-const form = ref({ name: '', email: '', bio: '' });
-
-onMounted(async () => {
-  try {
-    const raw = localStorage.getItem('profile-cache');
-    if (raw) Object.assign(form.value, JSON.parse(raw));
-    mastery.value = (await personalizationApi.listMastery()) as any;
-  } catch {
-    mastery.value = [];
-  } finally {
-    loading.value = false;
-  }
+definePageMeta({
+  title: 'Profil Learner — ReduCera',
+  protection: { kind: 'authenticated' },
+  layout: 'learner',
 });
-
-function save() {
-  localStorage.setItem('profile-cache', JSON.stringify(form.value));
-  alert('Profil tersimpan');
-}
 </script>
 
 <template>
-  <main class="max-w-3xl mx-auto p-6 space-y-6">
-    <h1 class="text-3xl font-bold">Profil & Pengaturan</h1>
-
-    <div v-if="loading" class="text-center py-8">Memuat...</div>
-
-    <template v-else>
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
-        <StatCard title="Topik Dipelajari" :value="mastery.length" />
-        <StatCard title="Rata-rata Penguasaan" :value="mastery.length ? Math.round(mastery.reduce((s, m) => s + m.score, 0) / mastery.length * 100) : 0" suffix="%" />
-        <StatCard title="Peringkat Anda" :value="Math.max(1, Math.ceil(mastery.length / 5))" />
-      </div>
-
-      <Form
-        :fields="[
-          { name: 'name', label: 'Nama Lengkap', type: 'text' },
-          { name: 'email', label: 'Email', type: 'email' },
-          { name: 'bio', label: 'Bio', type: 'text' },
-        ]"
-        @submit="(d) => Object.assign(form, d) && save()"
-        submit-label="Simpan"
-      />
-    </template>
+  <main id="main" aria-labelledby="profile-h">
+    <h1 id="profile-h">Profil</h1>
+    <ul class="rc-profile__menu">
+      <li><NuxtLink to="/learn/profile/dashboard">Dashboard</NuxtLink></li>
+      <li><NuxtLink to="/learn/profile/me">Akun</NuxtLink></li>
+      <li><NuxtLink to="/learn/profile/settings">Pengaturan</NuxtLink></li>
+      <li><NuxtLink to="/learn/profile/my-learning">Aktivitas saya</NuxtLink></li>
+      <li><NuxtLink to="/credits">Kredit AI</NuxtLink></li>
+      <li><NuxtLink to="/become-creator">Jadi Kreator</NuxtLink></li>
+    </ul>
   </main>
 </template>
+
+<style scoped>
+.rc-profile__menu {
+  list-style: none;
+  margin: 1rem 0;
+  padding: 0;
+  display: grid;
+  gap: 0.5rem;
+}
+.rc-profile__menu a {
+  display: block;
+  padding: 0.75rem 1rem;
+  border-radius: 0.5rem;
+  border: 1px solid var(--ui-border, rgba(0, 0, 0, 0.08));
+  background: var(--ui-bg, white);
+  color: var(--ui-text);
+  text-decoration: none;
+}
+.rc-profile__menu a:hover { background: var(--ui-bg-muted, #f3f4f6); }
+</style>

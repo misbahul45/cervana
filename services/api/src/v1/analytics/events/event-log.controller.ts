@@ -4,7 +4,7 @@ import { GetUser, Roles } from '@/v1/auth/auth.decorator';
 import { Role } from '@prisma/client';
 import { EventLogService } from './event-log.service';
 
-@Controller('v1/analytics/events')
+@Controller('analytics/events')
 @UseGuards(JwtAuthGuard)
 export class EventLogController {
   constructor(private readonly events: EventLogService) {}

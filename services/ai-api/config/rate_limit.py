@@ -1,12 +1,6 @@
-"""
-RateLimiter — per-IP token-bucket rate limiter for FastAPI.
 
-Backed by Redis if available (multi-instance safe) and by in-memory dict
-as a fallback for single-instance dev runs.
 
-Limits are configurable per-route via the @rate_limit decorator.
-"""
-
+import inspect
 from collections import defaultdict
 from functools import wraps
 from threading import Lock
@@ -87,6 +81,10 @@ def get_default_limiter() -> RateLimiter:
 
 def rate_limit(capacity_per_minute: int = 60, burst: int = 10):
     def decorator(func: Callable):
+        if "request" not in inspect.signature(func).parameters:
+            raise TypeError(
+                f"{func.__qualname__} must declare a 'request: Request' parameter to be rate limited"
+            )
         limiter = RateLimiter(capacity_per_minute=capacity_per_minute, burst=burst)
         @wraps(func)
         async def wrapper(*args, **kwargs):
@@ -114,6 +112,7 @@ def rate_limit(capacity_per_minute: int = 60, burst: int = 10):
                 )
             return await func(*args, **kwargs)
 
+        wrapper.__rate_limited__ = True
         return wrapper
 
     return decorator

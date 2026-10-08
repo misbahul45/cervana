@@ -26,4 +26,17 @@ describe('StudioEarningsService.summarize (deterministic)', () => {
     expect(out.available).toBe(125);
     expect(out.pending).toBe(50);
   });
+
+  it('adds decimal amounts without binary floating point drift', async () => {
+    const { Prisma } = jest.requireActual('@prisma/client');
+    (service as any).prisma.creatorEarning.findMany.mockResolvedValue([
+      { creatorAmount: new Prisma.Decimal('0.10'), currency: 'IDR', releasedAt: new Date() },
+      { creatorAmount: new Prisma.Decimal('0.20'), currency: 'IDR', releasedAt: new Date() },
+      { creatorAmount: new Prisma.Decimal('0.10'), currency: 'IDR', releasedAt: null },
+      { creatorAmount: new Prisma.Decimal('0.20'), currency: 'IDR', releasedAt: null },
+    ]);
+    const out = await service.summarize('u1');
+    expect(out.available).toBe(0.3);
+    expect(out.pending).toBe(0.3);
+  });
 });

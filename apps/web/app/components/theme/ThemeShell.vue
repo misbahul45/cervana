@@ -1,26 +1,29 @@
 <script setup lang="ts">
-import { useResolvedTheme } from '~/composables/useResolvedTheme';
+import { shellBindings } from '~/theme/shell';
+import type { NormalizedTheme, ThemeVariantKey } from '~/theme/types';
 
 const props = defineProps<{
-  step?: { slug: string; title: string; version: number } | null;
-  lesson?: { slug: string; title: string; version: number } | null;
-  subTopic?: { slug: string; title: string; version: number } | null;
-  topic?: { slug: string; title: string; version: number } | null;
-  variant?: 'LEARN' | 'PRACTICE' | 'CHALLENGE' | 'EXAM';
+  step?: NormalizedTheme | null;
+  lesson?: NormalizedTheme | null;
+  subTopic?: NormalizedTheme | null;
+  topic?: NormalizedTheme | null;
+  variant?: ThemeVariantKey;
 }>();
 
-const { resolved, style, dataAttributes } = useResolvedTheme({
-  step: props.step as never,
-  lesson: props.lesson as never,
-  subTopic: props.subTopic as never,
-  topic: props.topic as never,
-  variant: props.variant,
-});
+const colorMode = useColorMode();
+
+const bindings = computed(() =>
+  shellBindings({
+    chain: [props.step, props.lesson, props.subTopic, props.topic],
+    variant: props.variant ?? 'LEARN',
+    scheme: colorMode.value === 'dark' ? 'dark' : 'light',
+    reducedMotion: false,
+  }),
+);
 </script>
 
 <template>
-  <div v-bind="dataAttributes" :style="style">
-    <slot :resolved="resolved" />
+  <div v-bind="bindings.attrs" :style="bindings.style || undefined">
+    <slot />
   </div>
 </template>
-

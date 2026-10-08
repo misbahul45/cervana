@@ -64,8 +64,7 @@ metadata:
 
 ## Code Rules
 
-- No comments in code unless explicitly requested.
-- No comments in Dockerfile, docker-compose, nginx.conf, or configuration files.
+- **No comments in code. Ever.** No comments in code unless explicitly requested. No comments in Dockerfile, docker-compose, nginx.conf, or configuration files. No comments in TypeScript, Python, JavaScript, shell, or YAML. No JSDoc, no docstrings, no inline `//` or `#` annotations. Self-document through structure and naming. Do not leave "I will add a comment later" markers; do not add "explains what this does" comments above simple functions; do not restate the function name in prose. If a piece of logic is non-obvious, prefer a clearer function/variable name over a comment. If a configuration block needs context, restructure the file (split into smaller files, use descriptive env-var names) instead of adding a comment.
 - Configuration files should be self-documenting through structure and naming.
 - Use environment variables for all deployment-specific values.
 - Never commit secrets, tokens, API keys, or passwords to the repository.

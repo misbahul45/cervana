@@ -1,23 +1,70 @@
-from v1.users_steps.service import get_learning_style, get_steps, get_topic
-from langgraph.graph import StateGraph, START, END
-from typing import Optional, List, Any
-from pydantic import BaseModel
-import json
-from v1.users_steps.dto import TopicBase, StepBase, LearningStyleProfileBase, QuizItem, QuizResponse
-from utils.text import text_clean
+from __future__ import annotations
+
+import json as _json
+import logging
+
+from langgraph.graph import END, START, StateGraph
+
+from config.agent_session import AgentSession
 from config.embedding_pipeline import get_embedding_pipeline
-from v1.users_steps.dto import GenerateQuestionPipeline
+from errors.types import CrossServiceError
+from utils.text import text_clean
+from v1.users_steps.dto import (
+    GenerateQuestionPipeline,
+    LearningStyleProfileBase,
+    QuizResponse,
+    StepBase,
+    TopicBase,
+)
+from v1.users_steps.service import get_learning_style, get_steps, get_topic
 
-def pararel_fetch(state: GenerateQuestionPipeline):
-    topic = get_topic(state.topicId, state.token)
-    steps = get_steps(state.lessonId, state.token)
-    learning_style = get_learning_style(state.learningStyleId, state.token)
-    return {"topic": topic, "steps": steps, "learningStyle": learning_style}
 
-def process_results(state: GenerateQuestionPipeline):
-    topic_text = f"topic title: {state.topic.title}\ntopic description: {state.topic.description or ''}" if state.topic else ""
-    step_text = " ".join([f"step: {s.title}. description: {s.description or ''}" for s in state.steps]) if state.steps else ""
-    ls_text = f"learning style visual:{state.learningStyle.visual}, auditory:{state.learningStyle.auditory}, reading:{state.learningStyle.reading}, kinesthetic:{state.learningStyle.kinesthetic}, dominant:{state.learningStyle.dominantStyle}" if state.learningStyle else ""
+logger = logging.getLogger(__name__)
+
+
+def _session(state: GenerateQuestionPipeline) -> AgentSession:
+    return AgentSession(
+        session_id=state.session_id,
+        acting_user_id=state.acting_user_id,
+        tenant_id=state.tenant_id,
+        trace_id=state.trace_id,
+        idempotency_key=state.idempotency_key,
+        issued_at_ms=0,
+    )
+
+
+def pararel_fetch(state: GenerateQuestionPipeline) -> dict:
+    session = _session(state)
+    topic = get_topic(state.topic_id, session)
+    steps = get_steps(state.lesson_id, session)
+    learning_style = get_learning_style(state.learning_style_id, session)
+    return {"topic": topic, "steps": steps, "learning_style": learning_style}
+
+
+def process_results(state: GenerateQuestionPipeline) -> dict:
+    topic_text = (
+        f"topic title: {state.topic.title}\ntopic description: {state.topic.description or ''}"
+        if state.topic
+        else ""
+    )
+    step_text = " ".join(
+        [
+            f"step: {s.title}. description: {s.description or ''}"
+            for s in state.steps
+        ]
+    ) if state.steps else ""
+    ls_text = (
+        "learning style visual:{visual}, auditory:{auditory}, reading:{reading}, "
+        "kinesthetic:{kinesthetic}, dominant:{dominant}".format(
+            visual=state.learning_style.visual,
+            auditory=state.learning_style.auditory,
+            reading=state.learning_style.reading,
+            kinesthetic=state.learning_style.kinesthetic,
+            dominant=state.learning_style.dominant_style,
+        )
+        if state.learning_style
+        else ""
+    )
     raw = f"=== TOPIC ===\n{topic_text}\n=== STEPS ===\n{step_text}\n=== LEARNING PROFILE ===\n{ls_text}"
     cleaned = text_clean(raw)
     return {"context": cleaned}
@@ -26,37 +73,29 @@ def process_results(state: GenerateQuestionPipeline):
 def analyze_text(state: GenerateQuestionPipeline) -> QuizResponse:
     pipeline = get_embedding_pipeline()
 
-    # --- Generate Summary ---
     summary_prompt = (
         "Ringkas materi berikut dalam bahasa Indonesia dengan singkat, jelas, "
         "tanpa opini tambahan, dan hanya fokus pada inti:\n\n"
         f"{state.context}"
     )
-    summary_raw = pipeline.llm.invoke([
-        {"role": "user", "content": summary_prompt}
-    ])
+    summary_raw = pipeline.llm.invoke([{"role": "user", "content": summary_prompt}])
     summary = summary_raw.content.strip()
 
-    # --- Save to vector DB ---
-    source_id = f"{state.topicId}-{state.lessonId}-{getattr(state, 'userId', 'unknown')}"
+    source_id = f"{state.topic_id}-{state.lesson_id}-{state.acting_user_id}"
     pipeline.upsert_document(
         content=summary,
         source_id=source_id,
         metadata={
-            "topicId": state.topicId,
-            "lessonId": state.lessonId,
-            "userId": getattr(state, "userId", "unknown"),
+            "topicId": state.topic_id,
+            "lessonId": state.lesson_id,
+            "userId": state.acting_user_id,
         },
     )
 
-    # --- Retrieve RAG context ---
     retrieval_results = pipeline.retrieve(query=summary, top_k=10)
     rag_context = "\n".join([r["text"] for r in retrieval_results]) or ""
-    ls = getattr(state.learningStyle, "dominantStyle", "reading")
+    ls = getattr(state.learning_style, "dominant_style", "reading")
 
-    # =====================================================================
-    # ====================== QUIZ PROMPT (SAFE VERSION) ====================
-    # =====================================================================
     quiz_prompt = f"""
 <system_role>
 Anda adalah **Professional Certification Exam Developer**.
@@ -74,17 +113,17 @@ Tugas Anda: Membuat 10 Soal Simulasi Dunia Kerja (Workplace Simulation) untuk pe
     -   Gunakan format visual **HANYA JIKA RELEVAN** dengan tugasnya.
     -   Jika materi tentang *Data/Teknis* -> Gunakan **Tabel/Log/Code**.
     -   Jika materi tentang *Manajemen/Komunikasi* -> Gunakan **Email Thread/Dialog Script/Kutipan Regulasi**.
-    -   Intinya: Tampilkan informasi seperti bagaimana user akan melihatnya di dunia nyata.
+    -   Intinya: Tampilkan informasi seperti mana user akan melihatnya di dunia nyata.
 5. **Learning Style Adaptation:** Sesuaikan gaya soal berdasarkan profil belajar:
     - Visual: Gunakan deskripsi yang menggambarkan elemen visual.
     - Auditory: Gunakan dialog atau kutipan lisan.
     - Reading/Writing: Gunakan teks informatif, definisi, dan bullet points.
     - Kinesthetic: Gunakan contoh nyata dan konteks praktis.
-    -dominantStyle adalah salah satu dari: visual, auditory, reading_writing, kinesthetic.
+    -dominant_style adalah salah satu dari: visual, auditory, reading_writing, kinesthetic.
 6.  **Bahasa Indonesia Profesional:** Gunakan bahasa Indonesia yang formal, profesional, dan sesuai konteks bisnis/sertifikasi.
 7. **Konteks Lengkap dalam Soal:** Setiap `question` harus self-contained, memuat semua konteks cerita (judul situasi, deskripsi/data, pertanyaan inti).
 8. **Variasi Tingkat Kesulitan:** Campurkan soal dengan tingkat kesulitan: Easy (2 soal), Medium (4 soal), Hard/HOTS (4 soal).
-9. **Jenis Soal Beragam:** Gunakan variasi jenis soal: Multiple Choice, Input, Matching, Scenario-Based.    
+9. **Jenis Soal Beragam:** Gunakan variasi jenis soal: Multiple Choice, Input, Matching, Scenario-Based.
 10 jangan keluar dari materi dan konteks yang diberikan, benar benar fokus itu.
 
 **STRUKTUR OUTPUT (Pydantic Compliance):**
@@ -121,7 +160,6 @@ Output WAJIB JSON valid dengan skema berikut:
   ],
   "answer": "Mengajukan pengiriman parsial (fitur utama dulu) besok, sisanya lusa"
 }}
-
 /* CONTOH 2: HOTS (Dengan Tabel - Fokus Analisis Data) */
 {{
   "question": "### 📉 Situasi: Audit Keuangan\\nSaat melakukan rekonsiliasi (Materi Step 5), Anda menemukan anomali berikut:\\n\\n| Transaksi | Buku Besar | Rekening Koran |\\n|---|---|---|\\n| #TX99 | Rp 5.000.000 | Rp 500.000 |\\n\\nNilai selisih material. Apa langkah audit pertama yang harus dilakukan sebelum membuat jurnal koreksi?",
@@ -140,19 +178,17 @@ Output JSON only.
 </trigger>
 """
 
-    # =====================================================================
-    # ===================== SEND TO LLM STRUCTURED OUTPUT =================
-    # =====================================================================
-
     structured_llm = pipeline.llm.with_structured_output(QuizResponse)
 
     try:
         response = structured_llm.invoke([{"role": "user", "content": quiz_prompt}])
         parsed = QuizResponse.model_validate(response)
-    except Exception:
+    except Exception as exc:
+        logger.warning("[QUIZ] structured output failed: %s", exc)
         parsed = QuizResponse(quiz=[])
 
     return parsed
+
 
 user_steps_pipeline = StateGraph(GenerateQuestionPipeline)
 user_steps_pipeline.add_node("parallel_fetch", pararel_fetch)
@@ -163,3 +199,12 @@ user_steps_pipeline.add_edge("parallel_fetch", "process_results")
 user_steps_pipeline.add_edge("process_results", "analyze_text")
 user_steps_pipeline.add_edge("analyze_text", END)
 graph = user_steps_pipeline.compile()
+
+
+__all__ = [
+    "pararel_fetch",
+    "process_results",
+    "analyze_text",
+    "user_steps_pipeline",
+    "graph",
+]

@@ -3,7 +3,6 @@ import { ref, reactive } from 'vue';
 import { useRouter } from 'vue-router';
 import Form from '~/components/ui/Form.vue';
 import JsonEditor from '~/components/editor/JsonEditor.vue';
-import { creatorApi } from '~/lib/api';
 
 const router = useRouter();
 
@@ -27,26 +26,7 @@ function removeQuestion(i: number) {
 }
 
 async function save() {
-  if (!form.title || form.config.questions.length === 0) {
-    error.value = 'Judul dan minimal 1 soal wajib diisi';
-    return;
-  }
-  submitting.value = true;
-  error.value = '';
-  try {
-    const created = await creatorApi.createQuiz?.({
-      title: form.title,
-      topicId: form.topicId,
-      questions: form.config.questions,
-    });
-    if (created?.id) {
-      await router.push('/studio/quizzes');
-    }
-  } catch (e: any) {
-    error.value = e?.data?.message || 'Gagal menyimpan kuis';
-  } finally {
-    submitting.value = false;
-  }
+  error.value = 'Pembuatan kuis oleh kreator belum tersedia di sistem.';
 }
 
 function fields() {
@@ -61,6 +41,7 @@ function fields() {
 <template>
   <main class="max-w-3xl mx-auto p-6 space-y-6">
     <h1 class="text-3xl font-bold">Kuis Baru</h1>
+    <p role="note" class="text-[var(--rc-fg-muted,#6b7280)]">Fitur pembuatan kuis oleh kreator belum tersedia. Formulir ini belum menyimpan apa pun.</p>
     <p class="text-[var(--rc-fg-muted,#6b7280)]">JSON upload: array of questions. Contoh:
       <code class="bg-[var(--rc-bg-elevated,#f3f4f6)] px-1 rounded">{"[{prompt, options, correct}]"}</code>
     </p>

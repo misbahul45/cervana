@@ -10,7 +10,7 @@ function serializeBigInt(value: unknown) {
   );
 }
 
-@Controller('v1/admin/backup')
+@Controller('admin/backup')
 @UseGuards(JwtAuthGuard)
 export class BackupController {
   constructor(private readonly backups: BackupService) {}

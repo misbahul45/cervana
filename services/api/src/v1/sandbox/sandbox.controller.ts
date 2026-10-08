@@ -25,7 +25,7 @@ interface JournalLineInput {
   amount: number;
 }
 
-@Controller('v1/sandbox')
+@Controller('sandbox')
 @UseGuards(JwtAuthGuard)
 export class SandboxController {
   constructor(
@@ -37,7 +37,7 @@ export class SandboxController {
   @Roles(Role.STUDENT, Role.TEACHER, Role.ADMIN)
   list(@Query() raw: unknown) {
     const { level, topicId } = ListScenariosQuerySchema.parse(raw);
-    return this.scenariosProvider.list({ level, topicId });
+    return this.scenariosProvider.list({ level, topicId }).map(({ expectedLines: _answerKey, ...scenario }) => scenario);
   }
 
   @Get('graph')

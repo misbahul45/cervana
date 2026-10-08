@@ -4,7 +4,7 @@ import { GetUser, Roles } from '@/v1/auth/auth.decorator';
 import { Role } from '@prisma/client';
 import { DecisionTraceService } from './decision-trace.service';
 
-@Controller('v1/agents/decision-trace')
+@Controller('agents/decision-trace')
 @UseGuards(JwtAuthGuard)
 export class DecisionTraceController {
   constructor(private readonly traces: DecisionTraceService) {}

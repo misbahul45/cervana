@@ -4,6 +4,12 @@ import { useRoute } from 'vue-router';
 import ProgressBar from '~/components/charts/ProgressBar.vue';
 import { sandboxApi, personalizationApi } from '~/lib/api';
 
+definePageMeta({
+  title: 'Detail Skenario Sandbox — ReduCera',
+  protection: { kind: 'authenticated' },
+  layout: 'learner',
+});
+
 const route = useRoute();
 const scenarioId = String(route.params.id || '');
 

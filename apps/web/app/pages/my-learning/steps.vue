@@ -1,11 +1,9 @@
 <script  setup lang="ts">
 import type { User } from '~/interfaces/auth';
 import { userTopicService } from '~/services/learning/userTopic';
-import { useAuth } from '~/stores/auth';
 import { useLearning } from '~/stores/learning';
 
   const user=useState<User>('user')
-  const auth=useAuth()
   const learning=useLearning()
 
 
@@ -17,9 +15,6 @@ import { useLearning } from '~/stores/learning';
         limit:1,
         userId:user.value.id,
         topicId:learning.topicId
-      },{
-        access_token:auth.access_token,
-        refresh_token:auth.refresh_token
       })
     }
   )

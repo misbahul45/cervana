@@ -61,11 +61,15 @@ def _semantic_search(
             return filtered
 
         if allow_fallback:
+            unscoped = [
+                m for m in items
+                if not (m.get("metadata", {}).get("lessonId") or m.get("metadata", {}).get("lesson_id"))
+            ]
             logger.warning(
-                f"Cross-lesson memory fallback used for userId={userId} lessonId={lessonId}; "
-                f"returning {min(fallback_limit, len(items))} unrelated items"
+                f"Unscoped memory fallback used for userId={userId} lessonId={lessonId}; "
+                f"returning {min(fallback_limit, len(unscoped))} items"
             )
-            return items[:fallback_limit]
+            return unscoped[:fallback_limit]
 
         logger.info(
             f"No lesson-scoped memory for userId={userId} lessonId={lessonId}; "
@@ -83,6 +87,10 @@ def tool_memory_upsert(userId: str, lessonId: str, text: str):
     Store a memory entry for a specific user + lesson.
     """
     try:
+        from config.prompt_segmentation import looks_like_instruction
+        if looks_like_instruction(text):
+            logger.warning(f"[MEMORY UPSERT] Rejected instruction-like text for user={userId} lesson={lessonId}")
+            return
         memory_manager.upsert(
             user_id=userId,
             text=text,

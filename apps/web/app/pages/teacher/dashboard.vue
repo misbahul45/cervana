@@ -25,6 +25,7 @@ onMounted(async () => {
 
 <template>
   <main class="max-w-5xl mx-auto p-6 space-y-6">
+    <PreviewNotice />
     <h1 class="text-3xl font-bold">Dashboard Kreator</h1>
     <p class="text-[var(--rc-fg-muted,#6b7280)]">Kelola artikel, kelas, dan pendapatan Anda.</p>
 

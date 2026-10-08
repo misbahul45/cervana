@@ -4,7 +4,7 @@ import { Roles } from '@/v1/auth/auth.decorator';
 import { Role } from '@prisma/client';
 import { PrismaService } from '@/common/config/prisma/prisma.service';
 
-@Controller('v1/analytics/admin')
+@Controller('analytics/admin')
 @UseGuards(JwtAuthGuard)
 export class AdminAnalyticsController {
   constructor(private readonly prisma: PrismaService) {}

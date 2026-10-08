@@ -1,6 +1,11 @@
 import tailwindcss from "@tailwindcss/vite";
 import { defineNuxtConfig } from 'nuxt/config'
 
+function stripPrefix(url: string | undefined, prefix: string): string | undefined {
+  if (!url) return url;
+  return url.endsWith(prefix) ? url.slice(0, -prefix.length) : url;
+}
+
 export default defineNuxtConfig({
   ssr: true,
   app: {
@@ -50,6 +55,50 @@ export default defineNuxtConfig({
       { path: '~/components/landingpage', pathPrefix: false },
     ]
   },
+  hooks: {
+    'components:extend': (components) => {
+      const aliased = new Map<string, string>([
+        ['ErrorState', '/components/ui/'],
+        ['EmptyState', '/components/ui/'],
+        ['LoadingSkeleton', '/components/ui/'],
+        ['StatusBadge', '/components/ui/'],
+        ['ConfirmDialog', '/components/ui/'],
+        ['InsufficientCreditsState', '/components/ui/'],
+        ['ForbiddenState', '/components/ui/'],
+        ['RetryAction', '/components/ui/'],
+        ['PreviewNotice', '/components/ui/'],
+        ['TenantSwitcher', '/components/ui/'],
+        ['Glassy', '/components/ui/'],
+        ['Toast', '/components/ui/'],
+        ['ProductCard', '/components/marketplace/'],
+        ['BadgeGrid', '/components/gamification/'],
+        ['LevelBadge', '/components/gamification/'],
+        ['SkillTreeLeaf', '/components/gamification/'],
+        ['CitationList', '/components/ai/'],
+        ['CreditCostConfirm', '/components/ai/'],
+        ['TutorMessage', '/components/ai/'],
+        ['TutorStatus', '/components/ai/'],
+        ['StatementPanel', '/components/simulator/'],
+        ['TopicNode', '/components/skill-tree/'],
+        ['MasteryMeter', '/components/learn/'],
+        ['NextActivityCard', '/components/learn/'],
+        ['StreakIndicator', '/components/learn/'],
+        ['DebitCreditTotal', '/components/sandbox/'],
+        ['JournalEntryGrid', '/components/sandbox/'],
+        ['SkipLink', '/components/layout/'],
+      ]);
+      const taken = new Set(components.map((component) => component.pascalName));
+      for (const component of [...components]) {
+        const path = component.filePath.replaceAll('\\', '/');
+        const base = path.slice(path.lastIndexOf('/') + 1).replace(/\.vue$/, '');
+        const folder = aliased.get(base);
+        if (!folder || !path.includes(folder) || taken.has(base)) continue;
+        taken.add(base);
+        const kebab = base.replace(/([a-z0-9])([A-Z])/g, '$1-$2').toLowerCase();
+        components.push({ ...component, pascalName: base, kebabName: kebab });
+      }
+    },
+  },
   pinia:{
     storesDirs: []
   },
@@ -95,16 +144,12 @@ export default defineNuxtConfig({
     }
   },
   runtimeConfig: {
-    apiInternalUrl: process.env.API_URL_INTERNAL
-      ? `${process.env.API_URL_INTERNAL}/api/v1`
-      : 'http://api:3002/api/v1',
-    aiInternalUrl: process.env.AI_API_INTERNAL_URL
-      ? `${process.env.AI_API_INTERNAL_URL}/ai/v1`
-      : 'http://ai-api:3003/ai/v1',
+    apiInternalUrl: stripPrefix(process.env.API_URL_INTERNAL, '/api/v1') || 'http://api:3002',
+    aiInternalUrl: stripPrefix(process.env.AI_API_INTERNAL_URL, '/ai/v1') || 'http://ai-api:3003',
     public: {
-      API_URL: process.env.NUXT_PUBLIC_API_URL || "http://localhost/api/v1",
-      AI_URL: process.env.NUXT_PUBLIC_AI_URL || "http://localhost/ai/v1",
-      SITE_URL: process.env.NUXT_PUBLIC_SITE_URL || "http://localhost"
+      API_URL: stripPrefix(process.env.NUXT_PUBLIC_API_URL, '/api/v1') || 'http://localhost',
+      AI_URL: stripPrefix(process.env.NUXT_PUBLIC_AI_URL, '/ai/v1') || 'http://localhost',
+      SITE_URL: process.env.NUXT_PUBLIC_SITE_URL || 'http://localhost',
     }
   },
   image: {

@@ -4,7 +4,7 @@ import { Roles } from '@/v1/auth/auth.decorator';
 import { Role } from '@prisma/client';
 import { SnapshotService } from './snapshot.service';
 
-@Controller('v1/analytics/snapshots')
+@Controller('analytics/snapshots')
 @UseGuards(JwtAuthGuard)
 export class SnapshotController {
   constructor(private readonly snapshots: SnapshotService) {}

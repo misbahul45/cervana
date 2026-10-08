@@ -2,7 +2,7 @@ import type { Query, Tokens } from "~/interfaces/api"
 import type { ChatMessageDetailResponse } from "~/interfaces/chats/chat"
 import type { ChatMessagesListResponse } from "~/interfaces/chats/chatMessage"
 import { requestAi } from "~/lib/ai"
-import { request, toQueryString } from "~/lib/api"
+import { apiUrl, request, toQueryString } from "~/lib/api"
 
 export const chatMessageService = {
   async findAll<IncludeRelations extends boolean = false>(
@@ -56,7 +56,7 @@ export const chatMessageService = {
     tokens?: Tokens
   ) {
 
-    const res= request(
+    const userMessage = await request(
       "/chat/chat-messages",
       "POST",
       {
@@ -69,38 +69,51 @@ export const chatMessageService = {
       true,
       tokens
     )
+    if (!userMessage.success) return userMessage
 
-    const res2=await request(
+    const placeholder = await request<{ id: string }>(
       "/chat/chat-messages",
       "POST",
       {
         chatId: data.chatId,
         text: "AI is processing the response...",
-        status: "PENDING" ,
+        status: "PENDING",
         role: "ASSISTANT",
       },
       {},
       true,
       tokens
     )
+    if (!placeholder.success || !placeholder.data) return placeholder
 
-    const AI_URL= useRuntimeConfig().public.AI_URL
-    requestAi(
-      `${AI_URL}/learning/chat`,
+    const messageId = placeholder.data.id
+    const dispatched = await requestAi(
+      "/learning/chat",
       "POST",
       {
         chatId: data.chatId,
         query: data.text || "",
         userStepId: data.userStepId,
         userId: data.userId,
-        messageId: (res2.data as any).id,
+        messageId,
       },
-      {},
-      false,
+      { "Idempotency-Key": crypto.randomUUID() },
+      true,
       tokens
     )
+    if (!dispatched.success) {
+      await request(
+        `/chat/chat-messages/${messageId}`,
+        "PATCH",
+        { status: "FAILED", text: "AI tidak dapat dihubungi. Silakan coba lagi." },
+        {},
+        true,
+        tokens
+      )
+      return dispatched
+    }
 
-    return res
+    return userMessage
   },
 
   async update(
@@ -123,9 +136,7 @@ export const chatMessageService = {
   },
 
   listenChatMessages(tokens?: Tokens) {
-    const config = useRuntimeConfig()
-    const API_URL = config.public.API_URL
-    return new EventSource(`${API_URL}/chat-message-sse`, {
+    return new EventSource(apiUrl("/chat-message-sse"), {
       withCredentials: true
     })
   },

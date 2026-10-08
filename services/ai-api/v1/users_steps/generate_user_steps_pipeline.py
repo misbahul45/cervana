@@ -1,156 +1,177 @@
-import os
-import json
+from __future__ import annotations
+
+import asyncio
 import logging
-from typing import Optional, List, Dict, Any
-from datetime import datetime
+from typing import Any, Dict, Optional
 
 import requests
-from langchain_core.messages import SystemMessage, HumanMessage
-from langgraph.graph import StateGraph, END
-from pydantic import BaseModel, Field
+from langchain_core.messages import HumanMessage, SystemMessage
+from langgraph.graph import END, START, StateGraph
 
-from v1.users_steps.dto import *
-from v1.users_steps.service import *
-from utils.tools.memory import * 
-from utils.tools.web_search import * 
-from utils.tools.memory import *
+from config.agent_session import AgentSession, session_payload_is_safe
 from config.embedding_pipeline import get_embedding_pipeline
+from errors.types import CrossServiceError, MemoryError, RetrievalError
+from utils.tools.memory import tool_memory_read, tool_memory_upsert, tool_semantic_search
+from utils.tools.web_search import tool_web_search
+from v1.users_steps.dto import LPState
+from v1.users_steps.service import (
+    classify_learning_style,
+    get_learning_style,
+    get_personality_quiz,
+    get_step,
+    get_steps,
+    get_topic,
+)
 
-logging.basicConfig(level=logging.INFO)
+
 logger = logging.getLogger(__name__)
+embed_pipeline = get_embedding_pipeline()
 
 
-embed_pipeline=get_embedding_pipeline()
+def _session(state: LPState) -> AgentSession:
+    return AgentSession(
+        session_id=state.session_id,
+        acting_user_id=state.acting_user_id,
+        tenant_id=state.tenant_id,
+        trace_id=state.trace_id,
+        idempotency_key=state.idempotency_key,
+        issued_at_ms=0,
+    )
+
 
 def node_fetch(state: LPState) -> LPState:
-    logger.info(f"[FETCH] Starting data collection for user {state.userId}")
-    
-    state.topic = get_topic(state.topicId, state.token)
+    session = _session(state)
+    logger.info("[FETCH] Starting data collection for user %s", state.user_id)
+
+    state.topic = get_topic(state.topic_id, session)
     if not state.topic:
         state.error = "Failed to fetch topic"
         return state
-    
-    state.learningStyle = get_learning_style(state.learningStyleId, state.token)
-    if not state.learningStyle:
-        logger.warning("[FETCH] Learning style not found")
-    
 
-    state.allLessonSteps = get_steps(state.lessonId, state.token)
-    logger.info(f"[FETCH] Found {len(state.allLessonSteps)} steps in lesson")
-    
-    # Fetch target step if specified
-    if state.targetStepId:
-        state.targetStep = get_step(state.targetStepId, state.token)
-        if state.targetStep:
-            logger.info(f"[FETCH] Target step: {state.targetStep.title}")
-        else:
-            logger.warning(f"[FETCH] Target step {state.targetStepId} not found")
-    
-    # Fetch personality quiz results
-    state.personalityQuizRaw = get_personality_quiz(state.lessonId,state.userId, state.token)
-    if state.personalityQuizResult:
-        logger.info(f"[FETCH] Personality quiz loaded with {len(state.personalityQuizResult.strengths)} strengths")
-    
+    try:
+        state.learning_style = get_learning_style(state.learning_style_id, session)
+    except CrossServiceError as exc:
+        logger.warning("[FETCH] Learning style not found: %s", exc.message)
+
+    state.all_lesson_steps = get_steps(state.lesson_id, session)
+    logger.info("[FETCH] Found %d steps in lesson", len(state.all_lesson_steps))
+
+    if state.target_step_id:
+        try:
+            state.target_step = get_step(state.target_step_id, session)
+        except CrossServiceError as exc:
+            logger.warning("[FETCH] Target step %s not found: %s", state.target_step_id, exc.message)
+
+    try:
+        state.personality_quiz_raw = get_personality_quiz(
+            state.lesson_id, state.user_id, session
+        )
+    except CrossServiceError as exc:
+        logger.warning("[FETCH] personality quiz fetch failed: %s", exc.message)
+
     return state
 
+
 def node_build_context(state: LPState) -> LPState:
-    """Build comprehensive context from fetched data"""
     logger.info("[BUILD CONTEXT] Constructing learning context")
-    
-    parts = []
-    
+
+    parts: list[str] = []
+
     if state.topic:
         parts.append(f"📚 TOPIC: {state.topic.title}")
         parts.append(f"Description: {state.topic.description}")
-        parts.append(f"Duration: {state.topic.topicDuration} days")
-    
-    if state.learningStyle:
-        parts.append(f"\n🎨 LEARNING STYLE: {state.learningStyle.dominantStyle}")
-        parts.append(f"Visual: {state.learningStyle.visual}%")
-        parts.append(f"Auditory: {state.learningStyle.auditory}%")
-        parts.append(f"Kinesthetic: {state.learningStyle.kinesthetic}%")
-        parts.append(f"Reading/Writing: {state.learningStyle.reading}%")
-    
-    if state.personalityQuizResult:
+        parts.append(f"Duration: {state.topic.topic_duration} days")
+
+    if state.learning_style:
+        parts.append("\n🎨 LEARNING STYLE: " + (state.learning_style.dominant_style or "Unknown"))
+        parts.append(f"Visual: {state.learning_style.visual}%")
+        parts.append(f"Auditory: {state.learning_style.auditory}%")
+        parts.append(f"Kinesthetic: {state.learning_style.kinesthetic}%")
+        parts.append(f"Reading/Writing: {state.learning_style.reading}%")
+
+    if state.personality_quiz_result:
         parts.append("\n🧠 PERSONALITY PROFILE:")
-        parts.append(f"Strengths: {', '.join(state.personalityQuizResult.strengths)}")
-        parts.append(f"Weaknesses: {', '.join(state.personalityQuizResult.weaknesses)}")
-        parts.append(f"Learning Preferences: {', '.join(state.personalityQuizResult.learningPreferences)}")
-        parts.append(f"Motivation Factors: {', '.join(state.personalityQuizResult.motivationFactors)}")
-        parts.append(f"Challenges: {', '.join(state.personalityQuizResult.challenges)}")
-    
-    if state.allLessonSteps:
+        parts.append(f"Strengths: {', '.join(state.personality_quiz_result.strengths)}")
+        parts.append(f"Weaknesses: {', '.join(state.personality_quiz_result.weaknesses)}")
+        parts.append(f"Learning Preferences: {', '.join(state.personality_quiz_result.learning_preferences)}")
+        parts.append(f"Motivation Factors: {', '.join(state.personality_quiz_result.motivation_factors)}")
+        parts.append(f"Challenges: {', '.join(state.personality_quiz_result.challenges)}")
+
+    if state.all_lesson_steps:
         parts.append("\n🗺️ LESSON ROADMAP:")
-        for idx, step in enumerate(sorted(state.allLessonSteps, key=lambda x: x.sortOrder), 1):
-            marker = "⭐" if state.targetStep and step.id == state.targetStep.id else "  "
+        for idx, step in enumerate(
+            sorted(state.all_lesson_steps, key=lambda x: x.sort_order), 1
+        ):
+            marker = "⭐" if state.target_step and step.id == state.target_step.id else "  "
             parts.append(f"{marker} {idx}. {step.title}")
-    
-    if state.targetStep:
-        parts.append(f"\n🎯 TARGET STEP (PRIMARY GOAL):")
-        parts.append(f"Title: {state.targetStep.title}")
-        parts.append(f"Description: {state.targetStep.description}")
-        parts.append(f"Order: {state.targetStep.sortOrder}")
-        parts.append(f"\n⚠️ CRITICAL: All generated steps MUST lead to mastering this target step!")
-    
+
+    if state.target_step:
+        parts.append("\n🎯 TARGET STEP (PRIMARY GOAL):")
+        parts.append(f"Title: {state.target_step.title}")
+        parts.append(f"Description: {state.target_step.description}")
+        parts.append(f"Order: {state.target_step.sort_order}")
+        parts.append(
+            "\n⚠️ CRITICAL: All generated steps MUST lead to mastering this target step!"
+        )
+
     state.context = "\n".join(parts)
-    logger.info(f"[BUILD CONTEXT] Context built: {len(state.context)} chars")
-    
+    logger.info("[BUILD CONTEXT] Context built: %d chars", len(state.context))
+
     return state
 
 
 def node_read_memory(state: LPState) -> LPState:
     logger.info("[MEMORY] Loading user history")
 
-    memories = tool_memory_read(state.userId, state.lessonId, limit=10)
+    try:
+        memories = tool_memory_read(state.user_id, state.lesson_id, limit=10)
+    except MemoryError as exc:
+        logger.warning("[MEMORY] read failed: %s", exc.message)
+        memories = []
 
     if not memories:
-        logger.info("[MEMORY] No prior memory found")
         state.memory = ""
         return state
 
-    combined_text = " | ".join([m["text"] for m in memories])
-    state.memory = combined_text
-
+    state.memory = " | ".join([m.get("text", "") for m in memories])
     return state
 
 
 def node_semantic_search(state: LPState) -> LPState:
-    results = tool_semantic_search(
-        userId=state.userId,
-        lessonId=state.lessonId
-    )
-
-    state.semanticResults = "\n".join([
-        f"- {r.get('text', '')}"
-        for r in results
-    ])
-
+    try:
+        results = tool_semantic_search(
+            user_id=state.user_id,
+            lesson_id=state.lesson_id,
+        )
+    except RetrievalError as exc:
+        logger.warning("[SEMANTIC] search failed: %s", exc.message)
+        results = []
+    state.semantic_results = "\n".join([f"- {r.get('text', '')}" for r in results])
     return state
 
+
 def node_external_search(state: LPState) -> LPState:
-    """External web search for additional resources"""
     logger.info("[EXTERNAL SEARCH] Searching web resources")
-    
-    if state.topic and state.targetStep:
-        query = f"how to learn {state.targetStep.title} in {state.topic.title}"
-        state.externalResults = tool_web_search(query)
-    
+
+    if state.topic and state.target_step:
+        query = f"how to learn {state.target_step.title} in {state.topic.title}"
+        state.external_results = tool_web_search(query)
+
     return state
 
 
 def node_personality_material_builder(state: LPState) -> LPState:
     logger.info("[PERSONALITY MATERIAL] LLM-based personality interpretation")
 
-    raw = state.personalityQuizRaw or {}
+    import json as _json
 
-    # Convert to dict if this is a Pydantic object
+    raw = state.personality_quiz_raw or {}
     if hasattr(raw, "model_dump"):
         raw = raw.model_dump()
 
     scores = raw.get("result", {})
     attempts = raw.get("userAttempt", [])
 
-    # Normalize attempt items into a list of answers
     user_answers = []
     for a in attempts:
         if hasattr(a, "userAnswer"):
@@ -159,12 +180,10 @@ def node_personality_material_builder(state: LPState) -> LPState:
             user_answers.append(a.get("userAnswer"))
 
     try:
-        scores_json = json.dumps(scores, indent=2)
-    except:
-        scores_json = json.dumps(json.loads(json.dumps(scores, default=str)), indent=2)
+        scores_json = _json.dumps(scores, indent=2)
+    except Exception:
+        scores_json = _json.dumps(_json.loads(_json.dumps(scores, default=str)), indent=2)
 
-
-    # Siapkan prompt untuk LLM
     prompt = f"""
 You are an AI Personality Interpretation Engine.
 
@@ -180,7 +199,7 @@ RAW SCORE DATA
 ==============
 USER ANSWERS (BEHAVIOR CLUES)
 ==============
-{json.dumps(user_answers, indent=2)}
+{_json.dumps(user_answers, indent=2)}
 
 ==============
 INSTRUCTIONS
@@ -203,54 +222,52 @@ INSTRUCTIONS
 NO commentary, NO markdown.
 """
 
-    system_msg = SystemMessage(
-        content="You are an expert personality engine. Only return VALID JSON."
-    )
+    from v1.users_steps.dto import PersonalityQuizResult
+
+    system_msg = SystemMessage(content="You are an expert personality engine. Only return VALID JSON.")
     user_msg = HumanMessage(content=prompt)
 
     try:
         response = embed_pipeline.llm.invoke([system_msg, user_msg])
         content = response.content.strip()
 
-        # Bersihkan jika LLM menambah ```json
         if content.startswith("```"):
             lines = content.split("\n")
             json_lines = [l for l in lines if not l.strip().startswith("```")]
             content = "\n".join(json_lines).strip()
 
-        data = json.loads(content)
+        data = _json.loads(content)
 
-        # validasi & fallback jika field kosong
         strengths = data.get("strengths") or ["Rasa ingin tahu tinggi"]
         weaknesses = data.get("weaknesses") or ["Perlu meningkatkan konsistensi belajar"]
-        learningPreferences = data.get("learningPreferences") or ["Visual"]
-        motivationFactors = data.get("motivationFactors") or ["progres kecil bertahap"]
+        learning_preferences = data.get("learningPreferences") or ["Visual"]
+        motivation_factors = data.get("motivationFactors") or ["progres kecil bertahap"]
         challenges = data.get("challenges") or ["butuh struktur belajar jelas"]
 
-        state.personalityQuizResult = PersonalityQuizResult(
-            userId=state.userId,
+        state.personality_quiz_result = PersonalityQuizResult(
+            user_id=state.user_id,
             strengths=strengths,
             weaknesses=weaknesses,
-            learningPreferences=learningPreferences,
-            motivationFactors=motivationFactors,
-            challenges=challenges
+            learning_preferences=learning_preferences,
+            motivation_factors=motivation_factors,
+            challenges=challenges,
         )
-
         logger.info("[PERSONALITY MATERIAL] LLM insights generated successfully")
-    
-    except Exception as e:
-        logger.error(f"[PERSONALITY MATERIAL] Error: {e}")
-        # fallback minimal
-        state.personalityQuizResult = PersonalityQuizResult(
-            userId=state.userId,
+    except Exception as exc:
+        logger.error("[PERSONALITY MATERIAL] Error: %s", exc)
+        from v1.users_steps.dto import PersonalityQuizResult
+
+        state.personality_quiz_result = PersonalityQuizResult(
+            user_id=state.user_id,
             strengths=["Rasa ingin tahu tinggi"],
             weaknesses=["Perlu meningkatkan konsistensi belajar"],
-            learningPreferences=["Visual"],
-            motivationFactors=["progres kecil bertahap"],
-            challenges=["butuh struktur belajar jelas"]
+            learning_preferences=["Visual"],
+            motivation_factors=["progres kecil bertahap"],
+            challenges=["butuh struktur belajar jelas"],
         )
 
     return state
+
 
 def node_generate(state: LPState) -> LPState:
     logger.info("[GENERATE] Creating goal-oriented learning path")
@@ -271,16 +288,16 @@ USER PROFILE:
 {state.context}
 
 PERSONALITY INSIGHTS:
-Strengths: {', '.join(state.personalityQuizResult.strengths)}
-Weaknesses: {', '.join(state.personalityQuizResult.weaknesses)}
-Learning Preferences: {', '.join(state.personalityQuizResult.learningPreferences)}
-Motivation Triggers: {', '.join(state.personalityQuizResult.motivationFactors)}
-Challenges: {', '.join(state.personalityQuizResult.challenges)}
+Strengths: {', '.join(state.personality_quiz_result.strengths)}
+Weaknesses: {', '.join(state.personality_quiz_result.weaknesses)}
+Learning Preferences: {', '.join(state.personality_quiz_result.learning_preferences)}
+Motivation Triggers: {', '.join(state.personality_quiz_result.motivation_factors)}
+Challenges: {', '.join(state.personality_quiz_result.challenges)}
 
 PRIMARY GOAL:
-- Step Title: {state.targetStep.title}
-- Description: {state.targetStep.description}
-- Position: {state.targetStep.sortOrder} / {len(state.allLessonSteps)}
+- Step Title: {state.target_step.title}
+- Description: {state.target_step.description}
+- Position: {state.target_step.sort_order} / {len(state.all_lesson_steps)}
 
 ==============
 STRICT RULES (NO EXCEPTIONS)
@@ -311,8 +328,8 @@ OUTPUT FORMAT (MANDATORY)
 {{
   "data": [
     {{
-      "userId": "{state.userId}",
-      "stepTemplateId": "{state.targetStep.id}",
+      "userId": "{state.user_id}",
+      "stepTemplateId": "{state.target_step.id}",
       "title": "Judul langkah spesifik, Bahasa Indonesia, actionable",
       "isDone": false,
       "order": 1
@@ -323,14 +340,15 @@ OUTPUT FORMAT (MANDATORY)
 ==============
 VALIDATION BEFORE SUBMITTING
 ==============
-✔ Output EXACTLY ONE root JSON object  
-✔ Keys MUST NOT be renamed, removed, or added  
-✔ Booleans must be lowercase (`false`)  
-✔ No newlines or text outside JSON  
+✔ Output EXACTLY ONE root JSON object
+✔ Keys MUST NOT be renamed, removed, or added
+✔ Booleans must be lowercase (`false`)
+✔ No newlines or text outside JSON
 
 RETURN NOW: JSON ONLY
 """
 
+    from v1.users_steps.dto import GenerateUserStepRespon
 
     system_msg = SystemMessage(
         content="You are an elite learning path architect. Return STRICT valid JSON only."
@@ -347,31 +365,43 @@ RETURN NOW: JSON ONLY
             text = "\n".join(json_lines).strip()
 
         text = text.replace("```json", "").replace("```", "").strip()
-        payload = json.loads(text)
+        import json as _json
+
+        payload = _json.loads(text)
         validated = GenerateUserStepRespon(**payload)
         state.generated = validated
 
         summary = " | ".join([s.title for s in validated.data])
-        tool_memory_upsert(userId=state.userId, lessonId=state.lessonId, text=summary)
-
-    except Exception as e:
-        logger.error(f"[GENERATE] Error: {e}")
-        state.error = "Generation failed"
-        fallback_title = state.targetStep.title if state.targetStep else "Belajar topik"
-        state.generated = GenerateUserStepRespon(data=[
-            BaseUserStep(
-                userId=state.userId,
-                stepTemplateId=state.targetStep.id if state.targetStep else None,
-                title=f"Mulai dari pemahaman dasar: {fallback_title}",
-                isDone=False
+        try:
+            tool_memory_upsert(
+                user_id=state.user_id,
+                lesson_id=state.lesson_id,
+                text=summary,
             )
-        ])
+        except MemoryError as exc:
+            logger.warning("[GENERATE] memory upsert failed: %s", exc.message)
+    except Exception as exc:
+        logger.error("[GENERATE] Error: %s", exc)
+        from v1.users_steps.dto import BaseUserStep, GenerateUserStepRespon
+
+        state.error = "Generation failed"
+        fallback_title = state.target_step.title if state.target_step else "Belajar topik"
+        state.generated = GenerateUserStepRespon(
+            data=[
+                BaseUserStep(
+                    user_id=state.user_id,
+                    step_template_id=state.target_step.id if state.target_step else None,
+                    title=f"Mulai dari pemahaman dasar: {fallback_title}",
+                    is_done=False,
+                )
+            ]
+        )
 
     return state
 
+
 def build_graph():
     g = StateGraph(LPState)
-
     g.add_node("fetch", node_fetch)
     g.add_node("personality_material_builder", node_personality_material_builder)
     g.add_node("build_context", node_build_context)
@@ -381,17 +411,28 @@ def build_graph():
     g.add_node("generate", node_generate)
 
     g.set_entry_point("fetch")
-
-    # ORDER HARUS SERIAL
     g.add_edge("fetch", "personality_material_builder")
     g.add_edge("personality_material_builder", "build_context")
     g.add_edge("build_context", "read_memory")
     g.add_edge("read_memory", "semantic_search")
     g.add_edge("semantic_search", "external_search")
     g.add_edge("external_search", "generate")
-
     g.add_edge("generate", END)
 
     return g.compile()
 
+
 generate_user_steps_pipeline = build_graph()
+
+
+__all__ = [
+    "node_fetch",
+    "node_build_context",
+    "node_read_memory",
+    "node_semantic_search",
+    "node_external_search",
+    "node_personality_material_builder",
+    "node_generate",
+    "build_graph",
+    "generate_user_steps_pipeline",
+]

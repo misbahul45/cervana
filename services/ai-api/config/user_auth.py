@@ -1,9 +1,12 @@
 import logging
 
 import requests
-from fastapi import HTTPException
+from fastapi import HTTPException, Request
 
 from config.envs import ENVS
+
+LEARNER_ROLES = frozenset({"STUDENT", "TEACHER", "REVIEWER", "ADMIN"})
+ACCESS_COOKIE = "access_token"
 
 
 def authenticate(authorization: str | None, allowed_roles: set[str]) -> dict:
@@ -34,3 +37,25 @@ def authenticate(authorization: str | None, allowed_roles: set[str]) -> dict:
         raise HTTPException(403, "Insufficient role")
 
     return user
+
+
+def bearer_token(request: Request) -> str | None:
+    header = request.headers.get("authorization") or ""
+    if header.lower().startswith("bearer "):
+        token = header[7:].strip()
+        if token:
+            return token
+    return request.cookies.get(ACCESS_COOKIE) or None
+
+
+def authenticated_user(request: Request) -> dict:
+    token = bearer_token(request)
+    user = authenticate(f"Bearer {token}" if token else None, set(LEARNER_ROLES))
+    request.state.bearer_token = token
+    return user
+
+
+def bind_acting_user(user: dict, claimed: str | None) -> str:
+    if claimed and claimed != user["id"]:
+        raise HTTPException(403, "Acting user does not match the authenticated user")
+    return user["id"]

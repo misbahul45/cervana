@@ -57,7 +57,7 @@ uvicorn main:app --reload --port 3003
 celery -A config.celery:celery_app worker --loglevel=info
 ```
 
-Pytest `testpaths` are `tests`, `__tests__`, `config/__tests__`, `utils/tools/__tests__`, and `v1` (tests colocated with features). `python_files` includes `*.py`, so pytest collects and imports every module under those paths, not only `test_*.py`; an import-time side effect in `v1/` breaks collection.
+Pytest `testpaths` are `tests`, `__tests__`, `config/__tests__`, `utils/tools/__tests__`, and `v1` (tests colocated with features). `python_files` is `test_*.py` and `*_test.py`, with `pythonpath = ["."]` and `--import-mode=importlib`, because most packages have no `__init__.py` (duplicate basenames such as `service.py` collide, and `config/celery.py` would shadow the real `celery` package under the default import mode). `utils/tools/__tests__/test_memory.py` needs a reachable Qdrant, so `conftest.py` ignores it; run it with `QDRANT_URL=http://localhost:6333 uv run pytest --noconftest utils/tools/__tests__/test_memory.py`. Every public `ai-api` route that spends LLM budget must authenticate the caller (`config/user_auth.py::authenticated_user`) and bind `userId` to it; `@rate_limit` raises at import time if the endpoint has no `request: Request` parameter.
 
 `apps/web/` (pnpm): `pnpm dev`, `pnpm build`, `pnpm preview`, `pnpm test` (`vitest run`, node environment, picks up `app/**/*.test.ts` and `app/**/__tests__/**`), `pnpm vitest run <path>` for one file, `pnpm build:assets` (`scripts/build-brand-assets.mjs`). There is no lint script.
 
@@ -128,7 +128,7 @@ Feature packages under `v1/` (`learning`, `resources`, `users_steps`), each with
 
 ## Conventions that differ from defaults
 
-- No comments in code, Dockerfiles, compose, or nginx config unless explicitly requested.
+- **No comments in code. Ever.** No comments in code, Dockerfiles, docker-compose, nginx.conf, or any other configuration file unless explicitly requested. No JSDoc, no docstrings, no inline `//` or `#` annotations. Self-document through structure and naming. Prefer a clearer function/variable name over a comment. If a piece of logic is non-obvious, restructure the file (split, rename) instead of adding a comment. The full rule and rationale is in `AGENTS.md` under "Code Rules".
 - Never run `git add`, `git commit`, `git push`, rebase/merge/reset --hard, or amend. Only read git state; report changed and untracked files when done and let the owner stage/commit.
 - Compose/Dockerfile rules (`restart: unless-stopped`, healthchecks on every service, `runner` final stage, non-root `reducera` user, no `latest` tags, prod exposes only nginx ports) are in `AGENTS.md`.
 - Audit structure and callers with `codebase-memory-mcp` (`check_index_coverage`, `search_graph`, `trace_path`), then confirm negative claims with `grep`. Details in `AGENTS.md` ("Code audit").

@@ -87,22 +87,22 @@ describe('SandboxController (Phase 1)', () => {
     if (app) await app.close();
   });
 
-  it('GET /v1/sandbox/scenarios returns the scenario list', async () => {
-    const res = await request(app.getHttpServer()).get('/v1/sandbox/scenarios');
+  it('GET /sandbox/scenarios returns the scenario list', async () => {
+    const res = await request(app.getHttpServer()).get('/sandbox/scenarios');
     expect(res.status).toBe(200);
     expect(res.body).toHaveLength(1);
     expect(res.body[0]).toMatchObject({ id: 's-buy-inventory-100', level: 1 });
   });
 
-  it('GET /v1/sandbox/scenarios filters by level', async () => {
-    const res = await request(app.getHttpServer()).get('/v1/sandbox/scenarios').query({ level: 2 });
+  it('GET /sandbox/scenarios filters by level', async () => {
+    const res = await request(app.getHttpServer()).get('/sandbox/scenarios').query({ level: 2 });
     expect(res.status).toBe(200);
     expect(res.body).toHaveLength(0);
   });
 
-  it('POST /v1/sandbox/journal/validate rejects unbalanced lines', async () => {
+  it('POST /sandbox/journal/validate rejects unbalanced lines', async () => {
     const res = await request(app.getHttpServer())
-      .post('/v1/sandbox/journal/validate')
+      .post('/sandbox/journal/validate')
       .send({
         lines: [
           { accountId: 'Inventory', side: 'DEBIT', amount: 100 },
@@ -114,9 +114,9 @@ describe('SandboxController (Phase 1)', () => {
     expect(res.body.errors.length).toBeGreaterThan(0);
   });
 
-  it('POST /v1/sandbox/journal/validate accepts balanced entry with scenario', async () => {
+  it('POST /sandbox/journal/validate accepts balanced entry with scenario', async () => {
     const res = await request(app.getHttpServer())
-      .post('/v1/sandbox/journal/validate')
+      .post('/sandbox/journal/validate')
       .send({
         scenarioId: 's-buy-inventory-100',
         entries: [{ debitAccount: 'Inventory', creditAccount: 'Cash', amount: 100 }],
@@ -126,9 +126,9 @@ describe('SandboxController (Phase 1)', () => {
     expect(res.body.score).toBeGreaterThan(0);
   });
 
-  it('POST /v1/sandbox/journal/validate returns score 0 for non-matching scenario entries', async () => {
+  it('POST /sandbox/journal/validate returns score 0 for non-matching scenario entries', async () => {
     const res = await request(app.getHttpServer())
-      .post('/v1/sandbox/journal/validate')
+      .post('/sandbox/journal/validate')
       .send({
         scenarioId: 's-buy-inventory-100',
         entries: [{ debitAccount: 'Cash', creditAccount: 'Inventory', amount: 100 }],
@@ -138,9 +138,9 @@ describe('SandboxController (Phase 1)', () => {
     expect(res.body.score).toBe(0);
   });
 
-  it('POST /v1/sandbox/journal/validate rejects unknown scenario', async () => {
+  it('POST /sandbox/journal/validate rejects unknown scenario', async () => {
     const res = await request(app.getHttpServer())
-      .post('/v1/sandbox/journal/validate')
+      .post('/sandbox/journal/validate')
       .send({
         scenarioId: 'does-not-exist',
         entries: [{ debitAccount: 'Inventory', creditAccount: 'Cash', amount: 100 }],

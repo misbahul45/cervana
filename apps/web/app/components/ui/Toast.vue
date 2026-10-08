@@ -1,33 +1,84 @@
 <script setup lang="ts">
-defineProps<{
-  message: string;
-  type?: 'info' | 'success' | 'warning' | 'error';
-}>();
-const emit = defineEmits<{ close: [] }>();
+import { useToast } from '#imports';
+
+interface Props {
+  title: string;
+  message?: string;
+  tone?: 'success' | 'warning' | 'error' | 'info';
+  durationMs?: number;
+}
+
+const props = withDefaults(defineProps<Props>(), {
+  tone: 'info',
+  durationMs: 4000,
+});
+
+const emit = defineEmits<{ dismiss: [] }>();
+
+function dismiss() {
+  emit('dismiss');
+}
 </script>
 
 <template>
-  <div :class="['toast', `toast-${type || 'info'}`]" role="status">
-    <span class="toast-message">{{ message }}</span>
-    <button type="button" class="toast-close" @click="emit('close')" aria-label="Close">×</button>
+  <div
+    role="status"
+    aria-live="polite"
+    :class="['rc-toast', `rc-toast--${tone}`]"
+  >
+    <UIcon
+      :name="tone === 'success' ? 'i-lucide-check-circle' : tone === 'error' ? 'i-lucide-alert-circle' : tone === 'warning' ? 'i-lucide-alert-triangle' : 'i-lucide-info'"
+      :class="`rc-toast__icon rc-toast__icon--${tone}`"
+      aria-hidden="true"
+    />
+    <div class="rc-toast__body">
+      <strong class="rc-toast__title">{{ title }}</strong>
+      <p v-if="message" class="rc-toast__message">{{ message }}</p>
+    </div>
+    <button
+      type="button"
+      class="rc-toast__dismiss"
+      aria-label="Tutup notifikasi"
+      @click="dismiss"
+    >
+      ×
+    </button>
   </div>
 </template>
 
 <style scoped>
-.toast {
+.rc-toast {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 0.75rem;
   padding: 0.75rem 1rem;
-  border-radius: 0.5rem;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-  border-left: 4px solid;
+  border-radius: 0.75rem;
+  border: 1px solid var(--ui-border, rgba(0, 0, 0, 0.15));
+  background: var(--ui-bg, white);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.08);
+  max-width: 24rem;
 }
-.toast-info { background: var(--rc-bg-elevated, #dbeafe); border-color: var(--rc-primary, #3b82f6); color: var(--rc-fg, #111); }
-.toast-success { background: #dcfce7; border-color: var(--rc-success, #16a34a); color: var(--rc-fg, #111); }
-.toast-warning { background: #fef3c7; border-color: #f59e0b; color: var(--rc-fg, #111); }
-.toast-error { background: #fee2e2; border-color: var(--rc-danger, #dc2626); color: var(--rc-fg, #111); }
-.toast-message { flex: 1; }
-.toast-close { background: transparent; border: none; font-size: 1.25rem; cursor: pointer; color: inherit; opacity: 0.6; }
-.toast-close:hover { opacity: 1; }
+.rc-toast__icon { font-size: 1.25rem; }
+.rc-toast__icon--success { color: #16a34a; }
+.rc-toast__icon--error   { color: #dc2626; }
+.rc-toast__icon--warning { color: #d97706; }
+.rc-toast__icon--info    { color: #2563eb; }
+.rc-toast__body {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+}
+.rc-toast__title { font-weight: 600; }
+.rc-toast__message { font-size: 0.875rem; color: var(--ui-text-muted); }
+.rc-toast__dismiss {
+  background: transparent;
+  border: 0;
+  font-size: 1.25rem;
+  cursor: pointer;
+  color: var(--ui-text-muted);
+}
+.rc-toast__dismiss:focus-visible {
+  outline: 2px solid var(--ui-primary);
+  outline-offset: 2px;
+}
 </style>

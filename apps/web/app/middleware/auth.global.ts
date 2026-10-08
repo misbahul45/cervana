@@ -1,37 +1,48 @@
-import type { CheckResponse, User } from '~/interfaces/auth'
-import { authService } from '~/services/auth'
+import type { CheckResponse, User } from '~/interfaces/auth';
+import { authService } from '~/services/auth';
+import { resolveNavigation, resolveProtection, type CurrentUser } from '~/lib/route-meta';
+
+declare module '#app' {
+  interface PageMeta {
+    protection?: import('~/lib/route-meta').PageProtection;
+    title?: string;
+  }
+}
+
+interface AuthCheckError {
+  message: string;
+  status: number;
+  at: number;
+}
+
+const NOT_SIGNED_IN = new Set([401, 403]);
 
 export default defineNuxtRouteMiddleware(async (to) => {
-  const user = useState<User | null>('user', () => null)
-  const skipCheck = useState<boolean>('skipCheck', () => false)
+  const user = useState<User | null>('user', () => null);
+  const skipCheck = useState<boolean>('skipCheck', () => false);
+  const lastAuthCheckError = useState<AuthCheckError | null>('lastAuthCheckError', () => null);
 
-  const publicPages = [
-    '/',
-    '/login',
-    '/register',
-    '/forgot-password',
-    '/verify-email'
-  ]
+  const protection = resolveProtection(to.path, to.meta?.protection);
+  const needsSession = protection !== undefined && protection.kind !== 'public' && protection.kind !== 'guest-only';
 
-  const isPublicPage =
-    publicPages.includes(to.path) ||
-    (to.path.includes('/learn/topics') && !to.path.includes('order'))
+  if (needsSession && !user.value && !skipCheck.value) {
+    const res = await authService.check();
+    const status = res.meta?.statusCode ?? 0;
 
-  if (!user.value && !skipCheck.value) {
-    try {
-      const respon = await authService.check()
-      const data = respon.data as CheckResponse
-      user.value = data?.authenticated ? data.user : null
-    } catch {
-      user.value = null
+    if (res.success && (res.data as CheckResponse | null)?.authenticated) {
+      user.value = (res.data as CheckResponse).user;
+      lastAuthCheckError.value = null;
+    } else if (res.success || NOT_SIGNED_IN.has(status)) {
+      user.value = null;
+      lastAuthCheckError.value = null;
+    } else {
+      lastAuthCheckError.value = { message: res.message, status, at: Date.now() };
+      return abortNavigation(
+        createError({ statusCode: status || 503, statusMessage: 'Layanan sedang tidak tersedia. Silakan coba lagi.' }),
+      );
     }
   }
 
-  if (!user.value && !isPublicPage) {
-    return navigateTo('/login')
-  }
-
-  if (user.value && publicPages.includes(to.path)) {
-    return navigateTo('/learn/profile/dashboard')
-  }
-})
+  const outcome = resolveNavigation(protection, user.value as unknown as CurrentUser | null);
+  if (outcome) return navigateTo(outcome.redirect);
+});

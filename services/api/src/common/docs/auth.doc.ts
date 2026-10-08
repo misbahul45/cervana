@@ -6,14 +6,14 @@ export const LoginResponseSchema = extendApi(
   z.object({
     id: z.string().describe('Unique user identifier'),
     email: z.string().email().describe('User email address'),
-    role: z.enum(['USER', 'ADMIN', 'MODERATOR']).describe('User role'),
+    role: z.enum(['STUDENT', 'ADMIN', 'TEACHER', 'REVIEWER']).describe('User role'),
   }),
   {
     title: 'LoginResponse',
     example: {
       id: 'user-uuid-123',
       email: 'user@example.com',
-      role: 'USER'
+      role: 'STUDENT'
     }
   }
 );
@@ -37,11 +37,11 @@ export const UserProfileSchema = extendApi(
     id: z.string().describe('Unique user identifier'),
     name: z.string().describe('User full name'),
     email: z.string().email().describe('User email address'),
-    role: z.enum(['USER', 'ADMIN', 'MODERATOR']).describe('User role'),
+    role: z.enum(['STUDENT', 'ADMIN', 'TEACHER', 'REVIEWER']).describe('User role'),
     isActive: z.boolean().describe('Whether user account is active'),
     emailVerified: z.date().nullable().describe('Email verification timestamp'),
     image: z.string().url().nullable().describe('User profile image URL'),
-    provider: z.enum(['LOCAL', 'GOOGLE', 'FACEBOOK']).describe('Authentication provider'),
+    provider: z.enum(['JWT', 'Google']).describe('Authentication provider'),
   }),
   {
     title: 'UserProfile',
@@ -49,11 +49,11 @@ export const UserProfileSchema = extendApi(
       id: 'user-uuid-123',
       name: 'John Doe',
       email: 'user@example.com',
-      role: 'USER',
+      role: 'STUDENT',
       isActive: true,
       emailVerified: '2024-01-01T00:00:00.000Z',
       image: 'https://example.com/avatar.jpg',
-      provider: 'LOCAL'
+      provider: 'JWT'
     }
   }
 );
@@ -61,7 +61,10 @@ export const UserProfileSchema = extendApi(
 export const AuthCheckResponseSchema = extendApi(
   z.object({
     authenticated: z.boolean().describe('Authentication status'),
-    user: UserProfileSchema.describe('Current user data'),
+    user: UserProfileSchema.extend({
+      tenantRoles: z.array(z.enum(['OWNER', 'MANAGER', 'TEACHER', 'EDITOR'])).describe('Distinct roles from active tenant memberships'),
+      capabilities: z.array(z.enum(['ADMIN', 'REVIEWER', 'CREATOR'])).describe('Capabilities derived from role and memberships'),
+    }).describe('Current user data'),
   }),
   {
     title: 'AuthCheckResponse',
@@ -71,11 +74,13 @@ export const AuthCheckResponseSchema = extendApi(
         id: 'user-uuid-123',
         name: 'John Doe',
         email: 'user@example.com',
-        role: 'USER',
+        role: 'STUDENT',
         isActive: true,
         emailVerified: '2024-01-01T00:00:00.000Z',
         image: null,
-        provider: 'LOCAL'
+        provider: 'JWT',
+        tenantRoles: [],
+        capabilities: []
       }
     }
   }

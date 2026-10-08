@@ -1,11 +1,5 @@
-"""Phase 1: Tutor response must cite the lesson the query targets.
-
-The existing tutor/content pipeline surfaces `citations: List[str]` in
-`GenerateContentMaterialResponseDto`. The Phase 1 acceptance gate requires
-each citation to carry `lessonId`, not only a human-readable label.
-"""
-
 import pytest
+from pydantic import ValidationError
 from v1.learning.dto import GenerateContentMaterialResponseDto
 
 
@@ -29,12 +23,19 @@ def test_citation_lesson_id_round_trip():
     response = _make_response(citations)
 
     assert response.citations is not None
-    assert response.citations[0]["lessonId"] == "l1-t01-accounting-equation"
+    assert response.citations[0].lesson_id == "l1-t01-accounting-equation"
+    assert response.citations[0].chunk_id == "chunk-1"
+    assert response.citations[0].score == 0.91
 
 
-def test_citation_accepts_string_labels_for_legacy_callers():
-    citations = ["Book A: Chapter 1"]
-    assert _make_response(citations).citations == ["Book A: Chapter 1"]
+def test_citation_rejects_bare_string_labels_without_a_lesson():
+    with pytest.raises(ValidationError):
+        _make_response(["Book A: Chapter 1"])
+
+
+def test_citation_requires_a_lesson_id():
+    with pytest.raises(ValidationError):
+        _make_response([{"chunkId": "chunk-1", "score": 0.4}])
 
 
 def test_empty_citations_is_allowed():

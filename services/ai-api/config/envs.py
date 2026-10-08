@@ -19,6 +19,18 @@ class ENVConfig(TypedDict):
     OPENAI_MAX_TOKENS: int
     OPENAI_THINKING_MAX_TOKENS: int
     OPENAI_FLASH_TEMPERATURE: float | None
+    LLM_PROVIDER: str
+    LLM_ROUTES: str
+    MISTRAL_API_KEY: str
+    MISTRAL_BASE_URL: str
+    MISTRAL_MODEL_FLASH: str
+    MISTRAL_MODEL_THINKING: str
+    MISTRAL_MAX_TOKENS: int
+    MISTRAL_THINKING_MAX_TOKENS: int
+    MISTRAL_FLASH_TEMPERATURE: float | None
+    MISTRAL_THINKING_TEMPERATURE: float | None
+    EMBEDDING_PROVIDER: str
+    MISTRAL_EMBEDDING_MODEL: str
     HF_TOKEN: str
     HF_EMBEDDING_MODEL: str
     HF_EMBEDDING_URL: str
@@ -47,6 +59,18 @@ ENVS: ENVConfig = {
     "OPENAI_FLASH_TEMPERATURE": float(os.getenv("OPENAI_FLASH_TEMPERATURE"))
     if os.getenv("OPENAI_FLASH_TEMPERATURE")
     else None,
+    "LLM_PROVIDER": (os.getenv("LLM_PROVIDER") or "openai").strip().lower(),
+    "LLM_ROUTES": os.getenv("LLM_ROUTES", ""),
+    "MISTRAL_API_KEY": os.getenv("MISTRAL_API_KEY", ""),
+    "MISTRAL_BASE_URL": os.getenv("MISTRAL_BASE_URL") or "https://api.mistral.ai/v1",
+    "MISTRAL_MODEL_FLASH": os.getenv("MISTRAL_MODEL_FLASH") or "mistral-small-latest",
+    "MISTRAL_MODEL_THINKING": os.getenv("MISTRAL_MODEL_THINKING") or "magistral-medium-latest",
+    "MISTRAL_MAX_TOKENS": int(os.getenv("MISTRAL_MAX_TOKENS") or 8192),
+    "MISTRAL_THINKING_MAX_TOKENS": int(os.getenv("MISTRAL_THINKING_MAX_TOKENS") or 16000),
+    "MISTRAL_FLASH_TEMPERATURE": float(os.getenv("MISTRAL_FLASH_TEMPERATURE") or 0.3),
+    "MISTRAL_THINKING_TEMPERATURE": float(os.getenv("MISTRAL_THINKING_TEMPERATURE") or 0.7),
+    "EMBEDDING_PROVIDER": (os.getenv("EMBEDDING_PROVIDER") or "huggingface").strip().lower(),
+    "MISTRAL_EMBEDDING_MODEL": os.getenv("MISTRAL_EMBEDDING_MODEL") or "mistral-embed",
     "HF_TOKEN": os.getenv("HF_TOKEN", ""),
     "HF_EMBEDDING_MODEL": os.getenv("HF_EMBEDDING_MODEL") or "BAAI/bge-m3",
     "HF_EMBEDDING_URL": os.getenv("HF_EMBEDDING_URL")

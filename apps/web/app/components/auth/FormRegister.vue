@@ -97,7 +97,7 @@ import { RegisterSchema, type RegisterSchemaType } from '~/schemas'
 import { authService } from '~/services/auth'
 import { useApi } from '~/composable/useApi'
 import { useRouter } from 'vue-router'
-import { getApiUrl } from '~/lib/api'
+import { apiUrl } from '~/lib/api'
 
 const router = useRouter()
 const state = reactive<{ 
@@ -149,7 +149,6 @@ function isPasswordVisible(field: string) {
 }
 
 async function loginDenganGoogle() {
-  const API_URL = getApiUrl();
-  window.location.href = `${API_URL}/auth/google`;
+  window.location.href = apiUrl('/auth/google');
 }
 </script>

@@ -2,13 +2,16 @@
 import Header from './components/layout/Header.vue';
 import ThemeShell from './components/theme/ThemeShell.vue';
 const route = useRoute()
+const usesLayout = computed(() => Boolean(route.meta.layout))
 </script>
 
 <template>
   <UApp>
     <ThemeShell class="app-wrapper">
-      <Header v-if="!route.path.startsWith('/my-learning')" />
-      <NuxtPage />
+      <Header v-if="!usesLayout && !route.path.startsWith('/my-learning')" />
+      <NuxtLayout>
+        <NuxtPage />
+      </NuxtLayout>
     </ThemeShell>
   </UApp>
 </template>

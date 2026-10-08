@@ -11,6 +11,7 @@ import {
   SERVICE_TIMESTAMP_HEADER,
   computeSignature,
 } from '@/common/authz/internal-signature';
+import { RedisService } from '@/common/config/redis/redis.service';
 import { ADMIN_A, STUDENT_A, TEACHER_A, asUser, createHttpApp } from '@/test-utils/http-harness';
 
 const SECRET = 'unit-test-service-secret';
@@ -19,6 +20,19 @@ const RESOURCE_ID = '99999999-9999-4999-8999-999999999999';
 describe('Internal service authentication', () => {
   let app: INestApplication;
   let resources: { findOne: jest.Mock; callback: jest.Mock };
+  const replayStore = new Set<string>();
+  const fakeReplayRedis = {
+    set: jest.fn(async (key: string) => {
+      if (replayStore.has(key)) return null;
+      replayStore.add(key);
+      return 'OK';
+    }),
+    get: jest.fn(async () => null),
+    del: jest.fn(async () => 0),
+    ping: jest.fn(async () => 'PONG'),
+    quit: jest.fn(async () => 'OK'),
+    on: jest.fn(),
+  };
 
   const sign = (options: {
     method: 'GET' | 'POST';
@@ -66,8 +80,10 @@ describe('Internal service authentication', () => {
         InternalServiceGuard,
         { provide: ResourcesService, useValue: resources },
         { provide: ConfigService, useValue: { get: (key: string) => (key === 'INTERNAL_AI_API_SECRET' ? SECRET : undefined) } },
+        { provide: RedisService, useValue: { client: fakeReplayRedis } },
       ],
     });
+    replayStore.clear();
   });
 
   afterEach(async () => {
@@ -157,6 +173,7 @@ describe('Internal service authentication', () => {
         InternalServiceGuard,
         { provide: ResourcesService, useValue: resources },
         { provide: ConfigService, useValue: { get: () => undefined } },
+        { provide: RedisService, useValue: { client: { set: async () => 'OK', get: async () => null, del: async () => 0, ping: async () => 'PONG', quit: async () => 'OK', on: () => {} } } },
       ],
     });
     const target = `/internal/resources/${RESOURCE_ID}`;

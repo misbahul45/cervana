@@ -2,7 +2,6 @@
 import { useApi } from '~/composable/useApi';
 import type { User } from '~/interfaces/auth';
 import { chatMessageService } from '~/services/chat/chatMessages';
-import { useAuth } from '~/stores/auth';
 
 const props = defineProps<{
   chatId: string,
@@ -44,7 +43,6 @@ onMounted(() => {
 
 
 const { call }=useApi(chatMessageService.create)
-const auth=useAuth()
 const messages = computed(() => resChatMessages.value?.data?.data || []);
 
 const sendMessage=async()=>{
@@ -55,9 +53,6 @@ const sendMessage=async()=>{
     status: 'COMPLETED',
     userStepId: props.userStepId,
     userId: user.value?.id!
-  },{
-    access_token: auth.access_token!,
-    refresh_token: auth.refresh_token!,
   })
 
   refreshChatMessages();

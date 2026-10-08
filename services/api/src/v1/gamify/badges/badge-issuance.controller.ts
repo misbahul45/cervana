@@ -4,7 +4,7 @@ import { GetUser, Roles } from '@/v1/auth/auth.decorator';
 import { Role } from '@prisma/client';
 import { BadgeIssuanceService } from './badge-issuance.service';
 
-@Controller('v1/gamify/badges')
+@Controller('badges')
 @UseGuards(JwtAuthGuard)
 export class BadgeIssuanceController {
   constructor(private readonly badges: BadgeIssuanceService) {}

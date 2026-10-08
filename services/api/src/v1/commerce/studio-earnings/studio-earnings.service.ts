@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '@/common/config/prisma/prisma.service';
 
 @Injectable()
@@ -7,18 +8,18 @@ export class StudioEarningsService {
 
   async summarize(creatorId: string) {
     const earnings = await this.prisma.creatorEarning.findMany({ where: { creatorId } });
-    let available = 0;
-    let pending = 0;
+    let available = new Prisma.Decimal(0);
+    let pending = new Prisma.Decimal(0);
     for (const e of earnings) {
-      const amount = Number((e as { creatorAmount: unknown }).creatorAmount);
+      const amount = new Prisma.Decimal((e as { creatorAmount: Prisma.Decimal.Value }).creatorAmount);
       if ((e as { releasedAt?: Date | null }).releasedAt) {
-        available += amount;
+        available = available.plus(amount);
       } else {
-        pending += amount;
+        pending = pending.plus(amount);
       }
     }
     const currency = earnings[0]?.currency ?? 'IDR';
-    return { available, pending, currency };
+    return { available: available.toNumber(), pending: pending.toNumber(), currency };
   }
 
   listByUser(creatorId: string) {

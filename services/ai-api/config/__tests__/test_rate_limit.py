@@ -86,7 +86,8 @@ def test_rate_limit_decorator_returns_429():
     assert "retryAfterSeconds" in body
 
 
-def test_rate_limit_decorator_handles_request_via_kwarg():
+def test_rate_limit_decorator_handles_request_via_kwarg(monkeypatch):
+    monkeypatch.setattr("config.rate_limit.time.time", lambda: 1_000.0)
     app = FastAPI()
 
     @app.post("/echo2")

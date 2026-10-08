@@ -4,7 +4,7 @@ import { GetUser, Roles } from '@/v1/auth/auth.decorator';
 import { Role } from '@prisma/client';
 import { LevelService } from './level-calculation.service';
 
-@Controller('v1/gamify/level')
+@Controller('level')
 @UseGuards(JwtAuthGuard)
 export class LevelController {
   constructor(private readonly level: LevelService) {}

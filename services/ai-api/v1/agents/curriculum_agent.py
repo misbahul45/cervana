@@ -21,15 +21,15 @@ async def run_curriculum(
     fetcher,
     api_base: Optional[str] = None,
 ) -> dict[str, Any]:
-    base = api_base or os.environ.get("NEST_API") or "http://api:3002"
+    base = api_base or os.environ.get("NEST_API") or "http://api:3002/api/v1"
     headers = {"Authorization": token}
 
-    policy_resp = await fetcher.get(f"{base}/v1/personalization/policy/next", headers=headers)
+    policy_resp = await fetcher.get(f"{base}/personalization/policy/next", headers=headers)
     policy_resp.raise_for_status()
     decision = policy_resp.json()
 
     memory_resp = await fetcher.get(
-        f"{base}/v1/personalization/memory",
+        f"{base}/personalization/memory",
         params={"lessonId": lesson_id},
         headers=headers,
     )
@@ -42,7 +42,7 @@ async def run_curriculum(
         "payload": {"query": query, "decision": decision},
     }
     persist_resp = await fetcher.post(
-        f"{base}/v1/personalization/memory", json=body, headers=headers
+        f"{base}/personalization/memory", json=body, headers=headers
     )
     persist_resp.raise_for_status()
     stored = persist_resp.json()

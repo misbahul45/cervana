@@ -1,3 +1,34 @@
+<script setup lang="ts">
+import FormLogin from "~/components/auth/FormLogin.vue";
+definePageMeta({
+  title: 'Masuk | ReduCera',
+  protection: { kind: 'guest-only' },
+  layout: 'auth',
+});
+const siteUrl = useRuntimeConfig().public.SITE_URL
+useHead({
+  title: 'Sign In | ReduCera',
+  meta: [
+    {
+      name: 'description',
+      content:
+        'Log in to your ReduCera account and continue your journey through the cosmic realm of AI learning.',
+    },
+    { name: 'keywords', content: 'ReduCera, login, sign in, AI learning, cosmic' },
+    { property: 'og:title', content: 'Sign In | ReduCera' },
+    { property: 'og:description', content: 'Access your ReduCera account and keep exploring the universe of knowledge.' },
+    { property: 'og:type', content: 'website' },
+    { property: 'og:url', content: `${siteUrl}/login` },
+    { property: 'og:image', content: '/meta/og-login.png' },
+    { name: 'twitter:card', content: 'summary_large_image' },
+    { name: 'twitter:title', content: 'Sign In | ReduCera' },
+    { name: 'twitter:description', content: 'Access your ReduCera account and keep exploring the universe of knowledge.' },
+    { name: 'twitter:image', content: '/meta/og-login.png' },
+  ],
+  link: [{ rel: 'icon', type: 'image/png', href: '/favicon-32x32.png' }],
+})
+</script>
+
 <template>
   <section
     class="w-full min-h-screen flex flex-col overflow-hidden items-center justify-center relative px-4 sm:px-6 md:px-8"
@@ -10,7 +41,7 @@
         <h1
           class="font-exo2 mb-2 font-bold text-transparent bg-clip-text bg-linear-to-r from-primary/80 to-primary/60 tracking-wide text-3xl sm:text-4xl md:text-5xl xl:text-6xl"
         >
-          REDUCERA
+          ReduCera
         </h1>
         <p
           class="text-xs md:text-sm max-w-md mx-auto mb-8"
@@ -34,31 +65,5 @@
   </section>
 </template>
 
-<script setup lang="ts">
-import FormLogin from "~/components/auth/FormLogin.vue";
-const siteUrl = useRuntimeConfig().public.SITE_URL
 
-useHead({
-  title: 'Sign In | ReduCera',
-  meta: [
-    {
-      name: 'description',
-      content:
-        'Log in to your ReduCera account and continue your journey through the cosmic realm of AI learning.',
-    },
-    { name: 'keywords', content: 'ReduCera, login, sign in, AI learning, cosmic' },
-    { property: 'og:title', content: 'Sign In | ReduCera' },
-    { property: 'og:description', content: 'Access your ReduCera account and keep exploring the universe of knowledge.' },
-    { property: 'og:type', content: 'website' },
-    { property: 'og:url', content: `${siteUrl}/login` },
-    { property: 'og:image', content: '/meta/og-login.png' },
-    { name: 'twitter:card', content: 'summary_large_image' },
-    { name: 'twitter:title', content: 'Sign In | ReduCera' },
-    { name: 'twitter:description', content: 'Access your ReduCera account and keep exploring the universe of knowledge.' },
-    { name: 'twitter:image', content: '/meta/og-login.png' },
-  ],
-  link: [{ rel: 'icon', type: 'image/png', href: '/favicon-32x32.png' }],
-})
-
-</script>
 

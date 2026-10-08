@@ -4,7 +4,7 @@ import { Roles } from '@/v1/auth/auth.decorator';
 import { Role } from '@prisma/client';
 import { CreatorProfileService } from './creator-profile.service';
 
-@Controller('v1/teacher/creators')
+@Controller('teacher/creators')
 @UseGuards(JwtAuthGuard)
 export class CreatorProfileController {
   constructor(private readonly profile: CreatorProfileService) {}

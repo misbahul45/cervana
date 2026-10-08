@@ -9,7 +9,6 @@ import type { UserTopicListResponse } from '~/interfaces/learning/userTopic'
 import { UserTopicStatus } from '~/interfaces/learning/userTopic'
 import { topicsService } from '~/services/curriculum/topics'
 import { userTopicService } from '~/services/learning/userTopic'
-import { useAuth } from '~/stores/auth'
 import { useLearning } from '~/stores/learning'
 
 const route = useRoute()
@@ -33,11 +32,7 @@ const { data: resTopic, refresh:refreshTopic } = await useAsyncData<ApiResponse<
 
 const topic = computed(() => resTopic.value?.data)
 const subTopics = computed(() => topic.value?.subTopics || [])
-const authStore=useAuth()
 const learning=useLearning()
-
-const access_token = authStore.access_token
-const refresh_token = authStore.refresh_token
 
 const { data: resUserTopic, refresh:refreshUserTopic } = await useAsyncData<ApiResponse<UserTopicListResponse>>(
   `userTopic-${user.value?.id}`,
@@ -49,10 +44,6 @@ const { data: resUserTopic, refresh:refreshUserTopic } = await useAsyncData<ApiR
         userId: user.value?.id,
         topicId: topic.value?.id,
         include:'learningStyleProfile',
-      },
-      {
-        access_token,
-        refresh_token
       }
     )
 )

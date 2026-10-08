@@ -5,7 +5,7 @@ import { GetUser, Roles } from '@/v1/auth/auth.decorator';
 import { Role } from '@prisma/client';
 import { ModerationService } from './moderation.service';
 
-@Controller('v1/admin/moderation')
+@Controller('admin/moderation')
 @UseGuards(JwtAuthGuard, AdminReviewerGuard)
 export class ModerationController {
   constructor(private readonly moderation: ModerationService) {}

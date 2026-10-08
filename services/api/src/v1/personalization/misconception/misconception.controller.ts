@@ -4,7 +4,7 @@ import { GetUser, Roles } from '@/v1/auth/auth.decorator';
 import { Role } from '@prisma/client';
 import { MisconceptionService } from './misconception.service';
 
-@Controller('v1/personalization/misconceptions')
+@Controller('personalization/misconceptions')
 @UseGuards(JwtAuthGuard)
 export class MisconceptionController {
   constructor(private readonly misconceptions: MisconceptionService) {}

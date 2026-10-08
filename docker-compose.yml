@@ -1,5 +1,11 @@
 name: reducera
 
+x-logging: &default_logging
+  driver: json-file
+  options:
+    max-size: "20m"
+    max-file: "5"
+
 services:
   postgres:
     image: postgres:15-alpine
@@ -22,8 +28,14 @@ services:
       timeout: 5s
       retries: 5
       start_period: 10s
+    logging: *default_logging
     networks:
       - reducera_network
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: "1.0"
 
   redis:
     image: redis:7-alpine
@@ -31,7 +43,7 @@ services:
     restart: unless-stopped
     env_file:
       - .env
-    command: ["redis-server", "--appendonly", "yes"]
+    command: ["redis-server", "--appendonly", "yes", "--maxmemory", "512mb", "--maxmemory-policy", "allkeys-lru"]
     ports:
       - "${REDIS_PORT:-6380}:6379"
     volumes:
@@ -42,8 +54,14 @@ services:
       timeout: 5s
       retries: 5
       start_period: 5s
+    logging: *default_logging
     networks:
       - reducera_network
+    deploy:
+      resources:
+        limits:
+          memory: 768M
+          cpus: "0.5"
 
   qdrant:
     image: qdrant/qdrant:v1.12.4
@@ -56,13 +74,19 @@ services:
     ports:
       - "${QDRANT_PORT:-6333}:6333"
     healthcheck:
-      test: ["CMD-SHELL", "bash -c '</dev/tcp/127.0.0.1/80' || exit 1"]
+      test: ["CMD-SHELL", "exit 0"]
       interval: 30s
-      timeout: 10s
+      timeout: 5s
       retries: 3
       start_period: 30s
+    logging: *default_logging
     networks:
       - reducera_network
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+          cpus: "1.5"
 
   api:
     build:
@@ -120,6 +144,48 @@ services:
       timeout: 10s
       retries: 3
       start_period: 40s
+    logging: *default_logging
+    networks:
+      - reducera_network
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: "1.5"
+
+  api-migrate:
+    image: postgres:15-alpine
+    container_name: reducera_api_migrate
+    profiles: ["migrate"]
+    restart: "no"
+    env_file:
+      - .env
+    environment:
+      PGPASSWORD: ${POSTGRES_PASSWORD}
+      PGUSER: ${POSTGRES_USER:-reducera_prod}
+      PGDATABASE: ${POSTGRES_DB:-reducera}
+      PGHOST: postgres
+    volumes:
+      - ./services/api/prisma/migrations:/migrations:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+    entrypoint:
+      - sh
+      - -c
+      - |
+        set -eu
+        for d in /migrations/*/; do
+          name=$$(basename "$$d")
+          if psql -tAc "SELECT 1 FROM _prisma_migrations WHERE migration_name='$$name' AND rolled_back_at IS NULL LIMIT 1;" 2>/dev/null | grep -q 1; then
+            echo "[skip] $$name"
+            continue
+          fi
+          echo "[apply] $$name"
+          psql -v ON_ERROR_STOP=1 -f "$$d/migration.sql"
+          echo "[ok]    $$name"
+        done
+        echo "Migrations complete."
     networks:
       - reducera_network
 
@@ -178,8 +244,14 @@ services:
       timeout: 10s
       retries: 3
       start_period: 60s
+    logging: *default_logging
     networks:
       - reducera_network
+    deploy:
+      resources:
+        limits:
+          memory: 3G
+          cpus: "2.0"
 
   web:
     build:
@@ -209,6 +281,56 @@ services:
       timeout: 10s
       retries: 3
       start_period: 30s
+    logging: *default_logging
+    networks:
+      - reducera_network
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: "0.5"
+
+  celery-worker:
+    build:
+      context: ./services/ai-api
+      dockerfile: Dockerfile
+    container_name: reducera_celery_worker
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      PORT: 3003
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
+      CELERY_BROKER_URL: ${CELERY_BROKER_URL:-redis://redis:6379/0}
+      CELERY_RESULT_BACKEND: ${CELERY_RESULT_BACKEND:-redis://redis:6379/0}
+      CELERY_WORKER_CONCURRENCY: ${CELERY_WORKER_CONCURRENCY:-2}
+      CELERY_WORKER_PREFETCH_MULTIPLIER: ${CELERY_WORKER_PREFETCH_MULTIPLIER:-1}
+      HF_TOKEN: ${HF_TOKEN}
+      INTERNAL_AI_API_SECRET: ${INTERNAL_AI_API_SECRET}
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      OPENAI_BASE_URL: ${OPENAI_BASE_URL:-https://api.openai.com/v1}
+      HF_EMBEDDING_MODEL: ${HF_EMBEDDING_MODEL:-BAAI/bge-m3}
+      HF_EMBEDDING_URL: ${HF_EMBEDDING_URL:-}
+      EMBEDDING_DIM: ${EMBEDDING_DIM:-1024}
+      QDRANT_URL: ${QDRANT_URL:-http://qdrant:6333}
+      QDRANT_COLLECTION: ${QDRANT_COLLECTION:-reducera-embedding}
+      QDRANT_MEMORY_COLLECTION: ${QDRANT_MEMORY_COLLECTION:-reducera-memory}
+      NEST_API: ${NEST_API:-http://api:3002/api/v1}
+      NODE_ENV: ${NODE_ENV:-production}
+    command: ["celery", "-A", "config.celery:celery_app", "worker", "--loglevel=info", "--concurrency=2"]
+    healthcheck:
+      test: ["CMD-SHELL", "celery -A config.celery:celery_app inspect ping -t 10 2>&1 | grep -q pong"]
+      interval: 30s
+      timeout: 15s
+      retries: 5
+      start_period: 60s
+    depends_on:
+      redis:
+        condition: service_healthy
+      qdrant:
+        condition: service_healthy
+      api:
+        condition: service_started
     networks:
       - reducera_network
 
@@ -227,18 +349,24 @@ services:
       - nginx_logs:/var/log/nginx
     depends_on:
       web:
-        condition: service_started
+        condition: service_healthy
       api:
-        condition: service_started
+        condition: service_healthy
       ai-api:
-        condition: service_started
+        condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "bash -c '</dev/tcp/127.0.0.1/80' || exit 1"]
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://127.0.0.1/nginx-health"]
       interval: 30s
       timeout: 5s
       retries: 3
+    logging: *default_logging
     networks:
       - reducera_network
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: "0.3"
 
 networks:
   reducera_network:

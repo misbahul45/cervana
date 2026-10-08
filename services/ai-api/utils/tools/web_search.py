@@ -2,6 +2,8 @@ import os
 import logging
 import requests
 
+from config.prompt_segmentation import looks_like_instruction
+
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
@@ -31,6 +33,10 @@ def tool_web_search(query: str, limit: int = 5):
             title = r.get("title", "")
             url = r.get("url", "")
             snippet = r.get("content", "")
+
+            if looks_like_instruction(snippet) or looks_like_instruction(title):
+                logger.warning(f"[WEB_SEARCH] Rejected instruction-like result: title={title!r}")
+                continue
 
             lines.append(f"- {title}\n  {snippet}\n  {url}")
 

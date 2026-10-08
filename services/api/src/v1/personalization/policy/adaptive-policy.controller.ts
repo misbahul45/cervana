@@ -4,7 +4,7 @@ import { GetUser, Roles } from '@/v1/auth/auth.decorator';
 import { Role } from '@prisma/client';
 import { AdaptivePolicyService } from './adaptive-policy.service';
 
-@Controller('v1/personalization/policy')
+@Controller('personalization/policy')
 @UseGuards(JwtAuthGuard)
 export class AdaptivePolicyController {
   constructor(private readonly policy: AdaptivePolicyService) {}

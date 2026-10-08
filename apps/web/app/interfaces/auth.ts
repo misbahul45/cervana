@@ -1,8 +1,11 @@
-// app/plugins/auth.server.ts
+import type { Capability, TenantRole, UserRole } from '~/lib/route-meta'
+
 export type User = {
   id: string
   email: string
-  role: 'STUDENT' | 'ADMIN' | 'TEACHER'
+  role: UserRole
+  tenantRoles?: TenantRole[]
+  capabilities?: Capability[]
   name: string
   isActive: boolean
   emailVerified: string | null
@@ -24,7 +27,7 @@ export interface RegisterResponse {
 export interface LoginResponse {
   id: string
   email: string
-  role: 'STUDENT' | 'ADMIN' | 'TEACHER'
+  role: UserRole
   access_token:string;
   refresh_token:string;
 }

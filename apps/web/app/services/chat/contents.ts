@@ -1,7 +1,7 @@
 import type { Query, Tokens } from "~/interfaces/api"
 import type { ContentDetailResponse } from "~/interfaces/chats/chat"
 import type { ContentsListResponse } from "~/interfaces/chats/content"
-import { request, toQueryString } from "~/lib/api"
+import { apiUrl, request, toQueryString } from "~/lib/api"
 
 export const contentService = {
   async findAll<IncludeRelations extends boolean = false>(
@@ -44,9 +44,7 @@ export const contentService = {
   },
 
   listenChatContent(tokens?: Tokens) {
-    const config = useRuntimeConfig()
-    const API_URL = config.public.API_URL
-    return new EventSource(`${API_URL}/content-sse`, {
+    return new EventSource(apiUrl("/content-sse"), {
       withCredentials: true
     })
   },

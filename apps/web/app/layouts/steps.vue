@@ -3,12 +3,10 @@ import StepLearningCollapsible from '~/components/layout/StepLearningCollapsible
 import type { User } from '~/interfaces/auth'
 import { stepsService } from '~/services/curriculum/steps'
 import { userStepService } from '~/services/learning/userStep'
-import { useAuth } from '~/stores/auth'
 import { useLearning } from '~/stores/learning'
 
 const user = useState<User | null>('user')
 const learning = useLearning()
-const auth = useAuth()
 let loadingInterval: ReturnType<typeof setInterval> | null = null
 
 const stopLoadingTextRotation = () => {

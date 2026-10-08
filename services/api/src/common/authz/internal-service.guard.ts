@@ -2,6 +2,7 @@ import {
   CanActivate,
   ExecutionContext,
   Injectable,
+  Logger,
   SetMetadata,
   UnauthorizedException,
   UseGuards,
@@ -20,6 +21,7 @@ import {
   computeSignature,
   signaturesMatch,
 } from './internal-signature';
+import { RedisService } from '@/common/config/redis/redis.service';
 
 export const SERVICE_SECRET_ENV: Readonly<Record<string, string>> = {
   'ai-api': 'INTERNAL_AI_API_SECRET',
@@ -27,6 +29,7 @@ export const SERVICE_SECRET_ENV: Readonly<Record<string, string>> = {
 
 export const MAX_CLOCK_SKEW_MS = 60_000;
 export const REPLAY_WINDOW_MS = 120_000;
+export const REPLAY_KEY_PREFIX = 'internal:replay:';
 
 export interface InternalCaller {
   serviceId: string;
@@ -39,11 +42,14 @@ const READ_METHODS = new Set(['GET', 'HEAD']);
 
 @Injectable()
 export class InternalServiceGuard implements CanActivate {
-  private readonly seen = new Map<string, number>();
+  private readonly log = new Logger(InternalServiceGuard.name);
 
-  constructor(private readonly config: ConfigService) {}
+  constructor(
+    private readonly config: ConfigService,
+    private readonly redis: RedisService,
+  ) {}
 
-  canActivate(context: ExecutionContext): boolean {
+  async canActivate(context: ExecutionContext): Promise<boolean> {
     const req = context.switchToHttp().getRequest();
     const header = (name: string): string | undefined => {
       const value = req.headers?.[name];
@@ -85,7 +91,7 @@ export class InternalServiceGuard implements CanActivate {
       throw new UnauthorizedException('Idempotency key required for mutations');
     }
 
-    this.rejectReplay(`${serviceId}:${provided}`);
+    await this.rejectReplay(`${serviceId}:${provided}`);
 
     const caller: InternalCaller = {
       serviceId,
@@ -97,15 +103,18 @@ export class InternalServiceGuard implements CanActivate {
     return true;
   }
 
-  private rejectReplay(key: string): void {
-    const now = Date.now();
-    for (const [stored, expiresAt] of this.seen) {
-      if (expiresAt <= now) this.seen.delete(stored);
+  private async rejectReplay(key: string): Promise<void> {
+    const redisKey = REPLAY_KEY_PREFIX + key;
+    const seconds = Math.ceil(REPLAY_WINDOW_MS / 1000);
+    try {
+      const result = await this.redis.client.set(redisKey, '1', 'EX', seconds, 'NX');
+      if (result === null) {
+        throw new UnauthorizedException('Replayed service request');
+      }
+    } catch (err) {
+      if (err instanceof UnauthorizedException) throw err;
+      this.log.warn(`Replay cache unavailable (${(err as Error).message}); allowing request`);
     }
-    if (this.seen.has(key)) {
-      throw new UnauthorizedException('Replayed service request');
-    }
-    this.seen.set(key, now + REPLAY_WINDOW_MS);
   }
 }
 

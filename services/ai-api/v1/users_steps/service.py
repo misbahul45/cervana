@@ -1,131 +1,175 @@
-from v1.users_steps.dto import *
-from config.envs import ENVS
+from __future__ import annotations
+
 import logging
+from typing import Optional
+
 import requests
 
-def get_steps(lessonId: str, token: str) -> list[StepBase]:
-    url = f"{ENVS['NEST_API']}/curriculum/steps?lessonId={lessonId}&sort=sortOrder:asc"
-    headers = {"Authorization": f"Bearer {token}"}
-    logging.info(f"[STEP][GET] {url}")
+from config.agent_session import AgentSession
+from config.envs import ENVS
+from errors.types import CrossServiceError
+from v1.users_steps.dto import (
+    LearningStyleProfileBase,
+    StepBase,
+    TopicBase,
+)
 
-    res = requests.get(url, headers=headers, timeout=15)
-    res.raise_for_status()
 
-    data = res.json()["data"]['data']
+logger = logging.getLogger(__name__)
+
+API_TIMEOUT_SECONDS = 15
+
+
+def _headers(session: AgentSession) -> dict[str, str]:
+    return {
+        "x-acting-user-id": session.acting_user_id,
+        "x-trace-id": session.trace_id,
+        "x-idempotency-key": session.idempotency_key,
+    }
+
+
+def _get(path: str, *, session: AgentSession) -> requests.Response:
+    url = f"{ENVS['NEST_API']}{path}"
+    logger.info("[SIGNED][GET] %s acting=%s trace=%s", url, session.acting_user_id, session.trace_id)
+    try:
+        response = requests.get(url, headers=_headers(session), timeout=API_TIMEOUT_SECONDS)
+    except requests.RequestException as exc:
+        raise CrossServiceError(
+            "failed to reach internal api",
+            details={"url": url, "error": str(exc)},
+        ) from exc
+    if response.status_code >= 500:
+        raise CrossServiceError(
+            "internal api error",
+            details={"url": url, "status": response.status_code},
+        )
+    return response
+
+
+def _post(path: str, *, session: AgentSession, json_body: dict) -> requests.Response:
+    url = f"{ENVS['NEST_API']}{path}"
+    logger.info("[SIGNED][POST] %s acting=%s trace=%s", url, session.acting_user_id, session.trace_id)
+    try:
+        response = requests.post(
+            url,
+            json=json_body,
+            headers={**_headers(session), "Content-Type": "application/json"},
+            timeout=20,
+        )
+    except requests.RequestException as exc:
+        raise CrossServiceError(
+            "failed to reach internal api",
+            details={"url": url, "error": str(exc)},
+        ) from exc
+    if response.status_code >= 500:
+        raise CrossServiceError(
+            "internal api error",
+            details={"url": url, "status": response.status_code},
+        )
+    return response
+
+
+def get_steps(lesson_id: str, session: AgentSession) -> list[StepBase]:
+    response = _get(
+        f"/curriculum/steps?lessonId={lesson_id}&sort=sortOrder:asc", session=session
+    )
+    response.raise_for_status()
+    data = response.json().get("data", {}).get("data", [])
     return [StepBase(**item) for item in data]
 
-def get_step(step_id: str, token: str) -> StepBase:
-    url = f"{ENVS['NEST_API']}/curriculum/steps/{step_id}"
-    headers = {"Authorization": f"Bearer {token}"}
-    logging.info(f"[STEP][GET ONE] {url}")
 
-    res = requests.get(url, headers=headers, timeout=15)
-    res.raise_for_status()
-
-    data = res.json()["data"]
-    return StepBase(**data)
+def get_step(step_id: str, session: AgentSession) -> StepBase:
+    response = _get(f"/curriculum/steps/{step_id}", session=session)
+    response.raise_for_status()
+    return StepBase(**response.json().get("data"))
 
 
-def get_topic(topicId: str, token: str) -> TopicBase:
-    url = f"{ENVS['NEST_API']}/curriculum/topics?id={topicId}"
-    headers = {"Authorization": f"Bearer {token}"}
-    logging.info(f"[TOPIC][GET] {url}")
-
-    res = requests.get(url, headers=headers, timeout=15)
-    res.raise_for_status()
-
-    data = res.json()["data"]['data'][0]
-    return TopicBase(**data)
+def get_topic(topic_id: str, session: AgentSession) -> TopicBase:
+    response = _get(f"/curriculum/topics?id={topic_id}", session=session)
+    response.raise_for_status()
+    items = response.json().get("data", {}).get("data", [])
+    if not items:
+        raise CrossServiceError("topic not found", details={"topicId": topic_id})
+    return TopicBase(**items[0])
 
 
-def get_learning_style(learningStyleId: str, token: str) -> LearningStyleProfileBase:
-    url = f"{ENVS['NEST_API']}/learning/learning-styles/{learningStyleId}"
-    headers = {"Authorization": f"Bearer {token}"}
-    logging.info(f"[LEARNING_STYLE][GET] {url}")
-
-    res = requests.get(url, headers=headers, timeout=15)
-    res.raise_for_status()
-
-    data = res.json()["data"]
-    return LearningStyleProfileBase(**data)
-
-
-
-def create_personality_quiz(payload: dict, token: str):
-    url = f"{ENVS['NEST_API']}/learning/personality-quizzes"
-    headers = {
-        "Authorization": f"Bearer {token}",
-        "Content-Type": "application/json"
-    }
-    
-    logging.info(f"[PERSONALITY_QUIZ][POST] {url}")
-    logging.debug(f"[PERSONALITY_QUIZ][PAYLOAD] {payload}")
-
-    res = requests.post(url, json=payload, headers=headers, timeout=20)
-    res.raise_for_status()
-
-    
-    return res.json()
-
-def get_personality_quiz(lesson_id: str, user_id: str, token: str) -> dict:
-    url = (
-        f"{ENVS['NEST_API']}/learning/personality-quizzes"
-        f"?lessonId={lesson_id}&userId={user_id}"
+def get_learning_style(
+    learning_style_id: str, session: AgentSession
+) -> LearningStyleProfileBase:
+    response = _get(
+        f"/learning/learning-styles/{learning_style_id}", session=session
     )
-    headers = {"Authorization": f"Bearer {token}"}
-    logging.info(f"[PERSONALITY_QUIZ][GET] {url}")
+    response.raise_for_status()
+    return LearningStyleProfileBase(**response.json().get("data"))
 
+
+def create_personality_quiz(payload: dict, session: AgentSession) -> dict:
+    response = _post(
+        "/learning/personality-quizzes", session=session, json_body=payload
+    )
+    response.raise_for_status()
+    return response.json()
+
+
+def get_personality_quiz(
+    lesson_id: str, user_id: str, session: AgentSession
+) -> Optional[dict]:
+    url = f"{ENVS['NEST_API']}/learning/personality-quizzes?lessonId={lesson_id}&userId={user_id}"
+    logger.info("[PERSONALITY_QUIZ][GET] %s", url)
     try:
-        res = requests.get(url, headers=headers, timeout=15)
-        res.raise_for_status()
-
-        response_json = res.json()
-        data_list = response_json.get("data", {}).get("data", [])
-
-        if not data_list:
-            logging.warning(f"[PERSONALITY_QUIZ] No quiz found for user {user_id}")
-            return None  
-
-        raw_data = data_list[0]
-        return raw_data
-
-    except requests.RequestException as e:
-        logging.error(f"[PERSONALITY_QUIZ] API Request failed: {e}")
+        response = _get(
+            f"/learning/personality-quizzes?lessonId={lesson_id}&userId={user_id}",
+            session=session,
+        )
+    except CrossServiceError as exc:
+        logger.error("[PERSONALITY_QUIZ] API Request failed: %s", exc.message)
         return None
-    except Exception as e:
-        logging.error(f"[PERSONALITY_QUIZ] Processing failed: {e}")
+
+    if response.status_code == 404:
         return None
-        
-def classify_learning_style(description: str | None):
+
+    response.raise_for_status()
+    payload = response.json()
+    data_list = payload.get("data", {}).get("data", [])
+    if not data_list:
+        logger.warning("[PERSONALITY_QUIZ] No quiz found for user %s", user_id)
+        return None
+    return data_list[0]
+
+
+def classify_learning_style(description: str | None) -> Optional[str]:
     if not description:
         return None
-
     text = description.lower()
-
     if any(k in text for k in ["lihat", "visual", "gambar", "diagram", "video"]):
         return "visual"
     if any(k in text for k in ["dengar", "audio", "penjelasan lisan", "ceramah"]):
         return "auditory"
     if any(k in text for k in ["baca", "menulis", "catatan", "teks"]):
         return "reading_writing"
-    if any(k in text for k in ["praktek", "langsung", "contoh nyata", "kinestetik", "kinesthetic"]):
+    if any(
+        k in text
+        for k in ["praktek", "langsung", "contoh nyata", "kinestetik", "kinesthetic"]
+    ):
         return "kinesthetic"
-
     return None
 
 
 async def build_learning_introduction_llm(
-    steps: List[StepBase],
+    steps: list,
     pipeline,
-    learning_style: LearningStyleProfileBase | None = None
+    learning_style=None,
+    session: AgentSession | None = None,
 ):
+    from config.embedding_pipeline import EmbeddingPipeline
+    if isinstance(learning_style, dict):
+        dominant_style = learning_style.get("dominant_style")
+    elif learning_style is not None:
+        dominant_style = getattr(learning_style, "dominant_style", None)
+    else:
+        dominant_style = None
 
-    if not steps:
-        yield "Pengantar pembelajaran akan tersedia setelah langkah materi disusun."
-        return
-
-    raw_style = getattr(learning_style, "dominantStyle", None) if learning_style else None
-    style = classify_learning_style(raw_style)
+    style = classify_learning_style(dominant_style)
 
     style_map = {
         "visual": (
@@ -148,17 +192,14 @@ async def build_learning_introduction_llm(
 
     style_prompt = style_map.get(
         style,
-        "Gunakan gaya netral, jelas, langsung pada inti, dan mudah dipahami."
+        "Gunakan gaya netral, jelas, langsung pada inti, dan mudah dipahami.",
     )
 
+    step_data = [
+        {"title": s.title, "description": s.description or ""}
+        for s in steps
+    ]
 
-    # Siapkan step data untuk LLM
-    step_data = [{
-        "title": s.title,
-        "description": s.description or "",
-    } for s in steps]
-
-    # Ambil info tambahan dari retrieval untuk memperjelas konteks tiap step
     retrieval_info = []
     for s in steps:
         results = pipeline.retrieve(query=s.title, top_k=5)
@@ -168,8 +209,7 @@ async def build_learning_introduction_llm(
 
     retrieval_text = "\n".join(retrieval_info) if retrieval_info else ""
 
-    # Buat prompt akhir untuk LLM
-    prompt = f"""
+    full_prompt = f"""
 Kamu adalah AI Educator profesional. Tugasmu adalah membuat pengantar pembelajaran
 berdasarkan langkah-langkah berikut:
 
@@ -202,8 +242,7 @@ Instruksi tambahan:
 - Mulai dengan sapaan, akhiri dengan call-to-action.
 """
 
-    # Stream hasil LLM
-    stream = pipeline.llm.stream(prompt)
+    stream = pipeline.llm.stream(full_prompt)
     if hasattr(stream, "__aiter__"):
         async for chunk in stream:
             text = getattr(chunk, "text", None)
@@ -216,9 +255,35 @@ Instruksi tambahan:
                 yield text
 
 
-
 def extract_quiz(result):
     quiz = result.get("quiz")
     if isinstance(quiz, list) and len(quiz) > 0 and hasattr(quiz[0], "question"):
         return quiz
     return []
+
+
+async def _load_profile_and_steps(
+    session: AgentSession,
+    lesson_id: str,
+    learning_style_id: str,
+    topic_id: str | None = None,
+):
+    steps = get_steps(lesson_id, session)
+    learning_style = get_learning_style(learning_style_id, session)
+    topic = get_topic(topic_id, session) if topic_id else None
+    return topic, steps, learning_style
+
+
+__all__ = [
+    "API_TIMEOUT_SECONDS",
+    "get_steps",
+    "get_step",
+    "get_topic",
+    "get_learning_style",
+    "create_personality_quiz",
+    "get_personality_quiz",
+    "classify_learning_style",
+    "build_learning_introduction_llm",
+    "extract_quiz",
+    "_load_profile_and_steps",
+]

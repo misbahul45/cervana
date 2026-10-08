@@ -4,7 +4,7 @@ import { GetUser, Roles } from '@/v1/auth/auth.decorator';
 import { Role } from '@prisma/client';
 import { MasteryService } from './mastery.service';
 
-@Controller('v1/personalization/mastery')
+@Controller('personalization/mastery')
 @UseGuards(JwtAuthGuard)
 export class MasteryController {
   constructor(private readonly mastery: MasteryService) {}

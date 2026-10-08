@@ -42,7 +42,7 @@ export const authService = {
   },
 
   async refreshToken(tokens?:Tokens) {
-    return request<refreshTokenResponse>("/auth/refresh-token", "POST",null,{},true, tokens);
+    return request<refreshTokenResponse>("/auth/refresh-token", "POST", null, {}, false, tokens);
   },
 
   async resendOtp(email: string,  type:string) {

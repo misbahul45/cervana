@@ -115,7 +115,7 @@ const totalCompleted = computed(() =>
 
               <div class="flex flex-col gap-2 p-2 sm:p-3">
                 <div class="flex items-center gap-2">
-                  <NuxtIcon
+                  <UIcon
                     name="ph:planet-duotone"
                     class="text-primary text-lg sm:text-xl group-hover:rotate-12 transition-transform duration-500"
                   />

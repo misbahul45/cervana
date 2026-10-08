@@ -35,8 +35,8 @@ def make_fetcher(get_payloads, post_payload):
 
 
 @pytest.mark.asyncio
-async def test_curriculum_agent_calls_api_policy_and_memory():
-    os.environ["NEST_API"] = "http://api:3002"
+async def test_curriculum_agent_calls_api_policy_and_memory(monkeypatch):
+    monkeypatch.setenv("NEST_API", "http://api:3002/api/v1")
     fetcher = make_fetcher(
         get_payloads=[
             {"topicId": "l1-t02", "level": 1, "rationaleKind": "progression"},
@@ -56,9 +56,9 @@ async def test_curriculum_agent_calls_api_policy_and_memory():
     assert result["decision"]["topicId"] == "l1-t02"
     assert result["stored"]["id"] == "mem1"
     assert len(fetcher.get_calls) == 2
-    assert "/v1/personalization/policy/next" in fetcher.get_calls[0][0]
+    assert fetcher.get_calls[0][0] == "http://api:3002/api/v1/personalization/policy/next"
     assert fetcher.get_calls[1][1] is not None and fetcher.get_calls[1][1].get("lessonId") == "l1-t01"
-    assert "/v1/personalization/memory" in fetcher.post_calls[0][0]
+    assert fetcher.post_calls[0][0] == "http://api:3002/api/v1/personalization/memory"
     assert fetcher.post_calls[0][2]["Authorization"] == "Bearer test-token"
 
 

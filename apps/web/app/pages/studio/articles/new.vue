@@ -1,99 +1,90 @@
 <script setup lang="ts">
-import { ref, reactive, onMounted } from 'vue';
-import { useRoute, useRouter } from 'vue-router';
 import MarkdownEditor from '~/components/editor/MarkdownEditor.vue';
-import Form from '~/components/ui/Form.vue';
 import { creatorApi } from '~/lib/api';
+import { describeApiError } from '~/lib/api-error';
 
-const route = useRoute();
-const router = useRouter();
+definePageMeta({
+  title: 'Artikel Baru — ReduCera Studio',
+  protection: { kind: 'tenant-role', tenantRoles: ['OWNER', 'MANAGER', 'TEACHER', 'EDITOR'] },
+  layout: 'studio',
+});
 
 const form = reactive({
   title: '',
-  topicId: '',
-  body: '',
-  coverImage: '',
-  tags: '',
-  visibility: 'PUBLIC',
+  excerpt: '',
+  accessType: 'FREE' as 'FREE' | 'PAID',
+  price: null as number | null,
+  content: '',
 });
 
 const submitting = ref(false);
 const error = ref('');
-const savedAt = ref<Date | null>(null);
-
-onMounted(() => {
-  const editId = String(route.params.id || '');
-  if (editId) {
-    try {
-      const raw = localStorage.getItem(`article-draft-${editId}`);
-      if (raw) Object.assign(form, JSON.parse(raw));
-    } catch {
-      // ignore
-    }
-  }
-});
-
-function autosave() {
-  try {
-    localStorage.setItem('article-draft-new', JSON.stringify(form));
-  } catch {
-    // ignore
-  }
-  savedAt.value = new Date();
-}
 
 async function save() {
-  if (!form.title || !form.body) {
-    error.value = 'Judul dan isi wajib diisi';
+  if (submitting.value) return;
+  if (!form.title.trim() || !form.content.trim()) {
+    error.value = 'Judul dan isi wajib diisi.';
+    return;
+  }
+  if (form.accessType === 'PAID' && (!form.price || form.price <= 0)) {
+    error.value = 'Artikel berbayar harus memiliki harga.';
     return;
   }
   submitting.value = true;
   error.value = '';
   try {
-    const tags = form.tags.split(',').map((s) => s.trim()).filter(Boolean);
-    const created = await creatorApi.create({
-      title: form.title,
-      body: form.body,
-      topicId: form.topicId,
-      coverImage: form.coverImage || undefined,
-      tags,
+    await creatorApi.create({
+      title: form.title.trim(),
+      content: form.content,
+      ...(form.excerpt.trim() ? { excerpt: form.excerpt.trim() } : {}),
+      accessType: form.accessType,
+      ...(form.accessType === 'PAID' ? { price: form.price as number } : {}),
     });
-    if (created?.id) {
-      autosave();
-      await router.push('/studio/articles');
-    }
-  } catch (e: any) {
-    error.value = e?.data?.message || 'Gagal menyimpan artikel';
+    await navigateTo('/studio/articles');
+  } catch (e) {
+    error.value = describeApiError(e, 'Gagal menyimpan artikel.');
   } finally {
     submitting.value = false;
   }
-}
-
-function fields() {
-  return [
-    { name: 'title', label: 'Judul', type: 'text', required: true },
-    { name: 'topicId', label: 'Topik (contoh: l1-t01-accounting-equation)', type: 'text', required: true },
-    { name: 'coverImage', label: 'URL Sampul (opsional)', type: 'text' },
-    { name: 'tags', label: 'Tag (pisahkan dengan koma)', type: 'text' },
-  ];
 }
 </script>
 
 <template>
   <main class="max-w-3xl mx-auto p-6 space-y-6">
-    <div class="flex items-center justify-between">
-      <h1 class="text-3xl font-bold">Artikel Baru</h1>
-      <span v-if="savedAt" class="text-xs text-[var(--rc-fg-muted,#6b7280)]">Disimpan otomatis {{ savedAt.toLocaleTimeString() }}</span>
-    </div>
-    <p class="text-[var(--rc-fg-muted,#6b7280)]">Editor markdown dengan autosave. Diterbitkan setelah disetujui reviewer.</p>
+    <h1 class="text-3xl font-bold">Artikel Baru</h1>
+    <p class="text-[var(--rc-fg-muted,#6b7280)]">Disimpan sebagai draf. Artikel terbit setelah ditinjau dan disetujui.</p>
 
-    <div v-if="error" class="bg-red-50 text-red-700 px-3 py-2 rounded border border-red-200">{{ error }}</div>
+    <p v-if="error" role="alert" class="bg-red-50 text-red-700 px-3 py-2 rounded border border-red-200">{{ error }}</p>
 
-    <Form :fields="fields()" @submit="(d) => Object.assign(form, d) && save()" submit-label="Simpan" />
-
-    <div>
-      <label class="block font-medium mb-1">Isi Artikel (Markdown)</label>
-      <MarkdownEditor v-model="form.body" placeholder="# Judul Bagian\n\nTulis artikel Anda di sini. Mendukung **bold**, *italic*, [link](url), dan ```kode```." @save="save" @cancel="router.push('/studio/articles')" />
-    </div>
+    <form class="space-y-4" @submit.prevent="save">
+      <div>
+        <label class="block font-medium mb-1" for="title">Judul</label>
+        <input id="title" v-model="form.title" required minlength="3" maxlength="160" class="rc-field" />
+      </div>
+      <div>
+        <label class="block font-medium mb-1" for="excerpt">Ringkasan (opsional)</label>
+        <textarea id="excerpt" v-model="form.excerpt" maxlength="500" rows="2" class="rc-field" />
+      </div>
+      <div class="flex gap-4">
+        <div>
+          <label class="block font-medium mb-1" for="access">Akses</label>
+          <select id="access" v-model="form.accessType" class="rc-field">
+            <option value="FREE">Gratis</option>
+            <option value="PAID">Berbayar</option>
+          </select>
+        </div>
+        <div v-if="form.accessType === 'PAID'">
+          <label class="block font-medium mb-1" for="price">Harga (IDR)</label>
+          <input id="price" v-model.number="form.price" type="number" min="1" step="1" required class="rc-field" />
+        </div>
+      </div>
+      <div>
+        <label class="block font-medium mb-1">Isi Artikel (Markdown)</label>
+        <MarkdownEditor v-model="form.content" placeholder="Tulis artikel Anda di sini." @save="save" @cancel="navigateTo('/studio/articles')" />
+      </div>
+      <button type="submit" :disabled="submitting" class="rc-btn">
+        {{ submitting ? 'Menyimpan…' : 'Simpan draf' }}
+      </button>
+    </form>
   </main>
 </template>

@@ -1,6 +1,6 @@
 import type { Query, Tokens } from "~/interfaces/api"
 import type { UserStepDetailResponse, UserStepListResponse } from "~/interfaces/learning/userSteps"
-import { request, toQueryString } from "~/lib/api"
+import { apiUrl, request, toQueryString } from "~/lib/api"
 
 export const userStepService = {
   async complete(id:string, token?:Tokens){
@@ -53,9 +53,7 @@ export const userStepService = {
     )
   },
   listenUserStepsSse() {
-    const config = useRuntimeConfig()
-    const API_URL = config.public.API_URL
-    return new EventSource(`${API_URL}/user-steps-sse`, {
+    return new EventSource(apiUrl("/user-steps-sse"), {
       withCredentials: true
     })
   },

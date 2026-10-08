@@ -23,8 +23,8 @@ import { LevelModule } from "./level/level-calculation.module";
                     {path:'', module: StreaksModule},
                     {path:'', module: LeaderboardsModule},
                     {path:'', module: ThemeModule},
-                    {path:'badges', module: BadgeIssuanceModule},
-                    {path:'level', module: LevelModule},
+                    {path:'', module: BadgeIssuanceModule},
+                    {path:'', module: LevelModule},
                 ]
             }
         ])
