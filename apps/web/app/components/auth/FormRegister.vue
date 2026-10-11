@@ -35,10 +35,10 @@ async function onSubmit() {
 
 <template>
   <form class="rc-auth__form" novalidate @submit.prevent="onSubmit">
-    <AuthField id="register-name" v-model="state.name" label="Nama lengkap" autocomplete="name" :error="errors.name" :disabled="loading" />
+    <AuthField id="register-name" v-model="state.name" label="Nama lengkap" autocomplete="name" :error="errors.name" placeholder="xninetzy" :disabled="loading" />
     <AuthField id="register-email" v-model="state.email" label="Email" type="email" autocomplete="email" inputmode="email" placeholder="nama@email.com" :error="errors.email" :disabled="loading" />
-    <AuthField id="register-password" v-model="state.password" label="Kata sandi" type="password" autocomplete="new-password" hint="Minimal 8 karakter." :error="errors.password" :disabled="loading" />
-    <AuthField id="register-confirm" v-model="state.confirmPassword" label="Ulangi kata sandi" type="password" autocomplete="new-password" :error="errors.confirmPassword" :disabled="loading" />
+    <AuthField id="register-password" v-model="state.password" label="Kata sandi" type="password" autocomplete="new-password" hint="Minimal 8 karakter." placeholder="********" :error="errors.password" :disabled="loading" />
+    <AuthField id="register-confirm" v-model="state.confirmPassword" label="Ulangi kata sandi" type="password" autocomplete="new-password" placeholder="********" :error="errors.confirmPassword" :disabled="loading" />
     <div class="rc-authfield">
       <label class="rc-check" for="register-agree">
         <input id="register-agree" v-model="state.agree" type="checkbox" :disabled="loading" :aria-invalid="errors.agree ? 'true' : undefined" aria-describedby="register-agree-error" />

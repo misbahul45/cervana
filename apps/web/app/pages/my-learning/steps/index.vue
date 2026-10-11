@@ -74,9 +74,8 @@ async function startGenerate() {
   })
 
   eventSource.addEventListener('introduction_chunk', (e) => {
-    const text = cleanText(e.data) + "\n"
-    logs.value.push(text)
-    pushToTypingQueue(text)
+    logs.value.push(e.data)
+    pushToTypingQueue(e.data)
   })
 
   eventSource.addEventListener('end', async () => {

@@ -1,6 +1,7 @@
 import "dotenv/config";
 import { PrismaPg } from "@prisma/adapter-pg";
-import { PrismaClient } from "@prisma/client";
+import { PrismaClient, type Role } from "@prisma/client";
+import * as bcrypt from "bcrypt";
 
 const connectionString = `${process.env.DATABASE_URL}`;
 if (!connectionString) {
@@ -10,33 +11,46 @@ if (!connectionString) {
 const adapter = new PrismaPg({ connectionString });
 const prisma = new PrismaClient({ adapter });
 
-async function ensureSeedUsers(): Promise<void> {
-  const teacherEmail = "seed.teacher@reducera.local";
-  const existingTeacher = await prisma.user.findFirst({
-    where: { role: "TEACHER" },
-  });
-  if (!existingTeacher) {
-    await prisma.user.upsert({
-      where: { email: teacherEmail },
-      update: { role: "TEACHER" },
-      create: {
-        email: teacherEmail,
-        name: "Seed Teacher",
-        role: "TEACHER",
-      },
-    });
+const BCRYPT_ROUNDS = 12;
+const PASSWORD_MIN_LENGTH = 8;
+const PASSWORD_MAX_LENGTH = 72;
+
+const SEED_ACCOUNTS: ReadonlyArray<{ email: string; name: string; role: Role }> = [
+  { email: "seed.student@reducera.local", name: "Seed Student", role: "STUDENT" },
+  { email: "seed.teacher@reducera.local", name: "Seed Teacher", role: "TEACHER" },
+  { email: "seed.reviewer@reducera.local", name: "Seed Reviewer", role: "REVIEWER" },
+  { email: "seed.admin@reducera.local", name: "Seed Admin", role: "ADMIN" },
+];
+
+function readSeedPassword(): string {
+  if (process.env.NODE_ENV === "production") {
+    throw new Error("Seed accounts must not be created with NODE_ENV=production");
   }
-  const existingAdmin = await prisma.user.findFirst({
-    where: { role: "ADMIN" },
-  });
-  if (!existingAdmin) {
+  const password = process.env.SEED_ACCOUNT_PASSWORD ?? "";
+  if (password.length < PASSWORD_MIN_LENGTH || password.length > PASSWORD_MAX_LENGTH) {
+    throw new Error(
+      `SEED_ACCOUNT_PASSWORD must be ${PASSWORD_MIN_LENGTH} to ${PASSWORD_MAX_LENGTH} characters`,
+    );
+  }
+  return password;
+}
+
+async function ensureSeedUsers(): Promise<void> {
+  const password = await bcrypt.hash(readSeedPassword(), BCRYPT_ROUNDS);
+  for (const account of SEED_ACCOUNTS) {
     await prisma.user.upsert({
-      where: { email: "seed.admin@reducera.local" },
-      update: { role: "ADMIN" },
+      where: { email: account.email },
+      update: {
+        name: account.name,
+        role: account.role,
+        password,
+        emailVerified: new Date(),
+        isActive: true,
+      },
       create: {
-        email: "seed.admin@reducera.local",
-        name: "Seed Admin",
-        role: "ADMIN",
+        ...account,
+        password,
+        emailVerified: new Date(),
       },
     });
   }

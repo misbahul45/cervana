@@ -62,7 +62,7 @@ Source: [`users.controller.ts`](../../services/api/src/v1/users/users.controller
 |---|---|---|---|---|
 | POST | `/topics` | TEACHER | `Roles(Role.TEACHER)` | – |
 | GET | `/topics` | public | none | – |
-| GET | `/topics/:slug` | public | none | – |
+| GET | `/topics/:identifier` | public | none | – |
 | PATCH | `/topics/:id` | ADMIN | `Roles(Role.ADMIN)` | ❌ TEACHER who created cannot edit own topic |
 | DELETE | `/topics/:id` | ADMIN | `Roles(Role.ADMIN)` | ❌ TEACHER cannot delete own topic |
 | POST | `/subtopics` | authenticated | none | 🟡 no role check; should be TEACHER |

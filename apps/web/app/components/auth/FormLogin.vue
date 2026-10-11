@@ -48,7 +48,7 @@ async function onSubmit() {
 <template>
   <form class="rc-auth__form" novalidate @submit.prevent="onSubmit">
     <AuthField id="login-email" v-model="state.email" label="Email" type="email" autocomplete="email" inputmode="email" placeholder="nama@email.com" :error="errors.email" :disabled="loading" />
-    <AuthField id="login-password" v-model="state.password" label="Kata sandi" type="password" autocomplete="current-password" :error="errors.password" :disabled="loading" />
+    <AuthField id="login-password" v-model="state.password" label="Kata sandi" type="password" autocomplete="current-password" placeholder="********" :error="errors.password" :disabled="loading" />
     <AuthAlert :message="message" tone="error" />
     <PlayButton type="submit" block :loading="loading">Masuk</PlayButton>
     <NuxtLink to="/forgot-password" class="rc-auth__aside-link">Lupa kata sandi?</NuxtLink>

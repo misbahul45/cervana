@@ -32,13 +32,13 @@ export class TopicsController {
   }
 
   @Public()
-  @Get(':slug')
+  @Get(':identifier')
   @ApiCrudDocs.findOne(TopicDetailSchema, 'Topic')
   findOne(
-    @Param('slug') slug: string,
+    @Param('identifier') identifier: string,
     @Query() query: Pick<QueryInterface, 'include'>
   ) {
-    return this.topicsService.findOne(slug, query);
+    return this.topicsService.findOne(identifier, query);
   }
 
 

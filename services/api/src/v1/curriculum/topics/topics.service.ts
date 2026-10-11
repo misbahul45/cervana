@@ -2,9 +2,11 @@ import { Query } from '@/common/interfaces';
 import { errorHandler, slugify } from '@/common/lib/utils';
 import { Injectable } from '@nestjs/common';
 import { CreateTopicType, UpdateTopicType } from './topics.dto';
-import { AppError } from '@/common/lib/error';
+import { AppError, AppErrorCode } from '@/common/lib/error';
 import { TopicsRepo } from './topics.repo';
 import { SubTopicsRepo } from '../subtopics/sub-topics.repo';
+
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 @Injectable()
 export class TopicsService {
@@ -47,12 +49,13 @@ export class TopicsService {
   }
 
 
-  findOne(slug: string, q:Query) {
+  findOne(identifier: string, q:Query) {
     return errorHandler(async()=>{
-        const topic=await this.topicsRepo.findOne('slug',slug, q)
+        const key = UUID_PATTERN.test(identifier) ? 'id' : 'slug'
+        const topic=await this.topicsRepo.findOne(key, identifier, q)
 
         if(!topic?.id){
-          throw new AppError('Topic not found', 404)
+          throw new AppError('Topic not found', 404, AppErrorCode.NOT_FOUND)
         }
         return {
           message:'Sucessfully retrieved topic',

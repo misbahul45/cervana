@@ -18,6 +18,7 @@ from middleware.idempotency import require_idempotency_key
 from v1.users_steps.dto import LPState
 from v1.users_steps.generate_user_steps_pipeline import generate_user_steps_pipeline
 from v1.users_steps.service import get_learning_style, get_steps
+from v1.users_steps.streaming import chunk_text
 from v1.users_steps.workers import generate_personality_quiz
 
 
@@ -90,24 +91,8 @@ async def generate_question_sse(
                 learning_style=learning_style,
                 session=session,
             ):
-                if hasattr(chunk, "delta") and chunk.delta:
-                    text = chunk.delta
-                elif hasattr(chunk, "text") and chunk.text:
-                    text = chunk.text
-                elif hasattr(chunk, "content") and chunk.content:
-                    text = chunk.content
-                else:
-                    text = chunk
-
-                if callable(text):
-                    text = text()
-
+                text = chunk_text(chunk)
                 if text is None:
-                    continue
-                if not isinstance(text, str):
-                    text = str(text)
-                text = text.strip()
-                if not text:
                     continue
                 intro_chunks.append(text)
                 yield {"event": "introduction_chunk", "data": text}

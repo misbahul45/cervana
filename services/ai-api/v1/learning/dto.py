@@ -94,7 +94,7 @@ class LessonBase(BaseModel):
     description: Optional[str] = None
     sort_order: int = 0
     sub_topic_id: str
-    theme_id: str
+    theme_id: Optional[str] = None
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
 

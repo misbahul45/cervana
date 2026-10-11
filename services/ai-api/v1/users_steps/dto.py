@@ -68,7 +68,7 @@ class StepBase(BaseModel):
     lesson_id: str
     lesson: Optional[Any] = None
 
-    theme_id: str
+    theme_id: Optional[str] = None
     theme: Optional[Any] = None
 
     quizzes: Optional[List[Any]] = None
