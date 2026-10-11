@@ -11,6 +11,7 @@ export interface LessonProgress {
   isDone: boolean
   percentage: number
   introduction?:string;
+  quizId?: string | null;
   createdAt: string | Date
   updatedAt: string | Date
 

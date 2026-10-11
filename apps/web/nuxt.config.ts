@@ -8,23 +8,26 @@ function stripPrefix(url: string | undefined, prefix: string): string | undefine
 
 export default defineNuxtConfig({
   ssr: true,
+  experimental: {
+    asyncContext: true,
+  },
   app: {
     head: {
-      title: 'ReduCera – Ekosistem Belajar Akuntansi Berbasis AI untuk Mahasiswa',
+      title: 'ReduCera: Ekosistem Belajar Dinamis yang Menyesuaikan Diri denganmu',
       htmlAttrs: { lang: 'id' },
       meta: [
-        { name: 'description', content: 'ReduCera adalah platform belajar akuntansi untuk mahasiswa dengan tutor AI yang menyesuaikan cara belajarmu, kurikulum akuntansi terstruktur, dan atmosfer belajar yang membuat setiap konsep terasa berbeda.' },
-        { property: 'og:title', content: 'ReduCera – Belajar Akuntansi dengan Tutor AI' },
-        { property: 'og:description', content: 'Kurikulum akuntansi terstruktur, tutor AI adaptif, dan atmosfer belajar imersif untuk mahasiswa.' },
+        { name: 'description', content: 'ReduCera memilih topik belajar berikutnya dari penguasaan dan miskonsepsimu. Mulai dari akuntansi dengan 65 konsep berprasyarat, latihan jurnal, simulator, dan jalur menjadi kreator.' },
+        { property: 'og:title', content: 'ReduCera: Ekosistem Belajar Dinamis' },
+        { property: 'og:description', content: 'Jalur belajarmu berubah karena kamu berubah. Topik berikutnya dipilih dari penguasaan dan miskonsepsimu.' },
         { property: 'og:image', content: '/images/seo/reducera-preview.png' },
         { property: 'og:type', content: 'website' },
         { name: 'twitter:card', content: 'summary_large_image' },
-        { name: 'twitter:title', content: 'ReduCera – Belajar Akuntansi dengan Tutor AI' },
-        { name: 'twitter:description', content: 'Kurikulum akuntansi terstruktur, tutor AI adaptif, dan atmosfer belajar imersif untuk mahasiswa.' },
+        { name: 'twitter:title', content: 'ReduCera: Ekosistem Belajar Dinamis' },
+        { name: 'twitter:description', content: 'Jalur belajarmu berubah karena kamu berubah. Topik berikutnya dipilih dari penguasaan dan miskonsepsimu.' },
         { name: 'twitter:image', content: '/images/seo/reducera-preview.png' },
         { name: 'theme-color', content: '#F2FAFB', media: '(prefers-color-scheme: light)' },
         { name: 'theme-color', content: '#04202D', media: '(prefers-color-scheme: dark)' },
-        { name: 'keywords', content: 'ReduCera, belajar akuntansi, akuntansi mahasiswa, tutor AI, jurnal umum, buku besar, neraca saldo, laporan keuangan, gamifikasi' },
+        { name: 'keywords', content: 'ReduCera, pembelajaran adaptif, microlearning, belajar akuntansi, jurnal umum, simulator bisnis, gamifikasi, kreator pengetahuan' },
       ],
       link: [
         { rel: 'icon', type: 'image/x-icon', href: '/favicon.ico' },
@@ -33,8 +36,7 @@ export default defineNuxtConfig({
         { rel: 'icon', type: 'image/svg+xml', href: '/icon.svg' },
         { rel: 'apple-touch-icon', href: '/apple-touch-icon.png' },
         { rel: 'manifest', href: '/site.webmanifest' },
-        { rel: 'preload', as: 'font', href: '/fonts/Ubuntu/Ubuntu-Regular.ttf', type: 'font/ttf', crossorigin: 'anonymous' },
-        { rel: 'preload', as: 'font', href: '/fonts/Ubuntu/Ubuntu-Bold.ttf', type: 'font/ttf', crossorigin: 'anonymous' },
+        { rel: 'preload', as: 'font', href: '/fonts/nunito/Nunito-Variable.woff2', type: 'font/woff2', crossorigin: 'anonymous' },
       ],
     }
   },
@@ -48,11 +50,13 @@ export default defineNuxtConfig({
     '@nuxt/icon',
     '@pinia/nuxt',
     'pinia-plugin-persistedstate/nuxt',
+    '@tresjs/nuxt',
   ],
   components: {
     dirs: [
+      { path: '~/components/play', pathPrefix: false },
+      { path: '~/components/landing', pathPrefix: false },
       '~/components',
-      { path: '~/components/landingpage', pathPrefix: false },
     ]
   },
   hooks: {
@@ -113,10 +117,13 @@ export default defineNuxtConfig({
     colorMode:true,
   },
   icon: {
-      collections: ['lucide', 'ph', 'mdi'],
       serverBundle: {
-        externalizeIconsJson: true,
+        collections: ['lucide', 'heroicons'],
       },
+      clientBundle: {
+        scan: true,
+      },
+      localApiEndpoint: '/_rc/icons',
       provider: 'iconify',
   },
   nuxtQuery: {
@@ -131,7 +138,7 @@ export default defineNuxtConfig({
       }
     }
   },
-  css: ['~/assets/css/main.css'],
+  css: ['~/assets/css/main.css', '~/assets/css/play.css', '~/assets/css/landing.css', '~/assets/css/admin.css', '~/assets/css/market.css', '~/assets/css/article.css'],
   vite: {
     plugins: [tailwindcss()],
     optimizeDeps: {

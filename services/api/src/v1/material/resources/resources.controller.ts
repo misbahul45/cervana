@@ -1,9 +1,9 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, Query, Req } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, Query } from '@nestjs/common';
 import { ResourcesService } from './resources.service';
 import { CreateResourceType } from './resources.dto';
 import { Query as QueryResource } from '@/common/interfaces';
-import { Roles } from '@/v1/auth/auth.decorator';
-import { JOBSTATUSTYPE, Role } from '@prisma/client';
+import { GetUser, Roles } from '@/v1/auth/auth.decorator';
+import { JOBSTATUSTYPE, Role, User } from '@prisma/client';
 
 @Controller('resources')
 export class ResourcesController {
@@ -11,11 +11,8 @@ export class ResourcesController {
 
   @Roles(Role.TEACHER)
   @Post()
-  create(@Body() createResourceDto: CreateResourceType, @Req() req) {
-    const token =
-    req.cookies?.access_token ||
-    req.headers.authorization?.replace('Bearer ', '');
-    return this.resourcesService.create(createResourceDto, token);
+  create(@Body() createResourceDto: CreateResourceType, @GetUser() user: User) {
+    return this.resourcesService.create(createResourceDto, user.id);
   }
 
   @Roles(Role.TEACHER)

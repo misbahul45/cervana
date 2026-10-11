@@ -52,28 +52,28 @@ describe.each([
 });
 
 describe('documented token values', () => {
-  it('matches the table in the execution plan section 7.2', () => {
+  it('matches the Play palette of the design document', () => {
     expect(tokens(':root')).toMatchObject({
-      bg: '#F2FAFB',
+      bg: '#FFFFFF',
       surface: '#FFFFFF',
-      fg: '#0A2533',
-      muted: '#3F5B69',
-      primary: '#0B7285',
+      fg: '#3C3C3C',
+      muted: '#6B6B6B',
+      primary: '#2F7D00',
       'primary-fg': '#FFFFFF',
-      secondary: '#1C5D99',
-      accent: '#C2410C',
-      focus: '#0B5FA8',
+      secondary: '#1D6FB8',
+      accent: '#B85C00',
+      focus: '#1D6FB8',
     });
     expect(tokens('.dark')).toMatchObject({
-      bg: '#04202D',
-      surface: '#0A3145',
-      fg: '#E6F7FA',
-      muted: '#A5CBD6',
-      primary: '#3CC8DA',
-      'primary-fg': '#03202B',
-      secondary: '#6FA8F0',
-      accent: '#FF9A76',
-      focus: '#7DD3FC',
+      bg: '#131F24',
+      surface: '#1F2C33',
+      fg: '#F1F7FA',
+      muted: '#9FB0B8',
+      primary: '#58CC02',
+      'primary-fg': '#0B2B00',
+      secondary: '#49C0F8',
+      accent: '#FFB020',
+      focus: '#49C0F8',
     });
   });
 
@@ -93,7 +93,8 @@ describe('custom property usage', () => {
         return /\.(vue|css)$/.test(full) ? [full] : [];
       });
 
-    const defined = new Set([...css.matchAll(/--(rc-[a-z0-9-]+)\s*:/g)].map((match) => match[1]!));
+    const stylesheets = ['main.css', 'play.css', 'landing.css', 'admin.css', 'market.css', 'article.css'].map((name) => readFileSync(join(appRoot, 'assets', 'css', name), 'utf8')).join('\n');
+    const defined = new Set([...stylesheets.matchAll(/--(rc-[a-z0-9-]+)\s*:/g)].map((match) => match[1]!));
     const runtimeThemed = /^rc-page-/;
     const undefinedUses = new Set<string>();
 

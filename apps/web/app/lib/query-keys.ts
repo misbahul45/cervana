@@ -35,6 +35,11 @@ export const QK = {
     progress: () => qk('learner', 'progress'),
     streak: () => qk('learner', 'streak'),
   },
+  gamify: {
+    me: () => qk('gamify', 'me'),
+    achievements: () => qk('gamify', 'achievements'),
+    board: (topicId: string) => qk('gamify', 'board', topicId),
+  },
   curriculum: {
     topic: (topicId: string) => qk('topic', topicId),
     topics: (filters?: Record<string, unknown>) => qk('topics', filters ?? {}),

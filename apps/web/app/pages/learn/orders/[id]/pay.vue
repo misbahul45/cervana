@@ -1,13 +1,22 @@
 <script setup lang="ts">
+import PageHeader from '~/components/play/PageHeader.vue';
+import PlayButton from '~/components/play/PlayButton.vue';
+import PlayCard from '~/components/play/PlayCard.vue';
+import ErrorState from '~/components/ui/ErrorState.vue';
+import LoadingSkeleton from '~/components/ui/LoadingSkeleton.vue';
+import { evidenceProblem } from '~/lib/admin';
 import { ordersApi, paymentsApi, uploadApi } from '~/lib/api';
 import { describeApiError } from '~/lib/api-error';
 import { formatDateTime, formatMoney } from '~/lib/format';
 import { orderTitle } from '~/lib/order-status';
 
 definePageMeta({
-  title: 'Selesaikan Pembayaran | ReduCera',
+  title: 'Selesaikan Pembayaran — ReduCera',
   protection: { kind: 'authenticated' },
+  layout: 'learner',
 });
+
+useHead({ title: 'Selesaikan Pembayaran — ReduCera' });
 
 const route = useRoute();
 const orderId = computed(() => String(route.params.id || ''));
@@ -35,16 +44,21 @@ watchEffect(() => {
   if (!selectedMethod.value && accounts.value.length > 0) selectedMethod.value = accounts.value[0]!.method;
 });
 
+const proofProblem = ref<string | null>(null);
+
 function onProofChange(event: Event) {
   const input = event.target as HTMLInputElement;
-  proofFile.value = input.files?.[0] ?? null;
+  const file = input.files?.[0] ?? null;
   uploadedProof.value = null;
+  proofProblem.value = file ? evidenceProblem(file) : null;
+  proofFile.value = proofProblem.value ? null : file;
+  if (proofProblem.value) input.value = '';
 }
 
 async function submit() {
   if (submitting.value || !payment.value) return;
   if (!proofFile.value) {
-    submitError.value = 'Unggah bukti transfer terlebih dahulu.';
+    submitError.value = proofProblem.value ?? 'Unggah bukti transfer terlebih dahulu.';
     return;
   }
   if (!selectedMethod.value) {
@@ -77,108 +91,80 @@ async function submit() {
 </script>
 
 <template>
-  <div class="min-h-screen px-4 py-10 md:py-14 mx-auto max-w-2xl" :style="{ backgroundColor: 'var(--rc-bg)', color: 'var(--rc-fg)' }">
-    <main id="main" aria-labelledby="pay-h">
-      <LoadingSkeleton v-if="status === 'pending'" variant="panel" :count="2" />
-      <ErrorState
-        v-else-if="error || !order"
-        title="Pesanan tidak dapat dimuat"
-        :message="describeApiError(error)"
-        @retry="refresh()"
+  <div class="rc-stack rc-pay">
+    <LoadingSkeleton v-if="status === 'pending'" variant="panel" :count="2" />
+    <ErrorState v-else-if="error || !order" title="Pesanan tidak dapat dimuat" :message="describeApiError(error)" @retry="refresh()" />
+
+    <template v-else-if="order.status !== 'PENDING'">
+      <PageHeader
+        title="Pembayaran"
+        :subtitle="order.status === 'PAYMENT_SUBMITTED' ? 'Bukti pembayaran sudah diterima dan sedang diverifikasi.' : 'Pesanan ini tidak menunggu pembayaran lagi.'"
       />
+      <div class="rc-actions">
+        <PlayButton :to="`/learn/orders/${order.id}`">Lihat detail pesanan</PlayButton>
+      </div>
+    </template>
 
-      <template v-else-if="order.status !== 'PENDING'">
-        <h1 id="pay-h" class="text-2xl md:text-3xl font-bold">Pembayaran</h1>
-        <p class="mt-3" :style="{ color: 'var(--rc-muted)' }">
-          <template v-if="order.status === 'PAYMENT_SUBMITTED'">Bukti pembayaran sudah diterima dan sedang diverifikasi.</template>
-          <template v-else>Pesanan ini tidak menunggu pembayaran lagi.</template>
-        </p>
-        <NuxtLink class="mt-4 inline-block" :to="`/learn/orders/${order.id}`">Lihat detail pesanan</NuxtLink>
-      </template>
+    <ErrorState
+      v-else-if="!payment || !instructions"
+      title="Instruksi pembayaran belum tersedia"
+      message="Instruksi pembayaran untuk pesanan ini belum dapat ditampilkan. Coba lagi beberapa saat."
+      @retry="refresh()"
+    />
 
-      <ErrorState
-        v-else-if="!payment || !instructions"
-        title="Instruksi pembayaran belum tersedia"
-        message="Instruksi pembayaran untuk pesanan ini belum dapat ditampilkan. Coba lagi beberapa saat."
-        @retry="refresh()"
-      />
+    <template v-else>
+      <PageHeader title="Selesaikan pembayaran" :subtitle="`${orderTitle(order.items)} · Pesanan #${order.id.slice(0, 8)}`" />
 
-      <template v-else>
-        <h1 id="pay-h" class="text-2xl md:text-3xl font-bold">Selesaikan Pembayaran</h1>
-        <p class="mt-2 text-sm" :style="{ color: 'var(--rc-muted)' }">
-          {{ orderTitle(order.items) }} · Pesanan #{{ order.id.slice(0, 8) }}
-        </p>
+      <PlayCard as="section" aria-labelledby="summary-h">
+        <h2 id="summary-h" class="rc-h2">Ringkasan</h2>
+        <dl class="rc-pay__summary">
+          <div><dt>Total</dt><dd>{{ formatMoney(instructions.amount, instructions.currency) }}</dd></div>
+          <div><dt>Kode referensi</dt><dd>{{ instructions.referenceCode }}</dd></div>
+          <div><dt>Batas waktu</dt><dd>{{ formatDateTime(instructions.expiresAt) }}</dd></div>
+        </dl>
+      </PlayCard>
 
-        <section class="mt-6 p-6 rounded-xl" :style="{ backgroundColor: 'var(--rc-surface)', border: '1px solid var(--rc-border)' }" aria-labelledby="summary-h">
-          <h2 id="summary-h" class="text-lg font-semibold">Ringkasan</h2>
-          <dl class="mt-4 space-y-2 text-sm">
-            <div class="flex justify-between">
-              <dt :style="{ color: 'var(--rc-muted)' }">Total</dt>
-              <dd class="font-mono">{{ formatMoney(instructions.amount, instructions.currency) }}</dd>
-            </div>
-            <div class="flex justify-between">
-              <dt :style="{ color: 'var(--rc-muted)' }">Kode referensi</dt>
-              <dd class="font-mono">{{ instructions.referenceCode }}</dd>
-            </div>
-            <div class="flex justify-between">
-              <dt :style="{ color: 'var(--rc-muted)' }">Batas waktu</dt>
-              <dd>{{ formatDateTime(instructions.expiresAt) }}</dd>
-            </div>
-          </dl>
-        </section>
+      <form class="rc-stack" aria-labelledby="proof-h" novalidate @submit.prevent="submit">
+        <PlayCard as="fieldset" class="rc-pay__fieldset">
+          <legend id="accounts-h" class="rc-h2">Transfer ke</legend>
+          <label
+            v-for="account in accounts"
+            :key="`${account.method}-${account.accountNumber}`"
+            class="rc-pay__account"
+            :class="{ 'is-selected': selectedMethod === account.method }"
+          >
+            <input v-model="selectedMethod" type="radio" name="method" :value="account.method" />
+            <span class="rc-pay__account-body">
+              <span class="rc-hint">{{ account.label }}</span>
+              <strong class="rc-pay__number">{{ account.accountNumber }}</strong>
+              <span>a.n. {{ account.accountName }}</span>
+            </span>
+          </label>
+        </PlayCard>
 
-        <section class="mt-6 p-6 rounded-xl" :style="{ backgroundColor: 'var(--rc-surface)', border: '1px solid var(--rc-border)' }" aria-labelledby="accounts-h">
-          <h2 id="accounts-h" class="text-lg font-semibold">Transfer ke</h2>
-          <fieldset class="mt-4 space-y-3">
-            <legend class="sr-only">Pilih rekening tujuan</legend>
-            <label
-              v-for="account in accounts"
-              :key="`${account.method}-${account.accountNumber}`"
-              class="block p-4 rounded-lg cursor-pointer"
-              :style="{
-                backgroundColor: selectedMethod === account.method ? 'var(--rc-foam)' : 'var(--rc-bg)',
-                border: selectedMethod === account.method ? '2px solid var(--rc-primary)' : '1px solid var(--rc-border)',
-              }"
-            >
-              <input v-model="selectedMethod" type="radio" name="method" :value="account.method" class="sr-only" />
-              <span class="block text-xs uppercase tracking-wide" :style="{ color: 'var(--rc-muted)' }">{{ account.label }}</span>
-              <span class="mt-1 block font-mono text-lg">{{ account.accountNumber }}</span>
-              <span class="block text-sm" :style="{ color: 'var(--rc-muted)' }">a.n. {{ account.accountName }}</span>
-            </label>
-          </fieldset>
-        </section>
+        <PlayCard as="section" aria-labelledby="proof-h">
+          <h2 id="proof-h" class="rc-h2">Bukti transfer</h2>
+          <label class="rc-label" for="proof">
+            Unggah bukti (gambar, maksimal 4 MB)
+            <input id="proof" type="file" accept="image/*" required class="rc-field" @change="onProofChange" />
+          </label>
+          <p v-if="proofProblem" class="rc-error-text" role="alert">{{ proofProblem }}</p>
 
-        <form class="mt-6 p-6 rounded-xl" :style="{ backgroundColor: 'var(--rc-surface)', border: '1px solid var(--rc-border)' }" aria-labelledby="proof-h" @submit.prevent="submit">
-          <h2 id="proof-h" class="text-lg font-semibold">Bukti Transfer</h2>
+          <label class="rc-label" for="reference">
+            Nomor referensi transfer (opsional)
+            <input id="reference" v-model="referenceNumber" type="text" maxlength="64" class="rc-field" />
+          </label>
 
-          <label class="mt-3 block text-sm" for="proof">Unggah bukti (gambar)</label>
-          <input id="proof" type="file" accept="image/*" required class="mt-1 block w-full text-sm" @change="onProofChange" />
+          <label class="rc-label" for="note">
+            Catatan (opsional)
+            <textarea id="note" v-model="note" maxlength="500" rows="2" class="rc-field" />
+          </label>
 
-          <label class="mt-3 block text-sm" for="reference">Nomor referensi transfer (opsional)</label>
-          <input
-            id="reference"
-            v-model="referenceNumber"
-            type="text"
-            maxlength="64"
-            class="rc-field mt-1 font-mono"
-          />
+          <p v-if="submitError" class="rc-alert rc-alert--error" role="alert">{{ submitError }}</p>
 
-          <label class="mt-3 block text-sm" for="note">Catatan (opsional)</label>
-          <textarea
-            id="note"
-            v-model="note"
-            maxlength="500"
-            rows="2"
-            class="rc-field mt-1"
-          />
-
-          <p v-if="submitError" role="alert" class="mt-3 text-sm" :style="{ color: 'var(--ui-error, #dc2626)' }">{{ submitError }}</p>
-
-          <UButton type="submit" color="primary" size="lg" block class="mt-4" :disabled="submitting" :loading="submitting">
-            {{ submitting ? 'Mengirim…' : 'Kirim Bukti Pembayaran' }}
-          </UButton>
-        </form>
-      </template>
-    </main>
+          <PlayButton type="submit" block :loading="submitting">Kirim bukti pembayaran</PlayButton>
+        </PlayCard>
+      </form>
+    </template>
   </div>
 </template>

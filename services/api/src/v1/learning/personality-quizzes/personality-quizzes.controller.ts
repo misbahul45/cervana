@@ -1,6 +1,6 @@
 import { ScopeToUser } from '@/common/authz/access';
 import { RequireOwnership } from '@/v1/common/guards/ownership.decorator';
-import { Controller, Get, Post, Body, Patch, Param, Delete, Query, Req } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, Query } from '@nestjs/common';
 import { PersonalityQuizzesService } from './personality-quizzes.service';
 import { CreatePersonalityQuizType, PersonalityQuizUserAttemptSchema, UpdatePersonalityQuizType } from './personality-quizzes.dto';
 import { PersonalityQuizSseService } from '@/v1/sse/personality-quiz-sse/personality-quiz-sse.service';
@@ -40,17 +40,11 @@ export class PersonalityQuizzesController {
     },
     @Param('id') id:string,
     @GetUser() user:User,
-    @Body() values:z.infer<typeof PersonalityQuizUserAttemptSchema>,
-    @Req() req
+    @Body() values:z.infer<typeof PersonalityQuizUserAttemptSchema>
   ){
-    const token =
-    req.cookies?.access_token ||
-    req.headers.authorization?.replace('Bearer ', '');
-    
     return this.personalityQuizzesService.submitAttempt({
       ...query,
       userId:user.id,
-      token,
       quizId:id
     }, values)
   }

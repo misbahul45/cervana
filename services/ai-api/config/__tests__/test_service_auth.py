@@ -16,14 +16,45 @@ def test_signature_matches_the_api_vectors():
             "/api/v1/internal/resources/callback?type=EXTRACT",
             b'{"resourceId":"x"}',
         )
-        == "0701934646b2b65fb28ac0579df3663956fcc02c313ab5d15b0cb1c4f6bbf3a2"
+        == "0731547b939105b307e9e4d0ca118d9019d4f7c3718cb4cac4af06a3b55e9a43"
     )
     assert (
         service_auth.compute_signature(
             SECRET, TIMESTAMP, "GET", "/api/v1/internal/resources/abc", b""
         )
-        == "8396f8bf7c5d931115f46af03ad4e81ca45fc48559eb502adff0a478e03567af"
+        == "e831a76ae7cec5845df9566562726ffe8b2d9aedeabb4fec5a5b741644f68fa5"
     )
+
+
+def test_acting_user_is_signed_and_matches_the_api_vectors():
+    path = "/api/v1/internal/lessons/abc"
+
+    assert (
+        service_auth.compute_signature(SECRET, TIMESTAMP, "GET", path, b"", "user-1")
+        == "0e58cfbd1cf072b84d41919aed0a3e8b3367c6fb17b325caa6abe01c74d48e0b"
+    )
+    assert (
+        service_auth.compute_signature(SECRET, TIMESTAMP, "GET", path, b"", "user-2")
+        == "40a44f2a610df13d991f0f2dcf2427aae10d14d18919e658ccaf393b3521fcd2"
+    )
+
+
+def test_a_missing_acting_user_is_an_empty_one():
+    without = service_auth.compute_signature(SECRET, TIMESTAMP, "GET", "/x", b"")
+
+    assert service_auth.compute_signature(SECRET, TIMESTAMP, "GET", "/x", b"", "") == without
+    assert service_auth.compute_signature(SECRET, TIMESTAMP, "GET", "/x", b"", "user-1") != without
+
+
+def test_signed_headers_sign_the_acting_user_they_carry():
+    headers = service_auth.signed_headers(
+        "GET", "/x", b"", secret=SECRET, timestamp=TIMESTAMP, acting_user_id="user-1"
+    )
+
+    assert headers[service_auth.SERVICE_SIGNATURE_HEADER] == service_auth.compute_signature(
+        SECRET, TIMESTAMP, "GET", "/x", b"", "user-1"
+    )
+    assert headers[service_auth.ACTING_USER_HEADER] == "user-1"
 
 
 def test_method_is_case_insensitive():

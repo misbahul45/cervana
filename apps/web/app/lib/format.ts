@@ -9,6 +9,12 @@ export function formatMoney(amount: string | number | null | undefined, currency
   return new Intl.NumberFormat(LOCALE, { style: 'currency', currency, maximumFractionDigits: 0 }).format(value);
 }
 
+export function formatAmount(amount: string | number | null | undefined, currency = 'IDR'): string {
+  const value = typeof amount === 'number' ? amount : Number.parseFloat(String(amount ?? ''));
+  if (!Number.isFinite(value)) return '-';
+  return new Intl.NumberFormat(LOCALE, { style: 'currency', currency, maximumFractionDigits: 0 }).format(value);
+}
+
 export function formatDateTime(iso: string | null | undefined): string {
   if (!iso) return '-';
   const date = new Date(iso);

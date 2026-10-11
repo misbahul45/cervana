@@ -1,12 +1,36 @@
 <script setup lang="ts">
+import { onBeforeUnmount, watch } from 'vue';
+
 const modelValue = defineModel<boolean>({ default: false });
-defineEmits<{ close: [] }>();
+const emit = defineEmits<{ close: [] }>();
+
+function close() {
+  emit('close');
+}
+
+function onKeydown(event: KeyboardEvent) {
+  if (event.key === 'Escape') close();
+}
+
+watch(
+  modelValue,
+  (open) => {
+    if (!import.meta.client) return;
+    if (open) window.addEventListener('keydown', onKeydown);
+    else window.removeEventListener('keydown', onKeydown);
+  },
+  { immediate: true },
+);
+
+onBeforeUnmount(() => {
+  if (import.meta.client) window.removeEventListener('keydown', onKeydown);
+});
 </script>
 
 <template>
-  <div v-if="modelValue" class="modal-backdrop" @click.self="emit('close')">
+  <div v-if="modelValue" class="modal-backdrop" @click.self="close">
     <div class="modal-content" :class="$attrs.class" role="dialog" aria-modal="true">
-      <button type="button" class="modal-close" @click="emit('close')" aria-label="Close">×</button>
+      <button type="button" class="modal-close" aria-label="Tutup" @click="close">×</button>
       <slot />
     </div>
   </div>
@@ -16,32 +40,38 @@ defineEmits<{ close: [] }>();
 .modal-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.5);
+  z-index: 50;
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 50;
+  padding: 1rem;
+  background-color: rgb(0 0 0 / 0.55);
 }
 .modal-content {
-  background: var(--rc-bg, #fff);
-  color: var(--rc-fg, #111);
-  border-radius: 0.75rem;
-  padding: 1.5rem;
-  max-width: 90vw;
-  max-height: 90vh;
-  overflow-y: auto;
   position: relative;
-  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+  max-width: min(90vw, 40rem);
+  max-height: 90vh;
+  padding: 1.5rem;
+  overflow-y: auto;
+  border: 2px solid var(--rc-border);
+  border-radius: var(--rc-radius, 16px);
+  background-color: var(--rc-surface);
+  box-shadow: 0 var(--rc-depth, 4px) 0 0 var(--rc-border);
+  color: var(--rc-fg);
 }
 .modal-close {
   position: absolute;
   top: 0.75rem;
   right: 1rem;
+  border: 0;
   background: transparent;
-  border: none;
-  font-size: 1.5rem;
-  cursor: pointer;
-  color: var(--rc-fg-muted, #6b7280);
+  color: var(--rc-muted);
+  font-size: 1.75rem;
   line-height: 1;
+  cursor: pointer;
+}
+.modal-close:focus-visible {
+  outline: 3px solid var(--rc-focus);
+  outline-offset: 2px;
 }
 </style>

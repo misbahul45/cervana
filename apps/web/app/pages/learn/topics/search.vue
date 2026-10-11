@@ -1,22 +1,14 @@
 <script setup lang="ts">
-useHead({
-  title: 'Cari Topik Akuntansi | ReduCera Learning',
-  meta: [
-    {
-      name: 'description',
-      content:
-        'Temukan topik pembelajaran sesuai kebutuhan penguasaan akuntansi perguruan tinggi. ReduCera membantu Anda belajar dengan AI dan gamifikasi untuk mencapai standar akuntansi terstruktur.',
-    },
-    {
-      name: 'keywords',
-      content:
-        'cari topik penguasaan, pembelajaran AI, akuntansi perguruan tinggi, RAG, microlearning, gamifikasi, penguasaan akuntansi, akuntansi',
-    },
-  ],
-})
+const route = useRoute();
 
+const requested = [route.query.kategori, route.query.include, route.query.category].find((value) => typeof value === 'string' && value.trim());
+
+await navigateTo(
+  { path: '/learn/topics', query: requested ? { kategori: String(requested) } : {} },
+  { replace: true },
+);
 </script>
 
 <template>
-  
+  <div />
 </template>

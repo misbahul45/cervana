@@ -1,30 +1,21 @@
 import { randomUUID } from 'crypto';
 import { TutorService } from '../tutor.service';
-import { MasteryService } from '../../learner-model/services/mastery.service';
+import { LearnerPolicyService } from '../../learner-model/policy/learner-policy.service';
 import { MisconceptionLifecycleService } from '../../misconception/misconception-lifecycle.service';
 import { QuestionUnderstandingService } from '../../question-intelligence/question-understanding.service';
 import { QuestionBlueprintService, ThreeValuedValidatorService } from '../../question-intelligence/question-blueprint.service';
-import { AdaptivePolicyService } from '../../policy/adaptive-policy.service';
 import { PersonalPolicyService } from '../../policy/personal-policy.service';
 
 describe('TutorService — integration', () => {
   const userId = '00000000-0000-0000-0000-000000000001';
-  const mastery = new MasteryService();
   const misconception = new MisconceptionLifecycleService();
   const questionUnderstanding = new QuestionUnderstandingService();
   const blueprint = new QuestionBlueprintService();
   const validator = new ThreeValuedValidatorService();
-  const policy = new AdaptivePolicyService();
+  const policy = new LearnerPolicyService();
   const personalPolicy = new PersonalPolicyService();
 
   const fakePrisma = {
-    topicMasteryRecord: {
-      findUnique: jest.fn().mockResolvedValue({
-        score: 0.4,
-        confidence: 0.3,
-        evidenceCount: 2,
-      }),
-    },
     misconception: {
       findMany: jest.fn().mockResolvedValue([]),
       findUnique: jest.fn().mockResolvedValue(null),
@@ -41,9 +32,20 @@ describe('TutorService — integration', () => {
     },
   } as never;
 
+  const conceptState = (overrides: { score?: number; evidenceCount?: number; prerequisiteMasteryMet?: boolean } = {}) => ({
+    conceptId: 'l1-t03-journal-entries',
+    title: 'Journal Entries',
+    level: 1,
+    mastery: { score: overrides.score ?? 0.4, confidence: 0.1, evidenceCount: overrides.evidenceCount ?? 2, lastEventAt: null },
+    prerequisites: [],
+    prerequisiteMasteryMet: overrides.prerequisiteMasteryMet ?? true,
+  });
+
+  const learnerState = { conceptState: jest.fn().mockResolvedValue(conceptState()) };
+
   const service = new TutorService(
     fakePrisma,
-    mastery,
+    learnerState as never,
     misconception,
     questionUnderstanding,
     blueprint,
@@ -76,7 +78,7 @@ describe('TutorService — integration', () => {
     });
     const svc = new TutorService(
       prisma as never,
-      mastery,
+      learnerState as never,
       misconception,
       questionUnderstanding,
       blueprint,
@@ -118,5 +120,88 @@ describe('TutorService — integration', () => {
     expect(out.invariants).toHaveProperty('masteryStable');
     expect(out.invariants).toHaveProperty('policyEvidenceSufficient');
     expect(typeof out.invariants.difficultyInZone).toBe('boolean');
+  });
+
+  describe('learner state comes from the concept mastery', () => {
+    const build = (state: unknown) => {
+      const reader = { conceptState: jest.fn().mockResolvedValue(state) };
+      const svc = new TutorService(fakePrisma, reader as never, misconception, questionUnderstanding, blueprint, validator, policy, personalPolicy);
+      return { svc, reader };
+    };
+    const ask = (svc: TutorService, conceptKey?: string) =>
+      svc.respond({ userId, text: 'Mengapa debit meningkatkan aset?', domain: 'accounting', conceptKey });
+
+    it('asks for the state of the concept named in the request, for this learner only', async () => {
+      const { svc, reader } = build(conceptState());
+
+      await ask(svc, 'l1-t03-journal-entries');
+
+      expect(reader.conceptState).toHaveBeenCalledWith(userId, 'l1-t03-journal-entries');
+    });
+
+    it('does not read learner state when no concept is named', async () => {
+      const { svc, reader } = build(conceptState());
+
+      const out = await ask(svc);
+
+      expect(reader.conceptState).not.toHaveBeenCalled();
+      expect(out.reasonCodes).toContain('INSUFFICIENT_EVIDENCE');
+    });
+
+    it('treats a concept the registry does not know as a learner without evidence', async () => {
+      const { svc } = build(null);
+
+      const out = await ask(svc, 'free-text-key');
+
+      expect(out.invariants.masteryStable).toBe(false);
+      expect(out.reasonCodes).toContain('INSUFFICIENT_EVIDENCE');
+    });
+
+    it('marks mastery stable and drops the evidence warning once three events back it', async () => {
+      const { svc } = build(conceptState({ evidenceCount: 6, score: 0.8 }));
+
+      const out = await ask(svc, 'l1-t03-journal-entries');
+
+      expect(out.invariants.masteryStable).toBe(true);
+      expect(out.reasonCodes).not.toContain('INSUFFICIENT_EVIDENCE');
+    });
+
+    it('remediates a new concept whose prerequisites are not passed', async () => {
+      const { svc } = build(conceptState({ prerequisiteMasteryMet: false, evidenceCount: 6 }));
+
+      const out = await ask(svc, 'l1-t03-journal-entries');
+
+      expect(out.intent).toBe('NEW_LEARNING');
+      expect(out.strategy).toBe('REMEDIATE');
+      expect(out.reasonCodes).toContain('PREREQUISITE_NOT_MET');
+    });
+
+    it('uses a different strategy for the same question once the prerequisites are passed', async () => {
+      const { svc } = build(conceptState({ prerequisiteMasteryMet: true, evidenceCount: 6, score: 0.2 }));
+
+      const out = await ask(svc, 'l1-t03-journal-entries');
+
+      expect(out.strategy).toBe('WORKED_EXAMPLE');
+      expect(out.reasonCodes).toContain('LOW_MASTERY');
+    });
+
+    it('returns the reason codes and keeps rationale as their readable form', async () => {
+      const { svc } = build(conceptState());
+
+      const out = await ask(svc, 'l1-t03-journal-entries');
+
+      expect(out.rationale).toBe(out.reasonCodes.join(', '));
+    });
+
+    it('stores the reason codes in the decision trace', async () => {
+      const decisionTrace = { create: jest.fn().mockResolvedValue({ id: randomUUID() }) };
+      const prisma = Object.assign({}, fakePrisma, { decisionTrace, episode: { create: jest.fn().mockResolvedValue({ id: randomUUID() }) } });
+      const reader = { conceptState: jest.fn().mockResolvedValue(conceptState()) };
+      const svc = new TutorService(prisma as never, reader as never, misconception, questionUnderstanding, blueprint, validator, policy, personalPolicy);
+
+      await ask(svc, 'l1-t03-journal-entries');
+
+      expect(decisionTrace.create.mock.calls[0][0].data.strategyJson.reasonCodes).toEqual(expect.arrayContaining([expect.any(String)]));
+    });
   });
 });

@@ -22,6 +22,12 @@ export class MarketplaceArticlesController {
     return this.marketplace.findOne(id);
   }
 
+  @Public()
+  @Get(':id/preview')
+  preview(@Param('id', ParseUUIDPipe) id: string) {
+    return this.marketplace.preview(id);
+  }
+
   @AuthenticatedOnly()
   @Get(':id/access')
   access(@Param('id', ParseUUIDPipe) id: string, @GetUser() user: AuthUser) {

@@ -35,9 +35,28 @@ export class ThemesService {
       if (actor.role !== 'ADMIN') {
         throw new AppError('Only ADMIN can create theme icons', 403);
       }
+      await this.assertIconNamesAreFree(values);
       const created = await this.themesRepo.createIcon(values);
       return { message: 'Successfully created new theme icon', data: created };
     });
+  }
+
+  private async assertIconNamesAreFree(values: CreateThemeIconType): Promise<void> {
+    const items = Array.isArray(values) ? values : [values];
+    const taken = new Map<string, Set<string>>();
+    for (const item of items) {
+      const themeId = item.themeId;
+      if (!taken.has(themeId)) {
+        const stored = await this.themesRepo.findAllIcons(themeId);
+        taken.set(themeId, new Set(stored.map((icon) => icon.name.trim().toLowerCase())));
+      }
+      const names = taken.get(themeId) as Set<string>;
+      const key = item.name.trim().toLowerCase();
+      if (names.has(key)) {
+        throw new AppError(`Theme icon name already exists for this theme: ${item.name.trim()}`, 409);
+      }
+      names.add(key);
+    }
   }
 
   findAll(q: Query, actor: Actor) {

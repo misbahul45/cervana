@@ -1,11 +1,13 @@
 import { ScopeToUser } from '@/common/authz/access';
 import { RequireOwnership } from '@/v1/common/guards/ownership.decorator';
-import { Roles } from '@/v1/auth/auth.decorator';
+import { GetUser, Roles } from '@/v1/auth/auth.decorator';
 import { Role } from '@prisma/client';
 import { Controller, Get, Post, Body, Patch, Param, Delete, Query } from '@nestjs/common';
 import { NotificationsService } from './notifications.service';
 import { Query as QueryInterface } from '@/common/interfaces';
-import { CreateNotificationType, UpdateNotificationType } from './notifications.dto';
+import { AuthUser } from '@/common/interfaces/auth.interface';
+import { CreateNotificationType } from './notifications.dto';
+import { parseNotificationUpdate } from './notification-update';
 
 @Controller('notifications')
 export class NotificationsController {
@@ -34,8 +36,11 @@ export class NotificationsController {
   }
   @Patch(':id')
   @RequireOwnership('notification')
-  update(@Param('id') id: string, @Body() updateNotificationDto: UpdateNotificationType) {
-    return this.notificationsService.update(id, updateNotificationDto);
+  update(@Param('id') id: string, @Body() body: unknown, @GetUser() user: AuthUser) {
+    const change = parseNotificationUpdate(user.role, body);
+    return change.kind === 'read'
+      ? this.notificationsService.markRead(id, change.readAt)
+      : this.notificationsService.update(id, change.values);
   }
 
   @Delete(':id')

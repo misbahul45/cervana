@@ -1,5 +1,7 @@
 import { RequireOwnership } from '@/v1/common/guards/ownership.decorator';
-import { Roles } from '@/v1/auth/auth.decorator';
+import { GetUser, Roles } from '@/v1/auth/auth.decorator';
+import { AuthUser } from '@/common/interfaces/auth.interface';
+import { forViewer } from '../answer-key';
 import { Role } from '@prisma/client';
 import { Controller, Get, Post, Body, Patch, Param, Delete, Query } from '@nestjs/common';
 import { QuestionsService } from './questions.service';
@@ -22,11 +24,12 @@ export class QuestionsController {
   @Get(':id')
   @ApiCrudDocs.findOne(QuestionDetailSchema, 'Question')
   @RequireOwnership('question')
-  findOne(
+  async findOne(
     @Param('id') id: string,
-    @Query() query:QueryInterface
+    @Query() query:QueryInterface,
+    @GetUser() user: AuthUser,
   ) {
-    return this.questionsService.findOne(id, query);
+    return forViewer(user?.role, await this.questionsService.findOne(id, query));
   }
 
   @Patch(':id')

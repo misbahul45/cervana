@@ -11,14 +11,12 @@ import { AuthzModule } from './common/authz/authz.module';
 import { LearningModule } from './v1/learning/learning.module';
 import { SandboxModule } from './v1/sandbox/sandbox.module';
 import { PersonalizationModule } from './v1/personalization/personalization.module';
-import { ModerationModule } from './v1/admin/moderation/moderation.module';
 import { SimulatorModule } from './v1/simulator/simulator.module';
 import { DecisionTraceModule } from './v1/agents/decision-trace/decision-trace.module';
 import { AnalyticsModule } from './v1/analytics/analytics.module';
 import { RateLimitModule } from './v1/common/rate-limit/rate-limit.module';
 import { BackupModule } from './v1/admin/backup/backup.module';
 import { EventEmitterModule } from '@nestjs/event-emitter';
-import { StreakService } from './common/streak/streak.service';
 import { IdempotencyModule } from './common/idempotency/idempotency.module';
 import { IdempotencyKeyGuard } from './common/idempotency/idempotency-key.guard';
 
@@ -29,7 +27,6 @@ import { IdempotencyKeyGuard } from './common/idempotency/idempotency-key.guard'
     LearningModule,
     SandboxModule,
     PersonalizationModule,
-    ModerationModule,
     SimulatorModule,
     DecisionTraceModule,
     AnalyticsModule,
@@ -53,7 +50,6 @@ import { IdempotencyKeyGuard } from './common/idempotency/idempotency-key.guard'
   controllers: [],
   providers: [
     Reflector,
-    StreakService,
     {
       provide: APP_GUARD,
       useClass: JwtAuthGuard

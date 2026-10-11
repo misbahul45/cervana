@@ -20,12 +20,23 @@ ACTING_USER_HEADER = "x-acting-user-id"
 READ_METHODS = {"GET", "HEAD"}
 
 
-def canonical_string(timestamp: str, method: str, target: str, body: bytes) -> str:
-    return "\n".join([timestamp, method.upper(), target, hashlib.sha256(body).hexdigest()])
+def canonical_string(
+    timestamp: str, method: str, target: str, body: bytes, acting_user_id: str = ""
+) -> str:
+    return "\n".join(
+        [timestamp, method.upper(), target, hashlib.sha256(body).hexdigest(), acting_user_id]
+    )
 
 
-def compute_signature(secret: str, timestamp: str, method: str, target: str, body: bytes) -> str:
-    message = canonical_string(timestamp, method, target, body).encode("utf-8")
+def compute_signature(
+    secret: str,
+    timestamp: str,
+    method: str,
+    target: str,
+    body: bytes,
+    acting_user_id: str = "",
+) -> str:
+    message = canonical_string(timestamp, method, target, body, acting_user_id).encode("utf-8")
     return hmac.new(secret.encode("utf-8"), message, hashlib.sha256).hexdigest()
 
 
@@ -51,7 +62,9 @@ def signed_headers(
     headers = {
         SERVICE_ID_HEADER: SERVICE_ID,
         SERVICE_TIMESTAMP_HEADER: ts,
-        SERVICE_SIGNATURE_HEADER: compute_signature(secret or _secret(), ts, method, target, body),
+        SERVICE_SIGNATURE_HEADER: compute_signature(
+            secret or _secret(), ts, method, target, body, acting_user_id or ""
+        ),
         TRACE_ID_HEADER: trace_id or str(uuid.uuid4()),
     }
     if method.upper() not in READ_METHODS:

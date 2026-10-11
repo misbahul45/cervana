@@ -1,8 +1,8 @@
 import { Controller, Get, Query, Req } from '@nestjs/common';
 import { AuthenticatedOnly } from '@/common/authz/access';
 import { MarketplaceDiscoveryService, type Recommendation } from './marketplace-discovery.service';
-import { MasteryService } from '../learner-model/services/mastery.service';
 import { PrismaService } from '@/common/config/prisma/prisma.service';
+import { LearnerStateService } from '@/v1/learner-model/learner-state.service';
 import { ClassDifficulty } from '@prisma/client';
 
 type Authed = { user: { id: string } };
@@ -12,8 +12,8 @@ type Authed = { user: { id: string } };
 export class MarketplaceDiscoveryController {
   constructor(
     private readonly discovery: MarketplaceDiscoveryService,
-    private readonly mastery: MasteryService,
     private readonly prisma: PrismaService,
+    private readonly learnerState: LearnerStateService,
   ) {}
 
   @Get('recommendations')
@@ -23,14 +23,7 @@ export class MarketplaceDiscoveryController {
   ) {
     const limit = Math.min(Math.max(Number(query.limit ?? 10), 1), 30);
 
-    const records = await this.prisma.topicMasteryRecord.findMany({
-      where: { userId: req.user.id },
-      select: { score: true, evidenceCount: true },
-    });
-    const averageMastery =
-      records.length > 0
-        ? records.reduce((s, r) => s + r.score, 0) / records.length
-        : 0;
+    const averageMastery = await this.learnerState.averageMastery(req.user.id);
     const preferredDifficulty = masteryToDifficulty(Math.max(0.4, averageMastery));
 
     const activeTopicIds = await this.prisma.userTopic

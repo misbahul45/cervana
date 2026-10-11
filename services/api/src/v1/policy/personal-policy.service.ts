@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import type { TeachingStrategy } from '../policy/adaptive-policy.service';
+import type { TeachingStrategy } from '../learner-model/policy/policy.types';
 
 export interface StrategyEvidence {
   strategy: TeachingStrategy;

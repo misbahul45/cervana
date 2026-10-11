@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../../common/config/prisma/prisma.service';
 import { Query } from '@/common/interfaces';
 import { errorHandler, validation } from '@/common/lib/utils';
+import { buildQuestionQuery } from './question-query';
 import { CreateQuestionDto, CreateQuestionType, UpdateQuestionDto, UpdateQuestionType } from './questions.dto';
 import { Question } from '@prisma/client';
 
@@ -39,42 +40,10 @@ export class QuestionsRepo {
 
     async findAll(quizId:string, q: Query) {
         return errorHandler(async()=>{
-            const page = Number(q.page) || 1;
-            const limit = Number(q.limit) || 10;
-            const skip = (page - 1) * limit;
-
-            const where: any = { quizId };
-            for (const key in q) {
-                if (!['q', 'page', 'limit', 'sort', 'include'].includes(key)) {
-                    where[key] = q[key];
-                }
-            }
-
-            let orderBy: any = undefined;
-            if (q.sort) {
-                const [field, direction = 'asc'] = q.sort.split(':');
-                    orderBy = { [field]: direction };
-            }
-
-            let include: any = undefined;
-            if (q.include) {
-                const includes = Array.isArray(q.include)
-                    ? q.include
-                    : q.include.split(',');
-                include = includes.reduce((acc, field) => {
-                    acc[field] = true;
-                    return acc;
-                }, {} as Record<string, boolean>);
-            }
+            const { where, orderBy, include, page, limit, skip, take } = buildQuestionQuery(quizId, q);
 
             const [data, total] = await Promise.all([
-                this.prisma.question.findMany({
-                    where,
-                    skip,
-                    take: limit,
-                    orderBy,
-                    include,
-                }),
+                this.prisma.question.findMany({ where, skip, take, orderBy, include }),
                 this.prisma.question.count({ where }),
             ]);
 

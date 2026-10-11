@@ -24,6 +24,11 @@ model User {
   currentStreak  Int       @default(0)
   longestStreak  Int       @default(0)
   lastStreakDate DateTime?
+  timezone       String    @default("Asia/Jakarta")
+  streakFreezes  Int       @default(0)
+
+  leaderboardHandle String?  @unique
+  leaderboardOptIn  Boolean  @default(false)
 
   // relations
   sessions           Session[]
@@ -90,6 +95,9 @@ model User {
   refundRequests   Refund[]                  @relation("RefundRequester")
   aiCreditWallet   AICreditWallet?
   aiCreditLedger   AICreditLedgerEntry[]
+  learnerStream    LearnerStream?
+  conceptMasteries ConceptMastery[]
+  rewardLedger     GamificationLedger[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -112,11 +120,12 @@ model VerificationToken {
   identifier String
   otp        String
   type       VerificationType
+  attempts   Int              @default(0)
   expires    DateTime
   createdAt  DateTime         @default(now())
   updatedAt  DateTime         @updatedAt
 
-  @@unique([identifier, otp], name: "VerificationToken_identifier_otp_key")
+  @@unique([identifier, type], name: "VerificationToken_identifier_type_key")
   @@index([identifier], name: "VerificationToken_identifier_idx")
   @@index([expires], name: "VerificationToken_expires_idx")
 }
@@ -251,6 +260,7 @@ model SubTopic {
   lessons            Lesson[]
   prerequisites      SubTopicPrerequisite[] @relation("SubTopicPrerequisitesFrom")
   requiredBy         SubTopicPrerequisite[] @relation("SubTopicPrerequisitesTo")
+  conceptLinks       ConceptCurriculumLink[]
   createdAt          DateTime           @default(now())
   updatedAt          DateTime           @updatedAt
 
@@ -273,6 +283,7 @@ model Lesson {
   resources          Resource[]
   quiz               Quiz?             @relation("QuizLesson")
   personalityQuizzes PersonalityQuiz[]
+  conceptLinks       ConceptCurriculumLink[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -696,11 +707,16 @@ model DailyActivityLog {
 
 model Achievement {
   id          String          @id @default(uuid())
+  code        String?         @unique
   title       String
   description String?
   icon        String?
+  iconName    String?
   type        AchievementType
   condition   String?
+  rule        Json?
+  sortOrder   Int             @default(0)
+  active      Boolean         @default(true)
 
   createdAt DateTime          @default(now())
   users     UserAchievement[]
@@ -1241,11 +1257,124 @@ model LearningEvent {
   occurredAt     DateTime @default(now())
   idempotencyKey String?
   createdAt      DateTime @default(now())
+  conceptId      String?
+  concept        Concept? @relation(fields: [conceptId], references: [id], onDelete: Restrict)
+  streamSeq      Int?
+  schemaVersion  Int      @default(1)
 
   @@unique([userId, idempotencyKey])
+  @@unique([userId, streamSeq])
   @@index([userId, eventType, createdAt])
+  @@index([userId, conceptId, streamSeq])
   @@index([entityType, entityId])
   @@index([tenantId, eventType, occurredAt])
+}
+
+enum ConceptStatus {
+  ACTIVE
+  DEPRECATED
+}
+
+enum ReviewStatus {
+  PROPOSED
+  APPROVED
+  REJECTED
+}
+
+enum AliasKind {
+  EXACT
+  PART_OF
+  UMBRELLA
+  UNMATCHED
+}
+
+model Concept {
+  id               String        @id
+  domain           String        @default("ACCOUNTING")
+  title            String
+  description      String?
+  level            Int
+  sortOrder        Int
+  estimatedMinutes Int?
+  status           ConceptStatus @default(ACTIVE)
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+
+  prerequisites ConceptPrerequisite[]   @relation("ConceptRequires")
+  requiredBy    ConceptPrerequisite[]   @relation("ConceptRequiredBy")
+  aliases       ConceptAlias[]
+  links         ConceptCurriculumLink[]
+  masteries     ConceptMastery[]
+  events        LearningEvent[]
+  rewardLedger  GamificationLedger[]
+
+  @@index([domain, level, sortOrder])
+}
+
+model ConceptPrerequisite {
+  conceptId  String
+  requiresId String
+  concept    Concept @relation("ConceptRequires", fields: [conceptId], references: [id], onDelete: Cascade)
+  requires   Concept @relation("ConceptRequiredBy", fields: [requiresId], references: [id], onDelete: Cascade)
+
+  @@id([conceptId, requiresId])
+  @@index([requiresId])
+}
+
+model ConceptAlias {
+  id         String       @id
+  scheme     String
+  alias      String
+  conceptId  String?
+  kind       AliasKind
+  status     ReviewStatus @default(PROPOSED)
+  note       String?
+  reviewedAt DateTime?
+  concept    Concept?     @relation(fields: [conceptId], references: [id], onDelete: Cascade)
+
+  @@index([scheme, alias])
+  @@index([conceptId])
+}
+
+model ConceptCurriculumLink {
+  id         String       @id
+  conceptId  String
+  subTopicId String?
+  lessonId   String?
+  status     ReviewStatus @default(PROPOSED)
+  concept    Concept      @relation(fields: [conceptId], references: [id], onDelete: Cascade)
+  subTopic   SubTopic?    @relation(fields: [subTopicId], references: [id], onDelete: Cascade)
+  lesson     Lesson?      @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+
+  @@index([subTopicId])
+  @@index([lessonId])
+  @@index([conceptId])
+}
+
+model LearnerStream {
+  userId       String   @id
+  lastSeq      Int      @default(0)
+  modelVersion String
+  updatedAt    DateTime @updatedAt
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model ConceptMastery {
+  id            String   @id @default(uuid())
+  userId        String
+  conceptId     String
+  theta         Float
+  score         Float
+  confidence    Float
+  evidenceCount Int
+  lastEventAt   DateTime
+  lastSeq       Int
+  modelVersion  String
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  concept       Concept  @relation(fields: [conceptId], references: [id])
+
+  @@unique([userId, conceptId])
+  @@index([userId])
 }
 
 model Episode {
@@ -2347,13 +2476,13 @@ model MasterySnapshot {
   id         String   @id @default(uuid())
   userId     String
   user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  topicId    String
+  conceptId  String
   score      Float
   attempts   Int
   snapshotAt DateTime @default(now())
 
   @@index([userId, snapshotAt])
-  @@index([topicId, snapshotAt])
+  @@index([conceptId, snapshotAt])
 }
 
 model EngagementMetric {
@@ -2421,4 +2550,56 @@ enum BackupStatus {
   COMPLETED
   FAILED
   RESTORED
+}
+
+enum RewardKind {
+  XP
+  STAR
+}
+
+model RewardRule {
+  id         String     @id @default(uuid())
+  code       String
+  version    Int
+  eventType  String
+  rewardKind RewardKind
+  amount     Int
+  dailyCap   Int?
+  params     Json?
+  active     Boolean    @default(true)
+  createdAt  DateTime   @default(now())
+
+  @@unique([code, version])
+}
+
+model LevelThreshold {
+  level Int @id
+  xp    Int @unique
+}
+
+model GamificationLedger {
+  id             String              @id @default(uuid())
+  userId         String
+  kind           RewardKind          @default(XP)
+  ruleId         String
+  ruleVersion    Int
+  points         Int
+  idempotencyKey String              @unique
+  sourceType     String
+  sourceId       String?
+  conceptId      String?
+  topicId        String?
+  subTopicId     String?
+  reversalOf     String?             @unique
+  reason         String?
+  actorId        String?
+  createdAt      DateTime            @default(now())
+  user           User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  concept        Concept?            @relation(fields: [conceptId], references: [id], onDelete: Restrict)
+  original       GamificationLedger? @relation("LedgerReversal", fields: [reversalOf], references: [id], onDelete: NoAction)
+  reversal       GamificationLedger? @relation("LedgerReversal")
+
+  @@index([userId, createdAt])
+  @@index([userId, ruleId, conceptId])
+  @@index([userId, kind])
 }

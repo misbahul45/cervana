@@ -16,5 +16,6 @@ import { QueueModule } from '@/v1/queue/queue.module';
   ],
   controllers: [PersonalityQuizzesController],
   providers: [PersonalityQuizzesService, PersonalityQuizzesRepo],
+  exports: [PersonalityQuizzesService],
 })
 export class PersonalityQuizzesModule {}

@@ -6,13 +6,13 @@ export class SnapshotService {
   constructor(private readonly prisma: PrismaService) {}
 
   async snapshotMastery(): Promise<number> {
-    const mastery = await this.prisma.topicMasteryRecord.findMany();
+    const mastery = await this.prisma.conceptMastery.findMany({ where: { evidenceCount: { gt: 0 }, concept: { status: 'ACTIVE' } } });
     let count = 0;
     for (const m of mastery) {
       await this.prisma.masterySnapshot.create({
         data: {
           userId: m.userId,
-          topicId: m.topicId,
+          conceptId: m.conceptId,
           score: m.score,
           attempts: m.evidenceCount,
           snapshotAt: new Date(),

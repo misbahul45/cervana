@@ -47,15 +47,11 @@ export const CreateUserStepDto = extendApi(
 export type CreateUserStepType = z.infer<typeof CreateUserStepDto>;
 
 export const UpdateUserStepDto = extendApi(
-  partialWithoutDefaults(baseUserStepSchema),
+  partialWithoutDefaults(baseUserStepSchema.pick({ title: true })),
   {
     title: "UpdateUserStepDto",
     example: {
-      title: "Updated Step Title",
-      description: "Updated description",
-      quizId: "uuid-quiz-1111",
-      isDone: true,
-      isUnlocked:true
+      title: "Updated Step Title"
     }
   }
 );

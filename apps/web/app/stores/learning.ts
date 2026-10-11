@@ -3,6 +3,7 @@ export const useLearning = defineStore('learning', {
    persist: true,
   state: () => ({
     topicId: '' as string,
+    topicSlug: '' as string,
     subTopicId: '' as string,
     lessonId: '' as string,
     stepId: '' as string,
@@ -12,6 +13,9 @@ export const useLearning = defineStore('learning', {
   actions: {
     setTopic(id: string) {
       this.topicId = id
+    },
+    setTopicSlug(slug: string) {
+      this.topicSlug = slug
     },
     setSubTopic(id: string) {
       this.subTopicId = id
@@ -36,6 +40,7 @@ export const useLearning = defineStore('learning', {
     },
     resetAll() {
       this.topicId = ''
+      this.topicSlug = ''
       this.subTopicId = ''
       this.lessonId = ''
       this.stepId = ''

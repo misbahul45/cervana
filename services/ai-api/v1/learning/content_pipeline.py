@@ -11,6 +11,8 @@ from utils.tools.memory import tool_memory_upsert, tool_semantic_search
 from utils.tools.web_search import tool_web_search
 from v1.domain import load_default_taxonomy
 from v1.domain.context import render_domain_context
+from v1.domain.governance import retrieval_scope
+from v1.tutor.learner_block import read_learner_snapshot, render_snapshot_block
 from v1.tutor.personalization_prompt import render_tutor_prompt
 from v1.tutor.tutor_state import TutorRunState
 from v1.tutor.context_loaders import TutorRuntime
@@ -175,8 +177,8 @@ Output: 3 sentences + bullet focused next + bullet learning plan
     if state.acting_user_id and state.lesson_id:
         try:
             tool_memory_upsert(
-                user_id=state.acting_user_id,
-                lesson_id=state.lesson_id,
+                userId=state.acting_user_id,
+                lessonId=state.lesson_id,
                 text=analysis,
             )
         except MemoryError as exc:
@@ -184,8 +186,8 @@ Output: 3 sentences + bullet focused next + bullet learning plan
 
     try:
         memories = tool_semantic_search(
-            user_id=state.acting_user_id,
-            lesson_id=state.lesson_id,
+            userId=state.acting_user_id,
+            lessonId=state.lesson_id,
             top_k=15,
         )
     except RetrievalError as exc:
@@ -206,7 +208,7 @@ Output: 3 sentences + bullet focused next + bullet learning plan
         history_results = []
 
     history_merged = "\n".join(
-        [h.get("chunkText", "") for h in history_results if h.get("chunkText")]
+        [h.get("text", "") for h in history_results if h.get("text")]
     )
 
     final_context = f"""
@@ -224,8 +226,28 @@ Output: 3 sentences + bullet focused next + bullet learning plan
     return state
 
 
+def _citation_of(result: dict) -> CitationDto | None:
+    metadata = result.get("metadata", {}) or {}
+    score = float(result.get("score", 0.0))
+    concept_ids = metadata.get("concept_ids") or []
+    if score <= 0.0:
+        return None
+    if not (metadata.get("lesson_id") or concept_ids or metadata.get("resource_id")):
+        return None
+    return CitationDto(
+        lesson_id=metadata.get("lesson_id"),
+        concept_id=concept_ids[0] if concept_ids else None,
+        resource_id=metadata.get("resource_id"),
+        chunk_id=metadata.get("chunk_id"),
+        score=score,
+        source=metadata.get("source", "reducera-embedding"),
+        snippet=(result.get("text", "") or "")[:200],
+    )
+
+
 def retrieve_material_rag(
     state: GenerateContentMaterialPipeline,
+    snapshot: dict | None = None,
 ) -> tuple[str, list[CitationDto]]:
     query = (
         f"{state.topic.title if state.topic else ''} "
@@ -234,7 +256,7 @@ def retrieve_material_rag(
     )
     session = _session(state)
     try:
-        results = pipeline.retrieve(query=query, metadata_filter={"source": "material"}, top_k=10)
+        results = pipeline.retrieve(query=query, scope=retrieval_scope(state.acting_user_id, snapshot), top_k=10)
         update_message_chat(
             state.message_id,
             session,
@@ -248,21 +270,13 @@ def retrieve_material_rag(
         text = "\n".join([r["text"] for r in results])
         citations: list[CitationDto] = []
         for r in results:
-            score = float(r.get("score", 0.0))
-            if score <= 0.0:
-                continue
             try:
-                citations.append(
-                    CitationDto(
-                        lesson_id=r.get("metadata", {}).get("lessonId", state.lesson_id),
-                        chunk_id=r.get("metadata", {}).get("chunk_index"),
-                        score=score,
-                        source=r.get("metadata", {}).get("source", "reducera-embedding"),
-                        snippet=(r.get("text", "") or "")[:200],
-                    )
-                )
+                citation = _citation_of(r)
             except Exception as exc:
                 logger.warning("[RAG] skipping malformed citation: %s", exc)
+                continue
+            if citation is not None:
+                citations.append(citation)
         return text, citations
     except RetrievalError as exc:
         logger.warning("[RAG] retrieval failed: %s", exc.message)
@@ -295,7 +309,8 @@ def generate_material(
     state: GenerateContentMaterialPipeline,
 ) -> GenerateContentMaterialPipeline:
     session = _session(state)
-    rag, rag_citations = retrieve_material_rag(state)
+    snapshot = read_learner_snapshot(session, lesson_id=state.lesson_id)
+    rag, rag_citations = retrieve_material_rag(state, snapshot)
     web = retrieve_material_web(state)
 
     update_message_chat(
@@ -351,7 +366,7 @@ def generate_material(
             f"Step: {step_title}\n"
             f"User Step: {state.user_step.title}"
         ),
-        learner_state=(f"Learning Style: {learning_style}"),
+        learner_state="\n".join(part for part in (f"Learning Style: {learning_style}", render_snapshot_block(session, snapshot)) if part),
         relevant_memory=f"Konteks pembelajaran sebelumnya:\n{state.context}",
         current_task=task_segment,
         adaptive_strategy=(
@@ -402,8 +417,8 @@ def generate_material(
     if state.acting_user_id and state.lesson_id:
         try:
             tool_memory_upsert(
-                user_id=state.acting_user_id,
-                lesson_id=state.lesson_id,
+                userId=state.acting_user_id,
+                lessonId=state.lesson_id,
                 text=content,
             )
         except MemoryError as exc:

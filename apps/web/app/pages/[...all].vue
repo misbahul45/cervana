@@ -1,55 +1,27 @@
+<script setup lang="ts">
+import PlayButton from '~/components/play/PlayButton.vue';
+
+definePageMeta({
+  title: 'Halaman tidak ditemukan — ReduCera',
+  protection: { kind: 'public' },
+  layout: 'public',
+});
+
+useHead({ title: 'Halaman tidak ditemukan — ReduCera' });
+
+if (import.meta.server) setResponseStatus(useRequestEvent(), 404);
+
+const router = useRouter();
+</script>
+
 <template>
-  <div
-    class="relative w-full min-h-screen overflow-hidden flex flex-col items-center justify-center text-center px-4"
-    :style="{ background: 'var(--rc-bg)', color: 'var(--rc-fg)' }"
-  >
-    <div class="relative z-10 max-w-2xl space-y-8">
-      <h1
-        class="text-8xl md:text-9xl font-bold"
-        :style="{ color: 'var(--rc-primary)' }"
-      >
-        404
-      </h1>
-
-      <div class="space-y-3">
-        <p class="text-2xl md:text-4xl font-bold">Halaman tidak ditemukan</p>
-        <p class="text-lg md:text-xl" :style="{ color: 'var(--rc-muted)' }">
-          Tautan ini sudah tidak berlaku atau halaman sudah dipindahkan.
-        </p>
-      </div>
-
-      <div class="flex flex-col sm:flex-row gap-4 justify-center items-center pt-4">
-        <UButton
-          icon="i-lucide-home"
-          size="lg"
-          color="primary"
-          to="/"
-        >
-          Kembali ke Beranda
-        </UButton>
-        <UButton
-          icon="i-lucide-arrow-left"
-          variant="outline"
-          size="lg"
-          @click="goBack"
-        >
-          Halaman Sebelumnya
-        </UButton>
-      </div>
+  <div class="rc-stack rc-notfound">
+    <p class="rc-notfound__code" aria-hidden="true">404</p>
+    <h1 class="rc-notfound__title">Halaman tidak ditemukan</h1>
+    <p class="rc-hint">Tautan ini sudah tidak berlaku atau halamannya sudah dipindahkan.</p>
+    <div class="rc-actions rc-notfound__actions">
+      <PlayButton to="/">Ke beranda</PlayButton>
+      <PlayButton variant="secondary" @click="router.back()">Halaman sebelumnya</PlayButton>
     </div>
   </div>
 </template>
-
-<script setup lang="ts">
-import { useRouter } from 'vue-router';
-
-const router = useRouter();
-
-const goBack = () => {
-  router.back();
-};
-
-useHead({
-  title: 'Halaman tidak ditemukan – ReduCera',
-});
-</script>

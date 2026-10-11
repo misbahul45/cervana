@@ -1,7 +1,14 @@
 <script setup lang="ts">
+import PlayButton from '~/components/play/PlayButton.vue';
+import StudioWriter from '~/components/studio/StudioWriter.vue';
+import ErrorState from '~/components/ui/ErrorState.vue';
+import LoadingSkeleton from '~/components/ui/LoadingSkeleton.vue';
+import StatusBadge from '~/components/ui/StatusBadge.vue';
+import { statusMeta } from '~/lib/admin';
 import { studioArticlesApi } from '~/lib/api';
 import { describeApiError } from '~/lib/api-error';
 import { formatDateTime } from '~/lib/format';
+import { articlePayload, articleProblem, isEditable } from '~/lib/studio';
 
 definePageMeta({
   title: 'Editor Artikel — ReduCera Studio',
@@ -12,41 +19,59 @@ definePageMeta({
 const route = useRoute();
 const articleId = computed(() => String(route.params.id || ''));
 
-const { data: article, status: loadStatus, error: loadError, refresh } = useAsyncData(
+const { data: article, status: loadStatus, error: loadError, refresh } = await useAsyncData(
   () => `studio:article:${articleId.value}`,
   () => studioArticlesApi.get(articleId.value),
-  { lazy: true, watch: [articleId] },
+  { watch: [articleId] },
 );
 
-const title = ref('');
-const body = ref('');
+const form = reactive({
+  title: '',
+  subtitle: '',
+  body: '',
+  accessType: 'FREE' as 'FREE' | 'PAID',
+  price: null as number | null,
+});
+
 const saveState = ref<'idle' | 'dirty' | 'saving' | 'saved' | 'failed'>('idle');
 const saveError = ref<string | null>(null);
 const lastSavedAt = ref<string | null>(null);
-const submitting = ref(false);
-const submitError = ref<string | null>(null);
+const acting = ref(false);
+const actionError = ref<string | null>(null);
 const loaded = ref(false);
+let savedSnapshot = '';
+let saveTimer: ReturnType<typeof setTimeout> | null = null;
 
-const EDITABLE = ['DRAFT', 'REJECTED'];
-const editable = computed(() => !!article.value && EDITABLE.includes(article.value.status));
+const editable = computed(() => !!article.value && isEditable(article.value.status));
+const meta = computed(() => (article.value ? statusMeta('content', article.value.status) : null));
+
+function snapshot() {
+  return JSON.stringify(articlePayload(form));
+}
 
 watch(
   article,
   (value) => {
     if (!value) return;
     const working = value.versions.find((version) => version.publishedAt === null) ?? value.versions[0];
-    title.value = working?.title ?? value.title;
-    body.value = working?.content ?? '';
+    form.title = working?.title ?? value.title;
+    form.body = working?.content ?? '';
+    form.subtitle = value.excerpt ?? '';
+    form.accessType = value.accessType;
+    form.price = value.price === null || value.price === undefined ? null : Math.round(Number(value.price));
+    savedSnapshot = snapshot();
     saveState.value = 'idle';
     loaded.value = true;
   },
   { immediate: true },
 );
 
-let saveTimer: ReturnType<typeof setTimeout> | null = null;
-
-watch([title, body], () => {
+watch(form, () => {
   if (!loaded.value || !editable.value) return;
+  if (snapshot() === savedSnapshot) {
+    saveState.value = saveState.value === 'dirty' ? 'idle' : saveState.value;
+    return;
+  }
   saveState.value = 'dirty';
   if (saveTimer) clearTimeout(saveTimer);
   saveTimer = setTimeout(save, 1500);
@@ -56,182 +81,113 @@ onBeforeUnmount(() => {
   if (saveTimer) clearTimeout(saveTimer);
 });
 
-async function save() {
-  if (saveState.value === 'saving' || !title.value.trim() || !body.value.trim()) return;
+async function save(): Promise<boolean> {
+  if (saveTimer) clearTimeout(saveTimer);
+  if (saveState.value === 'saving') return false;
+  if (snapshot() === savedSnapshot) return true;
+  const problem = articleProblem(form);
+  if (problem) {
+    saveError.value = problem;
+    saveState.value = 'failed';
+    return false;
+  }
   saveState.value = 'saving';
   saveError.value = null;
+  const sent = snapshot();
   try {
-    const saved = await studioArticlesApi.update(articleId.value, { title: title.value.trim(), content: body.value });
+    const saved = await studioArticlesApi.update(articleId.value, articlePayload(form));
+    savedSnapshot = sent;
     lastSavedAt.value = saved.updatedAt;
-    saveState.value = 'saved';
+    saveState.value = snapshot() === sent ? 'saved' : 'dirty';
+    return true;
   } catch (err) {
     saveError.value = describeApiError(err, 'Perubahan gagal disimpan.');
     saveState.value = 'failed';
+    return false;
   }
 }
 
 async function submitForReview() {
-  if (submitting.value || !editable.value) return;
-  submitting.value = true;
-  submitError.value = null;
+  if (acting.value || !editable.value) return;
+  acting.value = true;
+  actionError.value = null;
   try {
-    if (saveTimer) clearTimeout(saveTimer);
-    await save();
-    if (saveState.value === 'failed') return;
+    if (!(await save())) return;
     await studioArticlesApi.submitReview(articleId.value);
     await refresh();
   } catch (err) {
-    submitError.value = describeApiError(err, 'Artikel gagal diajukan untuk ditinjau.');
+    actionError.value = describeApiError(err, 'Artikel gagal dikirim untuk ditinjau.');
   } finally {
-    submitting.value = false;
+    acting.value = false;
   }
 }
 
-const STATUS_META: Record<string, { label: string; tone: 'info' | 'success' | 'warning' | 'error' | 'neutral' }> = {
-  DRAFT: { label: 'Draf', tone: 'neutral' },
-  PENDING_REVIEW: { label: 'Menunggu tinjauan', tone: 'info' },
-  PUBLISHED: { label: 'Terbit', tone: 'success' },
-  REJECTED: { label: 'Ditolak', tone: 'error' },
-  SUSPENDED: { label: 'Ditangguhkan', tone: 'warning' },
-  ARCHIVED: { label: 'Diarsipkan', tone: 'neutral' },
-};
+async function withdraw() {
+  if (acting.value) return;
+  acting.value = true;
+  actionError.value = null;
+  try {
+    await studioArticlesApi.withdraw(articleId.value);
+    await refresh();
+  } catch (err) {
+    actionError.value = describeApiError(err, 'Pengajuan gagal ditarik.');
+  } finally {
+    acting.value = false;
+  }
+}
+
+useHead({ title: () => (form.title ? `${form.title} — Studio` : 'Editor Artikel — Studio') });
 </script>
 
 <template>
-  <main id="main" aria-labelledby="editor-h">
-    <LoadingSkeleton v-if="loadStatus === 'pending'" variant="panel" :count="2" />
-    <ErrorState
-      v-else-if="loadError || !article"
-      title="Artikel tidak dapat dimuat"
-      :message="describeApiError(loadError)"
-      @retry="refresh()"
-    />
+  <div class="rc-stack">
+    <LoadingSkeleton v-if="loadStatus === 'pending' && !article" variant="panel" :count="2" />
+    <ErrorState v-else-if="loadError || !article" title="Artikel tidak dapat dimuat" :message="describeApiError(loadError)" @retry="refresh()" />
+
     <template v-else>
-      <header class="rc-editor__head">
-        <div>
-          <NuxtLink to="/studio/articles">← Daftar artikel</NuxtLink>
-          <h1 id="editor-h">Editor Artikel</h1>
-          <StatusBadge
-            :tone="STATUS_META[article.status]?.tone ?? 'neutral'"
-            :label="STATUS_META[article.status]?.label ?? article.status"
-          />
+      <h1 class="sr-only">Editor artikel</h1>
+      <div class="rc-editor-head">
+        <div class="rc-actions">
+          <PlayButton to="/studio/articles" variant="ghost" size="sm">Kembali ke daftar</PlayButton>
+          <StatusBadge v-if="meta" :tone="meta.tone" :label="meta.label" />
         </div>
-        <div class="rc-editor__status" aria-live="polite">
-          <span v-if="saveState === 'dirty'" class="rc-editor__dirty">Belum disimpan...</span>
-          <span v-else-if="saveState === 'saving'">Menyimpan...</span>
-          <span v-else-if="saveState === 'saved' && lastSavedAt" class="rc-editor__saved">
-            Tersimpan {{ formatDateTime(lastSavedAt) }}
+        <div class="rc-actions">
+          <span class="rc-editor-head__status" aria-live="polite">
+            <template v-if="saveState === 'dirty'">Belum disimpan…</template>
+            <template v-else-if="saveState === 'saving'">Menyimpan…</template>
+            <template v-else-if="saveState === 'saved' && lastSavedAt">Tersimpan {{ formatDateTime(lastSavedAt) }}</template>
           </span>
+          <PlayButton v-if="editable" variant="secondary" size="sm" @click="save">Simpan</PlayButton>
+          <PlayButton v-if="editable" size="sm" :loading="acting" @click="submitForReview">Kirim untuk ditinjau</PlayButton>
+          <PlayButton v-else-if="article.status === 'PENDING_REVIEW'" variant="secondary" size="sm" :loading="acting" @click="withdraw">Tarik pengajuan</PlayButton>
+          <PlayButton v-if="article.status === 'PUBLISHED'" :to="`/marketplace/articles/${article.id}`" size="sm">Lihat di marketplace</PlayButton>
         </div>
-      </header>
+      </div>
 
-      <p v-if="!editable" role="note">Artikel ini tidak dapat diubah saat berstatus {{ STATUS_META[article.status]?.label ?? article.status }}.</p>
-      <p v-if="saveState === 'failed' && saveError" role="alert">
-        {{ saveError }}
-        <button type="button" @click="save">Coba simpan lagi</button>
+      <p v-if="article.status === 'REJECTED' && article.reviewNote" class="rc-alert rc-alert--error" role="note">
+        Catatan peninjau: {{ article.reviewNote }}
       </p>
+      <p v-if="!editable && article.status !== 'PUBLISHED'" class="rc-alert" role="note">
+        Artikel ini tidak bisa diubah saat berstatus {{ meta?.label }}.
+      </p>
+      <p v-if="saveState === 'failed' && saveError" class="rc-alert rc-alert--error" role="alert">{{ saveError }}</p>
+      <p v-if="actionError" class="rc-alert rc-alert--error" role="alert">{{ actionError }}</p>
 
-      <section class="rc-editor__form">
-        <label>
-          Judul
-          <input v-model="title" type="text" class="rc-editor__title" :disabled="!editable" />
-        </label>
-        <label>
-          Konten
-          <textarea v-model="body" rows="18" class="rc-editor__body" :disabled="!editable" />
-        </label>
-      </section>
+      <StudioWriter v-model:title="form.title" v-model:subtitle="form.subtitle" v-model:body="form.body" :disabled="!editable" />
 
-      <p v-if="submitError" role="alert">{{ submitError }}</p>
-      <footer class="rc-editor__actions">
-        <button
-          type="button"
-          :disabled="!editable || submitting || !title.trim() || !body.trim()"
-          @click="submitForReview"
-        >
-          {{ submitting ? 'Mengirim...' : 'Kirim untuk ditinjau' }}
-        </button>
-        <NuxtLink to="/studio/articles">Kembali</NuxtLink>
-      </footer>
+      <div class="rc-editor-meta">
+        <label class="rc-label">
+          Akses
+          <select v-model="form.accessType" class="rc-field" :disabled="!editable">
+            <option value="FREE">Gratis, perlu masuk untuk membaca</option>
+            <option value="PAID">Berbayar, pembaca melihat pratinjau dulu</option>
+          </select>
+        </label>
+        <label v-if="form.accessType === 'PAID'" class="rc-label">
+          Harga (Rp)
+          <input v-model.number="form.price" type="number" min="1" step="1" class="rc-field" :disabled="!editable" />
+        </label>
+      </div>
     </template>
-  </main>
+  </div>
 </template>
-
-<style scoped>
-.rc-editor__head {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  margin-bottom: 1rem;
-  gap: 1rem;
-}
-.rc-editor__status {
-  text-align: right;
-  font-size: 0.875rem;
-  color: var(--ui-text-muted);
-}
-.rc-editor__dirty { color: #d97706; }
-.rc-editor__saved { color: #16a34a; }
-.rc-editor__conflict {
-  padding: 1rem;
-  border-radius: 0.625rem;
-  background: #fef3c7;
-  border: 1px solid #d97706;
-  margin-bottom: 1rem;
-}
-.rc-editor__conflict > div {
-  display: flex;
-  gap: 0.5rem;
-  margin-top: 0.5rem;
-}
-.rc-editor__conflict button {
-  padding: 0.375rem 0.75rem;
-  border-radius: 0.375rem;
-  border: 1px solid var(--ui-border, rgba(0, 0, 0, 0.15));
-  background: var(--ui-bg, white);
-  cursor: pointer;
-}
-.rc-editor__form {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-}
-.rc-editor__form label {
-  display: flex;
-  flex-direction: column;
-  font-size: 0.875rem;
-  color: var(--ui-text-muted);
-}
-.rc-editor__title {
-  padding: 0.5rem;
-  font-size: 1.25rem;
-  font-weight: 600;
-  border: 1px solid var(--ui-border, rgba(0, 0, 0, 0.15));
-  border-radius: 0.5rem;
-}
-.rc-editor__body {
-  padding: 0.75rem;
-  border-radius: 0.5rem;
-  border: 1px solid var(--ui-border, rgba(0, 0, 0, 0.15));
-  font-family: ui-monospace, SFMono-Regular, monospace;
-}
-.rc-editor__actions {
-  margin-top: 1rem;
-  display: flex;
-  gap: 0.75rem;
-  align-items: center;
-}
-.rc-editor__actions button {
-  padding: 0.5rem 1rem;
-  border-radius: 0.5rem;
-  background: var(--ui-primary, #2563eb);
-  color: var(--ui-primary-fg, white);
-  border: 0;
-  font-weight: 600;
-  cursor: pointer;
-}
-.rc-editor__actions button:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-</style>

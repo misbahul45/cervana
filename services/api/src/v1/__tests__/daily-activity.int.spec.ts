@@ -2,7 +2,6 @@ import { ExecutionContext, CallHandler } from '@nestjs/common';
 import { firstValueFrom, of } from 'rxjs';
 import { ActivityDetectorInterceptor } from '@/common/interceptors/daily-activity.interceptor';
 import { DailylogsRepo } from '@/v1/gamify/daily-logs/daily-logs.repo';
-import { StreaksRepo } from '@/v1/gamify/streaks/streaks.repo';
 import { StreakActivity } from '@prisma/client';
 
 const flushMicrotasks = () => new Promise((resolve) => setImmediate(resolve));
@@ -10,20 +9,13 @@ const flushMicrotasks = () => new Promise((resolve) => setImmediate(resolve));
 describe('ActivityDetectorInterceptor (Phase 0 wiring)', () => {
   let interceptor: ActivityDetectorInterceptor;
   let dailyLogRepo: { findToday: jest.Mock; create: jest.Mock };
-  let streaksRepo: { incrementOrReset: jest.Mock };
 
   beforeEach(() => {
     dailyLogRepo = {
       findToday: jest.fn().mockResolvedValue(null),
       create: jest.fn().mockResolvedValue({}),
     };
-    streaksRepo = {
-      incrementOrReset: jest.fn().mockResolvedValue({}),
-    };
-    interceptor = new ActivityDetectorInterceptor(
-      dailyLogRepo as any,
-      streaksRepo as any,
-    );
+    interceptor = new ActivityDetectorInterceptor(dailyLogRepo as any);
   });
 
   function buildCtx(userId?: string): ExecutionContext {
@@ -48,10 +40,6 @@ describe('ActivityDetectorInterceptor (Phase 0 wiring)', () => {
         activityType: StreakActivity.DAILY_LOGIN,
       }),
     );
-    expect(streaksRepo.incrementOrReset).toHaveBeenCalledWith(
-      'u-1',
-      StreakActivity.DAILY_LOGIN,
-    );
   });
 
   it('does not double-mint when daily log already exists', async () => {
@@ -62,7 +50,6 @@ describe('ActivityDetectorInterceptor (Phase 0 wiring)', () => {
     await flushMicrotasks();
 
     expect(dailyLogRepo.create).not.toHaveBeenCalled();
-    expect(streaksRepo.incrementOrReset).not.toHaveBeenCalled();
   });
 
   it('does nothing when no authenticated user is on the request', async () => {
@@ -73,6 +60,5 @@ describe('ActivityDetectorInterceptor (Phase 0 wiring)', () => {
 
     expect(dailyLogRepo.findToday).not.toHaveBeenCalled();
     expect(dailyLogRepo.create).not.toHaveBeenCalled();
-    expect(streaksRepo.incrementOrReset).not.toHaveBeenCalled();
   });
 });

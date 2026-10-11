@@ -1,15 +1,17 @@
 <script setup lang="ts">
-import Header from './components/layout/Header.vue';
+import { computed } from 'vue';
 import ThemeShell from './components/theme/ThemeShell.vue';
-const route = useRoute()
-const usesLayout = computed(() => Boolean(route.meta.layout))
+import { fallbackLayout } from '~/lib/nav';
+
+const route = useRoute();
+const user = useState('user');
+const layoutName = computed(() => fallbackLayout(route.path, route.meta.layout as string | undefined, Boolean(user.value)));
 </script>
 
 <template>
   <UApp>
     <ThemeShell class="app-wrapper">
-      <Header v-if="!usesLayout && !route.path.startsWith('/my-learning')" />
-      <NuxtLayout>
+      <NuxtLayout :name="layoutName">
         <NuxtPage />
       </NuxtLayout>
     </ThemeShell>

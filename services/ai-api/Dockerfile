@@ -31,11 +31,12 @@ RUN uv pip install --system --no-cache \
     "torch==2.9.0+cpu" \
     --index-url https://download.pytorch.org/whl/cpu
 
-# Install project dependencies (runtime)
-RUN uv pip install --system --no-cache .
+RUN uv export --locked --no-dev --no-emit-project --no-hashes \
+    | grep -vE '^nvidia-' > /tmp/runtime-requirements.txt \
+    && uv pip install --system --no-cache --no-deps -r /tmp/runtime-requirements.txt
 
-# Install dev dependencies (pytest, httpx for TestClient)
-RUN uv pip install --system --no-cache --group dev
+RUN uv export --locked --only-group dev --no-emit-project --no-hashes > /tmp/dev-requirements.txt \
+    && uv pip install --system --no-cache --no-deps -r /tmp/dev-requirements.txt
 
 # ---------- Runtime stage ----------
 FROM base AS runner

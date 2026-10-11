@@ -49,16 +49,6 @@ def callback_resource(id: str, body: ResourceBody | None = None):
         raise
 
 
-def get_content(id: str, token: str):
-    url = f"{ENVS['NEST_API']}/contents/{id}"
-    headers = {"Authorization": f"Bearer {token}"}
-    logging.info(f"[CONTENT][GET] {url}")
-
-    res = requests.get(url, headers=headers, timeout=15)
-    res.raise_for_status()
-    return res.json()["data"]
-
-
 def get_video_id(url: str):
     p = urlparse(url)
     if p.hostname == "youtu.be":

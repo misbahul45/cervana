@@ -107,6 +107,58 @@ describe('request on the server', () => {
   });
 });
 
+describe('request on the server after the Nuxt context is gone', () => {
+  const stubLosingContext = (cookie: string) => {
+    const state = { lost: false };
+    const setHeader = vi.fn();
+    const event = { node: { res: { getHeader: vi.fn(), setHeader } } };
+    const guard = <V>(value: V) => () => {
+      if (state.lost) throw new Error('[nuxt] instance unavailable');
+      return value;
+    };
+    vi.stubGlobal('useRuntimeConfig', guard(runtimeConfig));
+    vi.stubGlobal('useRequestHeaders', guard({ cookie }));
+    vi.stubGlobal('useRequestEvent', guard(event));
+    return { state, setHeader };
+  };
+
+  it('reports a guest 401 as 401 even when the API clears cookies on the way', async () => {
+    const { state, setHeader } = stubLosingContext('stale=1');
+    guardedFetch((_url, _init, calls) => {
+      const firstCall = calls === 1;
+      const response = jsonResponse(401, { success: false, message: 'Authentication failed' }, firstCall ? ['access_token=; Max-Age=0'] : []);
+      state.lost = true;
+      return response;
+    });
+
+    const res = await request('/auth/check', 'GET');
+
+    expect(res.success).toBe(false);
+    expect(res.meta?.statusCode).toBe(401);
+    expect(setHeader).toHaveBeenCalledWith('set-cookie', ['access_token=; Max-Age=0']);
+  });
+
+  it('keeps forwarding the incoming cookie and relaying cookies through the refresh round trip', async () => {
+    const { state, setHeader } = stubLosingContext('refresh_token=old');
+    const fetchMock = guardedFetch((url, _init, calls) => {
+      const response = url.endsWith('/auth/refresh-token')
+        ? jsonResponse(200, { success: true, message: 'ok', data: { access_token: 'new-a', refresh_token: 'new-r' } }, ['access_token=new-a; HttpOnly'])
+        : calls === 1
+          ? jsonResponse(401, { success: false, message: 'expired' })
+          : jsonResponse(200, { success: true, message: 'ok', data: { id: 3 } });
+      state.lost = true;
+      return response;
+    });
+
+    const res = await request<{ id: number }>('/orders', 'GET');
+
+    expect(res.success).toBe(true);
+    const refreshInit = (fetchMock.mock.calls[1] as [string, any])[1];
+    expect(refreshInit.headers.cookie).toBe('refresh_token=old');
+    expect(setHeader).toHaveBeenCalledWith('set-cookie', ['access_token=new-a; HttpOnly']);
+  });
+});
+
 describe('request in the browser', () => {
   const fetchError = (status: number, data: unknown) =>
     Object.assign(new Error('fetch failed'), {

@@ -60,13 +60,11 @@ watch(contents, (newVal) => {
 <template>
   <div id="chat-content-container" class="space-y-4 h-full w-full max-w-8xl no-scrollbar overflow-y-auto">
     <div
-      v-for="(value, index) in contents"
+      v-for="value in contents"
       :key="value.id"
-      :class="['flex-1 h-fit w-full no-scrollbar overflow-y-auto md:p-4 p-2.5 border rounded-xl', index % 2 === 0?'border-secondary/80':'border-primary/80']"
+      class="rc-card"
     >
-      <article
-        class="prose w-full font-ubuntu rounded-xl max-w-full h-fit overflow-x-auto mx-auto prose-invert"
-      >
+      <article class="w-full max-w-full overflow-x-auto">
         <RenderMarkdown :text="value.data" />
       </article>
     </div>

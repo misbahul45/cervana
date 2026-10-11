@@ -16,6 +16,7 @@ metadata:
 - Never create `.env` files inside service subdirectories.
 - Commit only `.env.example`. The real `.env` is gitignored.
 - Reference variables in compose via `${VAR}` with sensible defaults.
+- No compose service uses `env_file`. Each service lists the variables it needs under `environment:`; `ai-api` and `celery-worker` share `x-ai-runtime-environment`. A new variable goes into `.env.example` and into the list of the service that reads it. `scripts/check-compose-env.py` enforces this (ADR-011).
 - Never hardcode secrets in `docker-compose.yml`, `Dockerfile`, or source code.
 - Rotate `COOKIE_SECRET`, `JWT_ACCESS_SECRET`, `JWT_REFRESH_SECRET` for every environment.
 - Generate secrets with `openssl rand -base64 48` or `python3 -c "import secrets; print(secrets.token_urlsafe(48))"`.
@@ -77,6 +78,16 @@ metadata:
 - Never enable `swr`, `isr` or `prerender` on a page that renders user state; the Nitro cache key ignores cookies and would serve one user's page to another. Cache data payloads that are not user specific instead, with a short timeout and a bundled fallback so rendering never waits on a slow upstream.
 - The theme must render from static CSS when the API is unreachable, and the color scheme is stored in a cookie so the server renders the right class.
 - Load below-the-fold sections with lazy hydration and avoid duplicate requests: one key per dataset, hydrated from the server payload.
+- Never nest `<NuxtLayout>` inside a page under `pages/`: Nuxt then freezes the child route, the URL changes and the screen does not. Layouts are chosen once, in `app.vue`, through `fallbackLayout` (`app/lib/nav.ts`); `lib/__tests__/page-layouts.test.ts` fails on a page that renders `NuxtLayout`.
+- Anything that depends on the color scheme or on a media query is decided after mount, or by CSS. The server cannot know the visitor's scheme, so `ThemeShell` renders the light palette inline and the dark palette as a `.dark [data-rc-theme="slug"]` stylesheet (`shellRender`); an attribute or style that differs between the server and the first client render is never repaired by hydration.
+- Color and shape come from `--rc-*` tokens (theme rows in the database, `app/theme`), never from fixed palette classes such as `text-white` or `bg-gray-900`; icons come from `GameIcon`, which reads the theme's icon set with a bundled fallback. Raw HTML from content or from the AI is never rendered: markdown goes through `lib/markdown.ts` (`html: false`).
+- `experimental.asyncContext` is on, so `useRuntimeConfig`, `useRequestHeaders` and `useRequestEvent` still work after an `await` on the server. `request()` also captures the cookie, event and API URL once (`captureSsrContext`) and hands them to its refresh and retry calls; without that a guest opening a protected URL got a 503 from the auth middleware (`lib/__tests__/request.spec.ts`).
+- A page file that has a same-named folder (`orders/[id].vue` next to `orders/[id]/pay.vue`) is a parent route and must render `<NuxtPage />`; otherwise the child never shows. Put the detail view in `[id]/index.vue` (`page-layouts.test.ts` enforces it).
+- Every `useAsyncData` key names its dataset and its inputs (`learning-topic-${slug}`); two pages that fetch the same key with different options share one cache entry. Data that must be in the first HTML (article, class, creator, studio editors) uses `await useAsyncData` and returns a plain object for failures instead of throwing, so the error never crosses the payload as an `Error`.
+- Reading, learning and checkout screens are single purpose: lesson, step, sub-topic and quiz pages use the `focus` layout (exit, XP and streak only, no sidebar); articles use `reader` (Source Serif 4, reading progress, paywall under a faded preview). Paid text never reaches the first HTML for a reader without access: the page asks `/marketplace/articles/:id/access` and falls back to the public preview.
+- Horizontal lists use `PlayScroller` (snap, drag thumb, arrows, edge fade); the global scrollbar styling lives in `play.css` and only sets the standard `scrollbar-*` properties inside `@supports not selector(::-webkit-scrollbar)`, because Chromium ignores the pill thumb once they are set (`scrollbar-css.test.ts`).
+- Money that can be zero (balances, earnings, payouts) uses `formatAmount`; `formatMoney` prints zero as "Gratis" and is only for prices.
+- Pages that change data send what the API requires: `Idempotency-Key` on order writes comes from `ordersService`; do not call `request('/orders', 'POST', ...)` directly.
 
 ## API Architecture Rules
 
@@ -118,6 +129,13 @@ The AI service proposes, retrieves, reasons, and explains. It does not write aut
 
 Seven decision decorators: `@Public()`, `@Roles(...)`, `@RequireOwnership(...)`, `@RequireParentOwnership(...)`, `@ScopeToUser()`, `@TenantScoped(...)`, `@InternalOnly()`. Every controller route has at least one; the ratchet in `src/common/authz/__tests__/route-access.spec.ts` enforces this.
 
+### Authentication
+
+- Email and password only (D-26); there is no third party sign-in. Passwords are 8 to 72 characters (bcrypt cost 12). Email addresses are trimmed and lower-cased at the DTO.
+- Sign-in, password reset request and code resend answer identically whether or not the email is registered, and a login spends a password comparison even for an unknown email. `Unverified email` is only revealed after the right password.
+- One-time codes (`otp.service.ts`) are six digits, stored only as an HMAC, valid 15 minutes, allow 5 wrong tries, work once and are keyed by identifier and type. Do not log, return or store a code in clear text outside the dev mock (`OTP_DEV_MODE`).
+- The JWT guard checks the session row on every request, so logout, a password reset and a refresh rotation end access at once. A refresh token works once (the old session is deleted when a new pair is issued). Cookies are `HttpOnly`, `SameSite=Lax`, `Secure` in production.
+
 ### State machines
 
 - Six explicit state tables: `order-state.ts`, `payment-state.ts`, `refund-state.ts`, `payout-state.ts`, `content-state.ts`, `theme-state.ts`.
@@ -143,12 +161,34 @@ Seven decision decorators: `@Public()`, `@Roles(...)`, `@RequireOwnership(...)`,
 - Test only on scratch databases (`TEST_DATABASE_URL`); never on the dev `reducera` database.
 - Append-only tables (`LedgerTransaction`, `AICreditLedgerEntry`, `GamificationLedger`, `DomainEvent`) are protected by `forbid_row_mutation` triggers.
 
+### Learner state
+
+- Concept ids come from `Concept` (stable text key, the golden graph id). `ConceptAlias` and `ConceptCurriculumLink` carry a review status and only `APPROVED` rows act; the mappings are reviewed in git (`prisma/seed-data/concept-aliases.json`, `concept-curriculum-links.json`) and seeded with `pnpm seed:concepts`. `ai-api` keeps no id table: it reads the registry through `GET /internal/concepts` (`v1/domain/adapter.py`).
+- `LearningEvent` rows with a `streamSeq` are the append-only event store of one learner; `ConceptMastery` and `LearnerStream` are its projection. Only `LearnerEventsService` writes these three tables (one transaction: append, fold, head); `scripts/check-ownership-rules.sh` fails on any other writer. A stored stream event cannot be updated (trigger); corrections are new events.
+- Mastery is the pure fold in `learner-model/mastery/mastery-v1.ts`. Changing the formula means a new `MASTERY_MODEL_VERSION` and a rebuild (`LearnerEventsService.rebuild`), never an edit of stored events or of a projection row. The formula is a proposal for D-08, not a decision.
+- Quiz submission appends evidence inside the grading transaction, key `assessment:{attemptId}:{conceptId}`, and fails the submission when the event cannot be stored. A quiz with no approved link appends nothing.
+- Learner decisions (next concept, teaching strategy) come from `LearnerPolicyService` with typed reason codes. `LearnerStateService` is the only reader that joins mastery with the registry for the routes, the tutor and `GET /internal/learner-state`.
+- There is one mastery. The topic level EMA (`TopicMasteryRecord`) and `SkillNode` are retired: no code reads or writes them (`scripts/check-ownership-rules.sh` fails on `.topicMasteryRecord.` and `.skillNode.` outside specs) and the tables stay in the schema until the owner agrees to drop them. A topic level figure (creator eligibility, recommendations) is computed on read by `LearnerStateService.topicMastery` and `averageMastery` from `ConceptMastery`; skill node states are derived by `skillNodes`. Never derive mastery from step progress or completion.
+
+### Rewards
+
+- Every point is a `GamificationLedger` entry written by `RewardLedgerService` only (`scripts/check-ownership-rules.sh` fails on any other writer). An entry has a rule id, a rule version, a unique idempotency key derived from its cause, and is never updated (trigger); a correction is a reversal entry created through `POST /gamify/rewards/ledger/{id}/reverse` (ADMIN, audited, idempotent).
+- Rules live in `gamify/rewards/reward-rules.ts` as versioned data plus pure functions. Changing a number or a condition means a new rule version, never an edit of the old one. The values are a proposal (D-22).
+- An assessment is only worth points if its answer key stays private: question reads go through `forViewer` (`quiz/answer-key.ts`) and drop `correctAnswer` for everyone except ADMIN and TEACHER, and a quiz can only be read or started by the owner of the progress it belongs to or by a learner enrolled in the topic of a template quiz (`quiz-access.service.ts`). A new route that returns questions must use both.
+- Points that depend on learning (`MASTERY_PROGRESS`, `CONCEPT_PASSED`) are granted only by `RewardEngineService.onAssessment`, inside the transaction that stored the learning event, so evidence and reward commit together. Do not grant points from a controller, from step completion, from a chat message or from the AI service.
+- The ledger is projected onto `LeaderboardScore` (`g-{user}`, `t-{user}-{topic}`, `st-{user}-{subTopic}`) in the same transaction as the entry. Points granted before the ledger existed have no entry and stay as they are.
+- Reward rules are rows (`RewardRule`, immutable except `active`); `reward-rules.ts` holds only the defaults used when no row exists. A streak day is credited only by `StreakEngineService` from a passed assessment, never by login, chat or step completion; freezes are earned (one per 7 days, at most 2) and never sold. Levels come from `LevelThreshold` rows over ledger XP; stars come from `NODE_MASTERED`. Boards are per topic and opt-in; there is no global board. Values are a proposal (D-25).
+- Theme and icons are rows too: `reducera-play` is the seeded default (`pnpm seed:theme`), `GET /gamify/themes/default` is public, and the web falls back to the bundled copy of the same palette. The two JSON copies (`services/api/prisma/seed-data` and `apps/web/app/theme`) must stay byte identical (`infra/scripts/check-theme-sync.sh`).
+
 ### Internal contract with `ai-api`
 
 - `InternalServiceGuard` enforces signed headers: `x-service-id`, `x-service-timestamp`, `x-service-signature`, `x-idempotency-key` (for non-GET), `x-acting-user-id`, `x-trace-id`.
-- Signature is HMAC-SHA256 over `(timestamp, method, target, sha256(body))`.
-- The application API re-authorizes the `acting-user-id` against the resource. The AI service does not gain privileges from internal calls.
-- Replay cache is in-process memory (single-replica safe); multi-replica deployments must move it to Redis. The signature + idempotency-key make replay safe at the request level; the cache is a defense-in-depth.
+- Signature is HMAC-SHA256 over `(timestamp, method, target, sha256(body), actingUserId)`; `actingUserId` is the empty string when the header is absent. `internal-signature.ts` and `services/ai-api/config/service_auth.py` share test vectors.
+- Internal routes live under `/internal` and carry `@InternalOnly()` (service identity only, for platform-global data) or `@InternalActing()` (service identity plus an acting user). `ActingUserGuard` loads the user named in `x-acting-user-id` (400 without it, 403 when unknown or inactive) and applies `@InternalOwnership(...)` with no `ADMIN` bypass. The AI service does not gain privileges from internal calls.
+- The opposite direction (`api` to `ai-api`) is signed with a different secret, `INTERNAL_API_SECRET`, listed for `api` and `ai-api` only, and the same canonical string. `ai-api` accepts only caller id `api` on its service routes (`users-steps/generate`, `learning/generate-material`, `resources/extract`, `resources/embedding/{id}`), verifies timestamp, HMAC and a Redis replay cache in `config/service_identity.py`, and ignores bearer tokens there; the browser routes (`learning/chat`, `users-steps/generate-question`, `agents/run`) keep the user's bearer token and ignore service headers. `QueueService` validates job payloads with strict schemas and rejects credential-like keys.
+- Every `ai-api` call to `api` goes through `config/internal_client.py` (`InternalApiClient`); `scripts/check-ownership-rules.sh` fails when an `ai-api` module references `NEST_API` without it (exceptions: `v1/agents/`, `config/user_auth.py`, `config/envs.py`, the client and signing modules).
+- Replay cache is in Redis (`internal:replay:*`, 120 s); when Redis is unreachable the guard logs a warning and lets the request through. The signature, the 60 s clock window and the idempotency key still apply.
+- Retried writes are deduplicated per `(key, userId)` for 24 h by `IdempotentWriteInterceptor` on the internal write routes; the client derives one key per operation from the request key, method, path and body.
 
 ### Tests
 
@@ -166,6 +206,7 @@ Seven decision decorators: `@Public()`, `@Roles(...)`, `@RequireOwnership(...)`,
 - Redis serves three roles: app cache, BullMQ broker, Celery broker.
 - Qdrant stores embeddings for RAG pipeline.
 - Celery worker is a separate service. Never spawn it as a subprocess inside ai-api container.
+- nginx answers 404 for `/api/v1/internal/*`, blanks `x-service-id`, `x-service-timestamp`, `x-service-signature` and `x-acting-user-id` on `/api/` and `/ai/`, and re-resolves upstream addresses (`resolver`, `zone`, `resolve`), so a recreated container is found without a reload.
 
 ## Service Ownership & Cross-Service Boundaries
 
@@ -183,11 +224,11 @@ The ReduCera platform follows a strict service-ownership model. Each service has
 
 ### Cross-service rules
 
-1. **If `ai-api` needs DB data**, call `api` over HTTP with the original user's bearer token forwarded. Example: `requests.get(f"{ENVS['NEST_API']}/learning/user-steps/{id}", headers={"Authorization": f"Bearer {token}"})`.
-2. **If `api` needs AI capabilities** (embedding, generation, RAG, agent pipeline, structured-output), call `ai-api` over HTTP. Example: `POST /ai/v1/resources/extract?type=PDF&resource_id=...`.
+1. **If `ai-api` needs DB data**, call an `/internal/...` route of `api` through `InternalApiClient`, which signs the request and names the acting user. Example: `InternalApiClient(session).get(f"/internal/user-steps/{id}")`.
+2. **If `api` needs AI capabilities** (embedding, generation, RAG, agent pipeline, structured-output), call `ai-api` over HTTP through `AiServiceClient` (`services/api/src/common/ai-client/`), which signs the request as service `api` with `INTERNAL_API_SECRET` and names the acting user. Example: `POST /ai/v1/resources/extract?type=PDF&resource_id=...` from a queue processor. A job carries identifiers only, never a token (ADR-013).
 3. **Never** inject `DATABASE_URL` into `ai-api`'s environment. If the AI service needs data, it asks the API.
 4. **Never** inject `OPENAI_API_KEY`, `OPENAI_BASE_URL`, `HF_TOKEN`, or any LLM or embedding credential into `api`'s environment. If the API needs AI, it asks the AI service.
-5. **Service-to-service calls must forward the original user's auth token** so `api` can enforce ownership checks. Internal calls are not a privilege escalation.
+5. Service-to-service calls authenticate with a signed service identity (`x-service-id` + HMAC signature) and carry the acting user, tenant, trace id and idempotency key as headers. `api` re-authorizes the acting user for every operation. User bearer tokens are not forwarded to internal routes.
 6. **Read-only DB projections** that `ai-api` legitimately needs (lesson, step, topic, learning style, personality quiz) are exposed as `api` endpoints and consumed over HTTP — never bypassed via direct DB access.
 7. **No shared Prisma client, no shared SQLAlchemy, no shared migration tool.** Each service owns its own data layer.
 
@@ -210,7 +251,11 @@ If you find code that violates these rules, refactor in this order:
 4. Verify the new path with a smoke test against the deployed stack.
 5. Update tests and documentation.
 
-**Open violations**: none.
+**Open violations** (audit of 2026-10-09, `docs/01-audit/README.md`):
+
+- `services/ai-api/v1/agents/` still sends the user's bearer token to user-facing `api` routes (the agent tools and the decision-trace write); it waits for the agent runtime design.
+
+**Resolved 2026-10-09**: H-002. Jobs queued by `api` hold identifiers only and every call from a processor to `ai-api` is signed (`docs/architecture/api-to-ai-api-service-identity.md`, ADR-013); the four queue-only routes of `ai-api` no longer accept a user token. C-004. `env_file: .env` is removed from every compose service and each service has its own `environment` list (ADR-011); the running containers were recreated and checked: `api` no longer holds LLM credentials, `ai-api` and `celery-worker` no longer hold `DATABASE_URL` or the session secrets, `web` holds 8 variables instead of 78. C-001. The `ai-api` to `api` calls of `learning`, `users_steps`, `episodes` and `decision_traces` were unsigned and rejected; they now use `InternalApiClient` and the routes listed in `docs/architecture/AUTHORIZATION_MATRIX.md` ("Internal routes for `ai-api`"). Design: `docs/architecture/ai-api-service-identity.md`.
 
 **Resolved 2026-09-30**: `services/api/src/common/lib/embeding.ts` (Gemini via `axios`) had no callers and was deleted together with the unused `@langchain/*`, `langchain` and `axios` dependencies of `api`. The unused `@google/generative-ai` dependency was removed from `apps/web`.
 
@@ -223,6 +268,13 @@ If you find code that violates these rules, refactor in this order:
 - Only `ai-api` and `celery-worker` receive these variables. Gemini is not used anywhere.
 - Changing `HF_EMBEDDING_MODEL` or `EMBEDDING_DIM` invalidates stored vectors. Point `QDRANT_COLLECTION` and `QDRANT_MEMORY_COLLECTION` at new names and re-embed; `ai-api` refuses to start when an existing collection has a different vector size.
 - A developer's personal `HF_TOKEN` lives only in the git-ignored root `.env` and is removed when the work ends.
+
+### Retrieval
+
+- Every chunk written to the vector store carries the governance metadata of `config/retrieval_governance.py` (contract v1: status, domain, access scope, owner, tenant, concept ids, chunk id). `EmbeddingPipeline.upsert_document` refuses a write without a `Governance`, and a caller cannot override a governance key through the free metadata.
+- Every retrieval passes a `RetrievalScope` (actor, domain, optional concept ids and tenant ids); there is no unfiltered mode. The filter is built only in `build_qdrant_filter`: published, the domain, and platform content or the actor's own or the caller's tenants. Do not build a Qdrant filter anywhere else and do not filter after retrieval.
+- Concept ids are api `Concept` ids (ADR-009). Content that only one learner may see (`learner-summary`) is `OWNER` scope with that learner as owner. A chunk is cited only with the locators it carries.
+- A retrieval failure is a `RetrievalError` and callers answer without materials; a write failure is not hidden.
 
 ### Detection
 

@@ -3,7 +3,6 @@ import { PrismaService } from '@/common/config/prisma/prisma.service';
 import { errorHandler } from '@/common/lib/utils';
 import { Query } from '@/common/interfaces';
 import { StreakEmitter } from '@/v1/emitters/events/streak.emitter';
-import { LeaderboardsRepo } from '../leaderboards/leaderboards.repo';
 import { StreakActivity, StreakHistory } from '@prisma/client';
 
 @Injectable()
@@ -11,7 +10,6 @@ export class StreaksRepo {
   constructor(
     private readonly prisma: PrismaService,
     private readonly streakEmitter: StreakEmitter,
-    private readonly leaderboardsRepo: LeaderboardsRepo,
   ) {}
 
   async findAll(q: Query = {}) {
@@ -131,42 +129,5 @@ export class StreaksRepo {
       await this.prisma.streakHistory.delete({ where: { id } });
       return { message: 'StreakHistory deleted successfully', id };
     });
-  }
-
-  async incrementOrReset(userId: string, activityType: StreakActivity) {
-    const today = new Date();
-    const start = new Date(today);
-    start.setHours(0, 0, 0, 0);
-    const end = new Date(today);
-    end.setHours(23, 59, 59, 999);
-
-    const existingToday = await this.findToday(userId, start, end);
-    if (existingToday) return existingToday;
-
-    const last = await this.findLast(userId, activityType);
-    let streakCount = 1;
-
-    if (last) {
-      const lastDate = new Date(last.date);
-      const yesterday = new Date(today);
-      yesterday.setDate(today.getDate() - 1);
-      const isConsecutive =
-        lastDate.getFullYear() === yesterday.getFullYear() &&
-        lastDate.getMonth() === yesterday.getMonth() &&
-        lastDate.getDate() === yesterday.getDate();
-      if (isConsecutive) streakCount = last.streakCount + 1;
-    }
-
-    if(streakCount % 7 === 0){
-      await this.leaderboardsRepo.incrementScore(userId, 'GLOBAL', 50);
-    }
-
-    return await this.create({
-      userId,
-      date: today,
-      activityType,
-      streakCount,
-      isDeleted: false,
-    } as Omit<StreakHistory, 'id'>);
   }
 }

@@ -8,22 +8,30 @@ import { errorHandler } from '@/common/lib/utils';
 import { Query } from '@/common/interfaces';
 import { AppError, AppErrorCode } from '@/common/lib/error';
 import { QuizAttemptsRepo } from './quiz-attempts.repo';
-import { MasteryService } from '@/v1/personalization/mastery/mastery.service';
 import { MisconceptionService } from '@/v1/personalization/misconception/misconception.service';
 import { PrismaService } from '@/common/config/prisma/prisma.service';
 import { EventLogService } from '@/v1/analytics/events/event-log.service';
 import { QuizEvaluationService } from '@/v1/quiz/services/quiz-evaluation.service';
-import { AttemptStatus } from '@prisma/client';
+import { AttemptStatus, Prisma } from '@prisma/client';
+import { ConceptRegistryService } from '@/v1/learner-model/concepts/concept-registry.service';
+import { LearnerEventsService } from '@/v1/learner-model/events/learner-events.service';
+import { RewardEngineService } from '@/v1/gamify/rewards/reward-engine.service';
+import { AssessmentGamifyOutcome, AssessmentGamifyService } from '@/v1/gamify/assessment-gamify.service';
+import { QuizAccessService } from '../quiz-access.service';
 
 @Injectable()
 export class QuizAttemptsService {
   constructor(
     private readonly quizAttempetsRepo: QuizAttemptsRepo,
     @Optional() private readonly prisma?: PrismaService,
-    @Optional() private readonly mastery?: MasteryService,
     @Optional() private readonly misconception?: MisconceptionService,
     @Optional() private readonly events?: EventLogService,
     @Optional() private readonly evaluator?: QuizEvaluationService,
+    @Optional() private readonly concepts?: ConceptRegistryService,
+    @Optional() private readonly learnerEvents?: LearnerEventsService,
+    @Optional() private readonly rewards?: RewardEngineService,
+    @Optional() private readonly gamify?: AssessmentGamifyService,
+    @Optional() private readonly access?: QuizAccessService,
   ) {}
 
   create(values: CreateQuizAttemptType) {
@@ -50,6 +58,7 @@ export class QuizAttemptsService {
       );
     }
     return errorHandler(async () => {
+      await this.access?.assertCanTake(actor, dto.quizId);
       const lastAttempt = await prisma.quizAttempt.findFirst({
         where: { userId: actor.id, quizId: dto.quizId },
         orderBy: { attemptNumber: 'desc' },
@@ -78,7 +87,7 @@ export class QuizAttemptsService {
     attemptId: string;
     answers: Record<string, unknown>;
     hintUsed?: boolean;
-  }): Promise<{ updatedMastery: { topicId: string; score: number; attempts: number } | null; isCorrect: Record<string, boolean>; score: number; }> {
+  }): Promise<{ isCorrect: Record<string, boolean>; score: number; gamify?: AssessmentGamifyOutcome }> {
     if (!this.prisma) {
       throw new AppError('Prisma is not available', 500, AppErrorCode.INTERNAL_SERVER_ERROR);
     }
@@ -102,7 +111,16 @@ export class QuizAttemptsService {
 
       const quiz = await tx.quiz.findUnique({
         where: { id: attempt.quizId },
-        select: { id: true, topicId: true, lessonId: true, questions: { select: { id: true, questionType: true, correctAnswer: true, options: true, points: true } } },
+        select: {
+          id: true,
+          topicId: true,
+          lessonId: true,
+          subTopicId: true,
+          subTopic: { select: { topicId: true } },
+          lesson: { select: { subTopicId: true, subTopic: { select: { topicId: true } } } },
+          step: { select: { lessonId: true, lesson: { select: { subTopicId: true, subTopic: { select: { topicId: true } } } } } },
+          questions: { select: { id: true, questionType: true, correctAnswer: true, options: true, points: true } },
+        },
       });
       if (!quiz) {
         throw new AppError('Quiz not found', 404, AppErrorCode.NOT_FOUND);
@@ -158,20 +176,28 @@ export class QuizAttemptsService {
         },
       });
 
+      let gamify: AssessmentGamifyOutcome | undefined;
+      if (!input.hintUsed && pointsTotal > 0) {
+        gamify = await this.appendLearningEvidence(tx, {
+          userId: input.userId,
+          attemptId: attempt.id,
+          attemptNumber: attempt.attemptNumber,
+          quizId: quiz.id,
+          score: scoreTotal / pointsTotal,
+          items: quiz.questions.length,
+          lessonId: quiz.lessonId ?? quiz.step?.lessonId ?? null,
+          subTopicId: quiz.subTopicId ?? quiz.lesson?.subTopicId ?? quiz.step?.lesson.subTopicId ?? null,
+          topicId: quiz.topicId ?? quiz.subTopic?.topicId ?? quiz.lesson?.subTopic.topicId ?? quiz.step?.lesson.subTopic.topicId ?? null,
+        });
+      }
+
       const isCorrectMap: Record<string, boolean> = {};
       for (const a of perAnswer) {
         isCorrectMap[a.questionId] = a.isCorrect;
       }
 
-      return { score: scorePercent, isCorrect: isCorrectMap, perAnswer, topicId: quiz.topicId };
+      return { score: scorePercent, isCorrect: isCorrectMap, perAnswer, topicId: quiz.topicId, gamify };
     });
-
-    let updatedMastery: { topicId: string; score: number; attempts: number } | null = null;
-    if (result.topicId && this.mastery) {
-      const masteryTopicId = result.topicId;
-      const updated = await this.mastery.updateFromAttempt(input.userId, masteryTopicId, result.score);
-      updatedMastery = { topicId: masteryTopicId, score: updated.score, attempts: updated.attempts };
-    }
 
     const misconception = this.misconception;
     if (misconception) {
@@ -200,7 +226,63 @@ export class QuizAttemptsService {
       });
     }
 
-    return { updatedMastery, isCorrect: result.isCorrect, score: result.score };
+    return { isCorrect: result.isCorrect, score: result.score, ...(result.gamify ? { gamify: result.gamify } : {}) };
+  }
+
+  private async appendLearningEvidence(
+    tx: Prisma.TransactionClient,
+    evidence: {
+      userId: string;
+      attemptId: string;
+      attemptNumber: number;
+      quizId: string;
+      score: number;
+      items: number;
+      lessonId: string | null;
+      subTopicId: string | null;
+      topicId: string | null;
+    },
+  ): Promise<AssessmentGamifyOutcome | undefined> {
+    if (!this.concepts || !this.learnerEvents) return undefined;
+    const { conceptIds } = await this.concepts.conceptsForCurriculum({
+      lessonId: evidence.lessonId,
+      subTopicId: evidence.subTopicId,
+    });
+    let xpGained = 0;
+    for (const conceptId of conceptIds) {
+      const stored = await this.learnerEvents.append(
+        {
+          userId: evidence.userId,
+          conceptId,
+          idempotencyKey: `assessment:${evidence.attemptId}:${conceptId}`,
+          payload: {
+            attemptId: evidence.attemptId,
+            quizId: evidence.quizId,
+            score: evidence.score,
+            items: evidence.items,
+            hintsUsed: 0,
+            share: 1 / conceptIds.length,
+            attemptNumber: evidence.attemptNumber,
+          },
+        },
+        tx,
+      );
+      const rewarded = await this.rewards?.onAssessment(
+        {
+          userId: evidence.userId,
+          conceptId,
+          eventId: stored.eventId,
+          duplicate: stored.duplicate,
+          after: stored.state,
+          topicId: evidence.topicId ?? undefined,
+          subTopicId: evidence.subTopicId ?? undefined,
+        },
+        tx,
+      );
+      xpGained += rewarded?.points ?? 0;
+    }
+    if (conceptIds.length === 0 || !this.gamify) return undefined;
+    return this.gamify.afterAssessment({ userId: evidence.userId, subTopicId: evidence.subTopicId, at: new Date(), xpGained }, tx);
   }
 
   findOne(id: string, q:Query) {

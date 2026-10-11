@@ -8,10 +8,9 @@ import { AuthController } from './auth.controller';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { JwtAuthGuard } from './guards/jwt.guard';
 import { PrismaService } from '@/common/config/prisma/prisma.service';
-import { GoogleOAuthGuard } from './guards/google.guard';
-import { GoogleStrategy } from './strategies/google.strategy';
 import { PrismaModule } from '@/common/config/prisma/prisma.module';
 import { VerificationTokenRepo } from './verificationToken.repo';
+import { OtpService } from './otp.service';
 import { SessionRepo } from './sessions.repo';
 import { UsersModule } from '../users/users.module';
 import { SseJwtGuard } from './guards/sse-jwt.guard';
@@ -41,11 +40,8 @@ import { SseJwtGuard } from './guards/sse-jwt.guard';
     JwtAuthGuard,
     SseJwtGuard,
     PrismaService,
-    GoogleOAuthGuard,
-    ...(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET
-      ? [GoogleStrategy]
-      : []),
     VerificationTokenRepo,
+    OtpService,
     SessionRepo,
   ],
   exports: [

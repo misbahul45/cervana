@@ -111,6 +111,29 @@ export interface MarketplaceClassView {
   publishedAt: string | null;
   instructor: { id: string; name: string; image: { url: string } | null } | null;
   tenant: { id: string; name: string; slug: string; logo: { url: string } | null } | null;
+  sessions?: Array<{ id: string; startsAt: string; endsAt: string; status: string }>;
+}
+
+export interface ClassMaterialsView {
+  classId: string;
+  title: string;
+  description: string | null;
+  sessions: Array<{
+    id: string;
+    startsAt: string;
+    endsAt: string;
+    status: string;
+    meetingUrl: string | null;
+    recordingUrl: string | null;
+  }>;
+}
+
+export interface EnrollmentView {
+  id: string;
+  status: string;
+  enrolledAt: string;
+  completedAt: string | null;
+  classProduct: { id: string; title: string; slug: string | null; coverImage: { url: string } | null; format: string; tenant: { id: string; name: string; slug: string } | null };
 }
 
 export type ContentStatus =
@@ -130,6 +153,11 @@ export interface StudioArticleSummary {
 
 export interface StudioArticle extends StudioArticleSummary {
   excerpt: string | null;
+  accessType: 'FREE' | 'PAID';
+  price: string | number | null;
+  currency: string;
+  reviewNote: string | null;
+  publishedAt: string | null;
   versions: Array<{
     id: string;
     versionNumber: number;
@@ -162,4 +190,58 @@ export interface ManualSubmissionView {
     items: OrderItemView[];
   };
   paymentIntent: { id: string; status: string; amount: string | number; currency: string; expiresAt: string };
+}
+
+export interface CreatorProfileView {
+  id: string;
+  fullName: string;
+  bio: string | null;
+  portfolioUrl: string | null;
+  articles: Array<Omit<MarketplaceArticleView, 'category' | 'author' | 'tenant'>>;
+  classes: Array<Omit<MarketplaceClassView, 'capacity' | 'seatsLeft' | 'instructor' | 'tenant' | 'sessions'>>;
+  badges: Array<{ id: string; title: string; description: string | null; icon: string | null; iconName: string | null; awardedAt: string }>;
+}
+
+export interface StudioClassSummary {
+  id: string;
+  title: string;
+  status: ContentStatus;
+  accessType: 'FREE' | 'PAID';
+  price: string | number | null;
+  currency: string;
+  format: string;
+  difficulty: string;
+  durationMinutes: number | null;
+  capacity: number | null;
+  updatedAt: string;
+}
+
+export interface StudioClassSession {
+  id: string;
+  startsAt: string;
+  endsAt: string;
+  status: string;
+  meetingUrl: string | null;
+  recordingUrl: string | null;
+}
+
+export interface StudioClass extends StudioClassSummary {
+  description: string | null;
+  reviewNote: string | null;
+  publishedAt: string | null;
+  sessions: StudioClassSession[];
+  _count: { enrollments: number };
+}
+
+export interface TeacherApplicationView {
+  id: string;
+  fullName: string;
+  bio: string | null;
+  expertise: string | null;
+  portfolioUrl: string | null;
+  cvUrl: string | null;
+  status: 'PENDING' | 'APPROVED' | 'REJECTED';
+  feedback: string | null;
+  createdAt: string;
+  reviewedAt: string | null;
 }

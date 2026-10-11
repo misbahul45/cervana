@@ -1,124 +1,89 @@
 <script setup lang="ts">
+import { computed, ref } from 'vue'
 import StepLearningCollapsible from '~/components/layout/StepLearningCollapsible.vue'
 import type { User } from '~/interfaces/auth'
 import { stepsService } from '~/services/curriculum/steps'
-import { userStepService } from '~/services/learning/userStep'
-import { useLearning } from '~/stores/learning'
 
 const user = useState<User | null>('user')
-const learning = useLearning()
-let loadingInterval: ReturnType<typeof setInterval> | null = null
-
-const stopLoadingTextRotation = () => {
-  if (!loadingInterval) return
-  clearInterval(loadingInterval)
-  loadingInterval = null
-}
+const lessonId = useLessonId()
 
 const key = computed(() =>
-  user.value && learning.lessonId
-    ? `userSteps-${user.value.id}-${learning.lessonId}`
-    : 'userSteps-pending'
+  user.value && lessonId.value ? `userSteps-${user.value.id}-${lessonId.value}` : 'userSteps-pending',
 )
 
 const { data: resSteps } = await useAsyncData(
   key,
   async () =>
-    await stepsService.findAll({
-      page: 1,
-      limit: 10,
-      lessonId: learning.lessonId,
-      sort:'sortOrder:asc'
-    }),
-  {
-    immediate: true
-  }
+    lessonId.value
+      ? await stepsService.findAll({
+          page: 1,
+          limit: 10,
+          lessonId: lessonId.value,
+          sort: 'sortOrder:asc',
+        })
+      : null,
+  { immediate: true, watch: [lessonId] },
 )
 
-
-//  const { data:resUserStep }=await useAsyncData(
-//    () => `user-step-S{}`,
-//    () =>
-//      userStepService.findAll(
-//        {
-//          page: 1,
-//          limit: 1,
-//          userId: user.value?.id,
-//        },
-//        {
-//          access_token: auth.access_token,
-//          refresh_token: auth.refresh_token
-//        }
-//      )
-//  )
-
-
-
-onUnmounted(() => stopLoadingTextRotation())
-
-const sidebarCollapsed = ref(false)
 const sidebarOpen = ref(false)
 
-const steps=computed(()=>{
-  return resSteps.value?.data?.data
-})
+const steps = computed(() => resSteps.value?.data?.data ?? [])
 </script>
 
 <template>
-  <div class="flex items-start w-full h-screen text-white overflow-hidden relative">
-    <UiDownStarAnimation />
-
-    <UButton
-      :icon="sidebarOpen?'i-lucide-x':'i-lucide-sparkles'"
-      variant="outline"
-      color="secondary"
-      size="sm"
-      class="fixed top-5 right-6 z-50 md:hidden"
-      @click="sidebarOpen = !sidebarOpen"
-    />
-
-    <div
-      :class="[
-        'h-full absolute z-20 transition-all overflow-y-auto duration-500 no-scrollbar border-secondary/80 md:static md:flex md:flex-col backdrop-blur-md',
-        sidebarCollapsed ? 'w-20 p-3' : 'w-64 lg:w-[25%] p-4',
-        'max-md:fixed max-md:top-0 max-md:left-0 max-md:h-full',
-        sidebarOpen ? 'max-md:translate-x-0' : 'max-md:-translate-x-full'
-      ]"
-    >
-      <div class="flex justify-between items-center mb-4">
-        <span v-if="!sidebarCollapsed" class="font-semibold text-sm">Tantangan Pembelajaran</span>
-
-        <UButton
-          icon="i-lucide-layout-panel-left"
-          variant="ghost"
-          color="secondary"
-          size="xs"
-          @click="sidebarCollapsed = !sidebarCollapsed"
-          class="transition-transform duration-500 hidden md:flex"
-          :class="sidebarCollapsed ? 'rotate-180' : ''"
-        />
-      </div>
-
-      <div class="flex-1 overflow-y-auto no-scrollbar space-y-2">
-        <StepLearningCollapsible v-for="value in steps" :is-collapsible="!sidebarCollapsed" :key="value.id" :step-id="value.id" :step-title="value.title" :user-id="user?.id!" />
-      </div>
-
-      <UButton
-        icon="i-lucide-chevron-left"
-        color="secondary"
+  <NuxtLayout name="focus">
+    <div class="rc-steps">
+      <PlayButton
         variant="outline"
-        class="md:mt-4 w-fit cursor-pointer"
-        @click="$router.back()"
-        :label="sidebarCollapsed ? '' : 'Kembali'"
-      />
-    </div>
+        size="sm"
+        class="rc-steps__toggle"
+        :aria-expanded="sidebarOpen"
+        aria-controls="steps-list"
+        @click="sidebarOpen = !sidebarOpen"
+      >
+        {{ sidebarOpen ? 'Tutup daftar langkah' : 'Daftar langkah' }}
+      </PlayButton>
 
-    <div
-      class="flex-1 h-full w-full max-w-8xl mx-auto no-scrollbar no-sc overflow-y-auto relative z-10"
-      @click="sidebarOpen = false"
-    >
-      <slot />
+      <section v-if="sidebarOpen" id="steps-list" class="rc-steps__panel" aria-label="Daftar langkah">
+        <div class="rc-steps__list">
+          <StepLearningCollapsible
+            v-for="value in steps"
+            :key="value.id"
+            :is-collapsible="true"
+            :step-id="value.id"
+            :step-title="value.title"
+            :user-id="user?.id!"
+          />
+        </div>
+      </section>
+
+      <div class="rc-steps__content">
+        <slot />
+      </div>
     </div>
-    <UiBlackhole />
-  </div>
+  </NuxtLayout>
 </template>
+
+<style>
+.rc-steps {
+  display: grid;
+  gap: 1rem;
+  align-items: start;
+}
+.rc-steps__toggle {
+  justify-self: start;
+}
+.rc-steps__panel {
+  padding: 1rem;
+  border: 2px solid var(--rc-border);
+  border-radius: var(--rc-radius, 16px);
+  background-color: var(--rc-surface);
+}
+.rc-steps__list {
+  display: grid;
+  gap: 0.75rem;
+}
+.rc-steps__content {
+  min-width: 0;
+}
+</style>

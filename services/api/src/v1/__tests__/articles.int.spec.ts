@@ -327,6 +327,45 @@ describeDb('articles on a real database (requires TEST_DATABASE_URL)', () => {
       await expect(s.marketplaceArticles.content(student(other), premium.id)).rejects.toMatchObject({ code: 'ENTITLEMENT_REQUIRED' });
     });
 
+    it('shows a public preview of a premium article without ever leaking the rest of it', async () => {
+      const w = await tenantWith();
+      const secret = 'RAHASIA-DI-BAWAH-PAYWALL';
+      const body = [`Pembuka yang boleh dibaca siapa saja. ${'kata '.repeat(100)}`, `Paragraf kedua. ${'kata '.repeat(100)}`, `Paragraf ketiga. ${'kata '.repeat(100)}`, secret].join('\n\n');
+      const premium = await publish(w, { title: 'Premium', accessType: 'PAID', price: 50000, content: body });
+
+      const result = (await s.marketplaceArticles.preview(premium.id)).data;
+
+      expect(result.preview.startsWith('Pembuka yang boleh dibaca siapa saja.')).toBe(true);
+      expect(result.preview).not.toContain(secret);
+      expect(result).toMatchObject({ truncated: true, readingMinutes: 2 });
+      expect(JSON.stringify(result)).not.toContain(secret);
+    });
+
+    it('never shows a short premium article in full, while a short free article stays whole', async () => {
+      const w = await tenantWith();
+      const short = `Pembuka singkat yang sangat berharga. ${'kata '.repeat(20).trim()}. Penutup rahasia pendek.`;
+      const premium = await publish(w, { title: 'Premium pendek', accessType: 'PAID', price: 50000, content: short });
+      const free = await publish(w, { title: 'Gratis pendek', content: short });
+
+      const paid = (await s.marketplaceArticles.preview(premium.id)).data;
+      const open = (await s.marketplaceArticles.preview(free.id)).data;
+
+      expect(paid.truncated).toBe(true);
+      expect(paid.preview.length).toBeLessThan(short.length);
+      expect(paid.preview).not.toContain('Penutup rahasia pendek');
+      expect(open).toMatchObject({ truncated: false, preview: short });
+    });
+
+    it('has no preview for anything that is not published by an active tenant', async () => {
+      const w = await tenantWith();
+      const created = (await draft(w, { content: 'Masih draf' })).data;
+      await expect(s.marketplaceArticles.preview(created.id)).rejects.toMatchObject({ statusCode: 404, code: 'CONTENT_NOT_PUBLISHED' });
+
+      const published = await publish(w, { content: 'Terbit' });
+      await s.articleModeration.suspend(admin(w.reviewer), published.id, 'Under investigation', 't');
+      await expect(s.marketplaceArticles.preview(published.id)).rejects.toMatchObject({ statusCode: 404 });
+    });
+
     it('withdraws access when content is suspended, and lets buyers keep archived purchases', async () => {
       const w = await tenantWith();
       const premium = await publish(w, { title: 'Premium', accessType: 'PAID', price: 50000, content: 'Rahasia' });

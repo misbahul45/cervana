@@ -1,4 +1,5 @@
 import type { RouteLocationNormalized } from 'vue-router';
+import { loginHref } from '~/lib/next-path';
 
 export type UserRole = 'STUDENT' | 'TEACHER' | 'REVIEWER' | 'ADMIN';
 
@@ -153,9 +154,10 @@ export const SIGNED_IN_HOME = '/learn/profile/dashboard';
 export function resolveNavigation(
   protection: PageProtection | undefined,
   user: CurrentUser | null,
+  attemptedPath?: string,
 ): { redirect: string } | null {
   if (protection?.kind === 'guest-only' && user) return { redirect: SIGNED_IN_HOME };
   const access = canAccess(protection ? { protection } : undefined, user);
   if (access.allowed) return null;
-  return { redirect: user ? '/' : '/login' };
+  return { redirect: user ? '/' : loginHref(attemptedPath) };
 }

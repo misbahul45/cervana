@@ -1,69 +1,40 @@
 <script setup lang="ts">
-import FormLogin from "~/components/auth/FormLogin.vue";
+import { computed } from 'vue';
+import AuthAlert from '~/components/auth/AuthAlert.vue';
+import FormLogin from '~/components/auth/FormLogin.vue';
+
 definePageMeta({
   title: 'Masuk | ReduCera',
   protection: { kind: 'guest-only' },
   layout: 'auth',
 });
-const siteUrl = useRuntimeConfig().public.SITE_URL
+
 useHead({
-  title: 'Sign In | ReduCera',
-  meta: [
-    {
-      name: 'description',
-      content:
-        'Log in to your ReduCera account and continue your journey through the cosmic realm of AI learning.',
-    },
-    { name: 'keywords', content: 'ReduCera, login, sign in, AI learning, cosmic' },
-    { property: 'og:title', content: 'Sign In | ReduCera' },
-    { property: 'og:description', content: 'Access your ReduCera account and keep exploring the universe of knowledge.' },
-    { property: 'og:type', content: 'website' },
-    { property: 'og:url', content: `${siteUrl}/login` },
-    { property: 'og:image', content: '/meta/og-login.png' },
-    { name: 'twitter:card', content: 'summary_large_image' },
-    { name: 'twitter:title', content: 'Sign In | ReduCera' },
-    { name: 'twitter:description', content: 'Access your ReduCera account and keep exploring the universe of knowledge.' },
-    { name: 'twitter:image', content: '/meta/og-login.png' },
-  ],
+  title: 'Masuk | ReduCera',
+  meta: [{ name: 'description', content: 'Masuk ke ReduCera untuk melanjutkan belajar dan menjaga streak-mu.' }],
   link: [{ rel: 'icon', type: 'image/png', href: '/favicon-32x32.png' }],
-})
+});
+
+const route = useRoute();
+
+const notice = computed(() => {
+  if (route.query.reset) return 'Kata sandi berhasil diubah. Silakan masuk dengan kata sandi baru.';
+  if (route.query.verified) return 'Email terverifikasi. Silakan masuk.';
+  return '';
+});
 </script>
 
 <template>
-  <section
-    class="w-full min-h-screen flex flex-col overflow-hidden items-center justify-center relative px-4 sm:px-6 md:px-8"
-  >
-    <div class="universe-bg absolute inset-0 -z-10"></div>
-    <div
-      class="w-full relative pb-8 pt-28 sm:pt-24 md:pt-20 lg:pt-16 max-w-md sm:max-w-lg md:max-w-xl mx-auto flex flex-col items-center justify-center"
-    >
-      <div class="z-10 w-full text-center">
-        <h1
-          class="font-exo2 mb-2 font-bold text-transparent bg-clip-text bg-linear-to-r from-primary/80 to-primary/60 tracking-wide text-3xl sm:text-4xl md:text-5xl xl:text-6xl"
-        >
-          ReduCera
-        </h1>
-        <p
-          class="text-xs md:text-sm max-w-md mx-auto mb-8"
-        >
-          Selamat datang kembali! Ayo lanjutkan perjalanan belajarmu bersama ReduCera.
-        </p>
-        <FormLogin />
-        <p
-          class="text-xs sm:text-sm md:text-base mt-6"
-        >
-          Belum punya akun?
-          <RouterLink
-            to="/register"
-            class="text-primary/80 hover:text-primary/60 font-medium transition-colors duration-200 hover:underline"
-          >
-            Daftar Sekarang
-          </RouterLink>
-        </p>
-      </div>
+  <div class="rc-auth__panel">
+    <div class="rc-auth__head">
+      <h1 class="rc-auth__title">Masuk</h1>
+      <p class="rc-auth__switch">
+        Belum punya akun?
+        <NuxtLink to="/register">Daftar</NuxtLink>
+      </p>
     </div>
-  </section>
+    <p class="rc-auth__lead">Lanjutkan belajarmu dan jaga streak-mu.</p>
+    <AuthAlert :message="notice" tone="success" />
+    <FormLogin />
+  </div>
 </template>
-
-
-

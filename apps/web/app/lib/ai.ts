@@ -1,6 +1,6 @@
 import type { ApiResponse, Tokens } from "~/interfaces/api";
 import { authService } from "~/services/auth";
-import { failureEnvelope, forwardedCookie, normalizeEnvelope, relaySetCookies, statusOf } from "~/lib/api";
+import { captureSsrContext, failureEnvelope, normalizeEnvelope, relaySetCookies, statusOf } from "~/lib/api";
 
 type HttpMethod = "GET" | "POST" | "PUT" | "DELETE" | "HEAD" | "PATCH";
 
@@ -65,20 +65,21 @@ export async function requestAi<T>(
       }
     }
 
+    const ssr = captureSsrContext(tokens);
     const res = await fetch(`${AI_URL}${path}`, {
       method,
       headers: {
         "Content-Type": "application/json",
-        ...forwardedCookie(tokens),
+        ...ssr.cookie,
         ...authHeaders,
         ...headers,
       },
       body: method !== "GET" && method !== "HEAD" && body ? JSON.stringify(body) : undefined,
     });
-    relaySetCookies(res);
+    relaySetCookies(res, ssr.event);
 
     if (res.status === 401 && retry) {
-      const refreshed = await authService.refreshToken(tokens);
+      const refreshed = await authService.refreshToken(tokens, ssr);
       if (refreshed.success && refreshed.data) {
         return await requestAi<T>(endpoint, method, body, headers, false, {
           access_token: refreshed.data.access_token,

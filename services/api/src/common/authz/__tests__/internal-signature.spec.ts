@@ -13,7 +13,7 @@ describe('internal signature', () => {
         target: '/api/v1/internal/resources/callback?type=EXTRACT',
         body: Buffer.from('{"resourceId":"x"}'),
       }),
-    ).toBe('0701934646b2b65fb28ac0579df3663956fcc02c313ab5d15b0cb1c4f6bbf3a2');
+    ).toBe('0731547b939105b307e9e4d0ca118d9019d4f7c3718cb4cac4af06a3b55e9a43');
 
     expect(
       computeSignature({
@@ -23,7 +23,31 @@ describe('internal signature', () => {
         target: '/api/v1/internal/resources/abc',
         body: Buffer.alloc(0),
       }),
-    ).toBe('8396f8bf7c5d931115f46af03ad4e81ca45fc48559eb502adff0a478e03567af');
+    ).toBe('e831a76ae7cec5845df9566562726ffe8b2d9aedeabb4fec5a5b741644f68fa5');
+  });
+
+  it('signs the acting user and matches the vectors produced by the ai-api implementation', () => {
+    const base = {
+      secret,
+      timestamp,
+      method: 'GET',
+      target: '/api/v1/internal/lessons/abc',
+      body: Buffer.alloc(0),
+    };
+
+    expect(computeSignature({ ...base, actingUserId: 'user-1' })).toBe(
+      '0e58cfbd1cf072b84d41919aed0a3e8b3367c6fb17b325caa6abe01c74d48e0b',
+    );
+    expect(computeSignature({ ...base, actingUserId: 'user-2' })).toBe(
+      '40a44f2a610df13d991f0f2dcf2427aae10d14d18919e658ccaf393b3521fcd2',
+    );
+  });
+
+  it('treats a missing acting user as an empty one', () => {
+    const base = { secret, timestamp, method: 'GET', target: '/x', body: Buffer.alloc(0) };
+
+    expect(computeSignature({ ...base, actingUserId: '' })).toBe(computeSignature(base));
+    expect(computeSignature({ ...base, actingUserId: 'user-1' })).not.toBe(computeSignature(base));
   });
 
   it('normalises the method to upper case', () => {

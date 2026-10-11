@@ -1,239 +1,236 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, watch, computed } from 'vue'
-import { useQuery } from '@tanstack/vue-query'
-import BannerTopicSckeleton from '~/components/ui/BannerTopicSckeleton.vue'
-import { topicsService } from '~/services/curriculum/topics'
-import type { TopicDetailResponse, TopicsListResponse } from '~/interfaces/curriculum/topics'
+import { useQuery } from '@tanstack/vue-query';
+import { computed, ref } from 'vue';
+import BannerTopicSckeleton from '~/components/ui/BannerTopicSckeleton.vue';
+import ErrorState from '~/components/ui/ErrorState.vue';
+import PlayScroller from '~/components/play/PlayScroller.vue';
+import TopicCover from '~/components/topics/TopicCover.vue';
+import type { TopicDetailResponse } from '~/interfaces/curriculum/topics';
+import { listFromResponse, plainText, priceLabel } from '~/lib/topics';
+import { topicsService } from '~/services/curriculum/topics';
 
-const showPopuler = ref(0)
-const animate = ref(false)
-const progress = ref(0)
-const progressText = ref(0)
-const loading = ref(true)
-const router = useRouter()
+const FEATURED_COUNT = 6;
+const STALE_MS = 5 * 60 * 1000;
 
-const toPage = (slug: string) => {
-  router.push(`/app/topics/${slug}/detail`)
-}
+const selected = ref(0);
 
-const { data: topicsRes, isLoading } = useQuery({
-  queryKey: ['topics'],
-  queryFn: async () => {
-    const res = await topicsService.findAll<true>({
-      include: 'categories',
-      page: 1,
-      limit: 10,
-    })
-    return res
-  },
-  staleTime: 1000 * 60 * 5,
-  gcTime: 1000 * 60 * 10,
-})
+const { data, isLoading, isError, refetch } = useQuery({
+  queryKey: ['topics', 'featured'],
+  queryFn: () => topicsService.findAll<true>({ include: 'categories', page: 1, limit: FEATURED_COUNT }),
+  staleTime: STALE_MS,
+});
 
-const topics = computed<TopicDetailResponse<true>[]>(() => {
-  const data = topicsRes.value?.data
-  if (!data) return []
-  if (Array.isArray(data)) return data
-  if (Array.isArray((data as TopicsListResponse<true>).data)) {
-    return (data as TopicsListResponse<true>).data
-  }
-  return []
-})
-
-onMounted(() => {
-  let interval: any
-  let progressInterval: any
-  const DURATION = 5000
-  const PROGRESS_STEP = 100 / (DURATION / 50)
-
-  const startCycle = () => {
-    if (!topics.value.length) return
-    progress.value = 0
-    progressText.value = 0
-    clearInterval(interval)
-    clearInterval(progressInterval)
-    progressInterval = setInterval(() => {
-      if (progress.value < 100) {
-        progress.value += PROGRESS_STEP
-        progressText.value = Math.round(progress.value)
-      }
-    }, 50)
-    interval = setInterval(() => {
-      animate.value = true
-      setTimeout(() => {
-        showPopuler.value = (showPopuler.value + 1) % topics.value.length
-        animate.value = false
-        progress.value = 0
-        progressText.value = 0
-      }, 400)
-    }, DURATION)
-  }
-
-  if (topics.value.length > 0) {
-    loading.value = false
-    startCycle()
-  }
-
-  watch(isLoading, (val) => {
-    if (!val) {
-      setTimeout(() => {
-        loading.value = false
-        if (topics.value.length > 0) startCycle()
-      }, 500)
-    }
-  })
-
-  onUnmounted(() => {
-    clearInterval(interval)
-    clearInterval(progressInterval)
-  })
-})
+const topics = computed(() => listFromResponse<TopicDetailResponse<true>>(data.value?.data));
+const featured = computed(() => topics.value[selected.value] ?? topics.value[0]);
+const summary = computed(() => plainText(featured.value?.description, 220));
+const categories = computed(() => (featured.value?.categories ?? []).slice(0, 4));
 </script>
 
 <template>
-  <div v-if="loading" class="animate-pulse space-y-4">
-    <BannerTopicSckeleton />
-  </div>
+  <BannerTopicSckeleton v-if="isLoading" />
 
-  <div v-else class="w-full flex gap-3 sm:gap-4 md:gap-6 items-start">
-    <div
-      class="flex-1 2xl:h-[60vh] md:h-96 sm:h-72 h-40 shadow-sm sm:shadow-xl md:shadow-2xl shadow-white/10 relative rounded-2xl overflow-hidden transition-all duration-500"
-      :class="{ 'fade-out': animate, 'fade-in': !animate }"
-    >
-      <NuxtImg
-        :src="topics[showPopuler]?.image?.url"
-        class="w-full h-full object-cover transition-all duration-500"
-      />
+  <ErrorState v-else-if="isError" title="Topik pilihan belum bisa dimuat" message="Periksa koneksimu lalu coba lagi." @retry="refetch()" />
 
-      <div class="absolute inset-0 bg-black/40 z-20 p-4 flex flex-col justify-between">
-        <div class="relative w-6 h-6 md:w-10 md:h-10 ml-auto">
-          <svg class="absolute inset-0 rotate-90" viewBox="0 0 36 36">
-            <circle
-              cx="18"
-              cy="18"
-              r="16"
-              stroke="white"
-              stroke-opacity="0.2"
-              stroke-width="3"
-              fill="none"
-            />
-            <circle
-              cx="18"
-              cy="18"
-              r="16"
-              stroke="#ffe6cc"
-              stroke-width="3"
-              fill="none"
-              stroke-linecap="round"
-              :stroke-dasharray="100"
-              :stroke-dashoffset="100 - progress"
-              class="transition-all duration-100 linear"
-            />
-          </svg>
-          <span
-            class="absolute inset-0 flex items-center justify-center text-[8px] md:text-xs text-white font-semibold"
-          >
-            {{ progressText }}
-          </span>
-        </div>
-
-        <div class="w-full md:max-w-3/4 max-w-full space-y-1 sm:space-y-2 md:space-y-3">
-          <h3 class="text-white text-[12px] sm:text-sm md:text-md lg:text-lg font-bold text-nowrap truncate">
-            {{ topics[showPopuler]?.title }}
-          </h3>
-          <p v-html="topics[showPopuler]?.description" class="text-white/60 text-[10px] sm:text-xs lg:text-sm line-clamp-1 sm:line-clamp-2" />
-          <div class="flex items-center flex-wrap gap-2">
-            <UBadge
-              v-for="(value, index) in topics[showPopuler]?.categories"
-              :key="value.id"
-              :label="value.name"
-              class="text-dark md:text-base sm:text-sm text-[6px] p-0.5 sm:p-1 md:p-2"
-            />
-          </div>
+  <section v-else-if="featured" class="rc-featured" aria-labelledby="featured-list-title">
+    <div class="rc-card rc-featured__main">
+      <TopicCover :src="featured.image?.url" :title="featured.title" class="rc-featured__cover" />
+      <div class="rc-featured__content">
+        <h2 class="rc-featured__title">{{ featured.title }}</h2>
+        <p v-if="summary" class="rc-featured__summary">{{ summary }}</p>
+        <ul v-if="categories.length" class="rc-featured__cats">
+          <li v-for="category in categories" :key="category.id" class="rc-chip">{{ category.name }}</li>
+        </ul>
+        <div class="rc-featured__actions">
+          <PlayButton :to="`/learn/topics/${featured.slug}/detail`">Lihat detail</PlayButton>
+          <span class="rc-chip" :class="{ 'rc-chip--success': featured.price === 0 }">{{ priceLabel(featured.price) }}</span>
         </div>
       </div>
     </div>
 
-    <div
-      class="sm:max-w-[25%] max-w-[30%] 2xl:h-[60vh] md:h-96 sm:h-72 h-40 group relative overflow-hidden"
-    >
-      <div
-        class="text-[10px] text-center sm:text-sm md:text-base font-semibold mb-2 text-white/80 sm:px-4 px-1 sm:py-2 py-0.5 border-2 border-[#002966]/80 rounded-md relative overflow-hidden"
-      >
-        Hero&apos;s Missions
-        <div class="shine"></div>
-      </div>
-      <div
-        class="flex flex-col h-full overflow-auto no-scrollbar gap-3 pt-4 pb-16 sm:pb-18 md:pb-20 
-        [mask-image:_linear-gradient(to_bottom,_transparent_0,_white_10px,_white_calc(100%-10px),_transparent_70%)]
-        sm:[mask-image:_linear-gradient(to_bottom,_transparent_0,_white_14px,_white_calc(100%-14px),_transparent_70%)]
-        md:[mask-image:_linear-gradient(to_bottom,_transparent_0,_white_16px,_white_calc(100%-16px),_transparent_70%)]"
-      >
-        <div
-          v-for="value in topics"
-          :key="value.id"
-          @click="toPage(value.slug)"
-          class="hover:shadow-2xl group p-1 hover:p-0 hover:shadow-secondary/80 cursor-pointer transition-all duration-200"
-        >
-          <NuxtImg
-            :src="value?.image?.url"
-            :alt="'image' + value.id"
-            class="w-full h-14 sm:h-20 md:h-28 object-cover rounded-lg mb-3 transition-transform duration-300"
-          />
-          <p
-            class="md:text-sm text-xs text-white/60 group-hover:text-white transition-all duration-200 truncate transition-colors"
+    <div v-if="topics.length > 1" class="rc-featured__list">
+      <h2 id="featured-list-title" class="rc-featured__list-title">Topik pilihan</h2>
+      <PlayScroller label="Daftar topik pilihan" class="rc-scroller--wide-off">
+      <ul class="rc-featured__items">
+        <li v-for="(topic, index) in topics" :key="topic.id">
+          <button
+            type="button"
+            class="rc-featured__item"
+            :aria-pressed="index === selected"
+            @click="selected = index"
           >
-            {{ value.title }}
-          </p>
-        </div>
-      </div>
+            <TopicCover :src="topic.image?.url" :title="topic.title" class="rc-featured__thumb" />
+            <span class="rc-featured__item-title">{{ topic.title }}</span>
+          </button>
+        </li>
+      </ul>
+      </PlayScroller>
     </div>
-  </div>
+  </section>
 </template>
 
-<style scoped>
-.fade-out {
-  opacity: 0;
-  transform: scale(0.98);
+<style>
+.rc-featured {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 1rem;
 }
-.fade-in {
-  opacity: 1;
-  transform: scale(1);
-  transition: opacity 0.4s ease, transform 0.4s ease;
+.rc-card.rc-featured__main {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  min-width: 0;
+  padding: 0;
+  overflow: hidden;
 }
-.no-scrollbar::-webkit-scrollbar {
-  display: none;
+.rc-featured__cover {
+  --cover-ratio: 16 / 9;
+  border-bottom: 2px solid var(--rc-border);
 }
-.no-scrollbar {
-  -ms-overflow-style: none;
-  scrollbar-width: none;
+.rc-featured__content {
+  display: flex;
+  flex-direction: column;
+  gap: 0.875rem;
+  min-width: 0;
+  padding: 1.25rem;
 }
-.shine {
-  position: absolute;
-  top: 0;
-  left: -100%;
-  width: 50%;
-  height: 100%;
-  background: linear-gradient(
-    120deg,
-    transparent 0%,
-    rgba(0, 41, 102, 0.3) 20%,
-    rgba(0, 41, 102, 0.1) 50%,
-    transparent 100%
-  );
-  transform: skewX(-20deg);
-  pointer-events: none;
-  z-index: 20;
+.rc-featured__title {
+  margin: 0;
+  font-size: clamp(1.375rem, 4vw, 1.875rem);
+  line-height: 1.2;
+  overflow-wrap: anywhere;
 }
-.group:hover .shine {
-  animation: shine-move 1s ease forwards;
+.rc-featured__summary {
+  margin: 0;
+  color: var(--rc-muted);
+  overflow-wrap: anywhere;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
-@keyframes shine-move {
-  0% {
-    left: -100%;
+.rc-featured__cats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.rc-featured__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+  margin-top: auto;
+}
+.rc-featured__list {
+  display: grid;
+  gap: 0.75rem;
+  min-width: 0;
+  align-content: start;
+}
+.rc-featured__list-title {
+  margin: 0;
+  font-size: 1.125rem;
+}
+.rc-featured__items {
+  display: flex;
+  gap: 0.75rem;
+  margin: 0;
+  padding: 0.25rem 0.25rem 0.5rem;
+  width: max-content;
+  min-width: 100%;
+  list-style: none;
+}
+.rc-featured__items > li {
+  flex: 0 0 11rem;
+  scroll-snap-align: start;
+}
+.rc-featured__item {
+  display: grid;
+  gap: 0.5rem;
+  width: 100%;
+  padding: 0.5rem;
+  border: 2px solid var(--rc-border);
+  border-radius: var(--rc-radius, 16px);
+  background-color: var(--rc-surface);
+  color: var(--rc-fg);
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.rc-featured__item:hover {
+  background-color: var(--rc-foam);
+}
+.rc-featured__item[aria-pressed="true"] {
+  border-color: var(--rc-primary);
+  box-shadow: 0 var(--rc-depth, 4px) 0 0 var(--rc-primary-depth);
+}
+.rc-featured__item:focus-visible {
+  outline: 3px solid var(--rc-focus);
+  outline-offset: 3px;
+}
+.rc-featured__thumb {
+  --cover-ratio: 16 / 10;
+  border-radius: calc(var(--rc-radius, 16px) - 6px);
+}
+.rc-featured__item-title {
+  font-size: 0.875rem;
+  font-weight: 800;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.rc-featured--loading .rc-featured__skel-cover {
+  aspect-ratio: 16 / 9;
+  border-radius: 0;
+}
+.rc-featured--loading .rc-featured__skel-items {
+  display: flex;
+  gap: 0.75rem;
+  overflow: hidden;
+}
+.rc-featured--loading .rc-featured__skel-item {
+  flex: 0 0 min(11rem, 60%);
+  aspect-ratio: 16 / 12;
+}
+
+@media (min-width: 768px) {
+  .rc-card.rc-featured__main {
+    grid-template-columns: minmax(0, 5fr) minmax(0, 6fr);
   }
-  100% {
-    left: 120%;
+  .rc-featured__cover {
+    --cover-ratio: auto;
+    height: 100%;
+    min-height: 16rem;
+    border-right: 2px solid var(--rc-border);
+    border-bottom: 0;
+  }
+  .rc-featured__content {
+    padding: 1.75rem;
+  }
+}
+
+@media (min-width: 1280px) {
+  .rc-featured {
+    grid-template-columns: minmax(0, 1fr) 17rem;
+  }
+  .rc-featured__items {
+    display: grid;
+    width: auto;
+    max-height: 22rem;
+    padding: 0.25rem 0.25rem 0.75rem 0.25rem;
+    overflow-x: hidden;
+    overflow-y: auto;
+  }
+  .rc-featured__items > li {
+    flex: initial;
+  }
+  .rc-featured__item {
+    grid-template-columns: 5.5rem minmax(0, 1fr);
+    align-items: center;
   }
 }
 </style>

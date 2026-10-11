@@ -24,6 +24,8 @@ import {
   ChangeRoleDtoType,
   CreateUserDto,
   CreateUserDtoType,
+  UserListQueryDto,
+  UserListQueryType,
   SetActivationDto,
   SetActivationDtoType,
   UpdateProfileDto,
@@ -51,7 +53,7 @@ export class UsersController {
   @Roles(Role.ADMIN)
   @Get('/')
   @ApiCrudDocs.findAll(UsersListSchema, 'User', true)
-  async getUsers(@Query() query: QueryInterface) {
+  async getUsers(@Query(new ZodPipe(UserListQueryDto)) query: UserListQueryType) {
     return this.usersService.findAll(query);
   }
 

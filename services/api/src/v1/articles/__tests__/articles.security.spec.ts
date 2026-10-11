@@ -30,14 +30,14 @@ describe('Articles HTTP contract', () => {
   let app: INestApplication;
   let authoring: Record<'create' | 'list' | 'findOne' | 'update' | 'submitReview' | 'withdraw' | 'archive', jest.Mock>;
   let moderation: Record<'queue' | 'findOne' | 'approve' | 'reject' | 'suspend' | 'reinstate' | 'archive', jest.Mock>;
-  let marketplace: Record<'list' | 'findOne' | 'access' | 'content', jest.Mock>;
+  let marketplace: Record<'list' | 'findOne' | 'preview' | 'access' | 'content', jest.Mock>;
   let memberships: Record<string, Array<{ tenantId: string; role: string }>>;
 
   beforeEach(async () => {
     const ok = () => jest.fn().mockResolvedValue({ message: 'ok', data: {} });
     authoring = { create: ok(), list: ok(), findOne: ok(), update: ok(), submitReview: ok(), withdraw: ok(), archive: ok() };
     moderation = { queue: ok(), findOne: ok(), approve: ok(), reject: ok(), suspend: ok(), reinstate: ok(), archive: ok() };
-    marketplace = { list: ok(), findOne: ok(), access: ok(), content: ok() };
+    marketplace = { list: ok(), findOne: ok(), preview: ok(), access: ok(), content: ok() };
     memberships = {
       [TEACHER_A.id]: [{ tenantId: TENANT_A, role: 'TEACHER' }],
       [TEACHER_B.id]: [{ tenantId: TENANT_B, role: 'OWNER' }],
@@ -220,6 +220,14 @@ describe('Articles HTTP contract', () => {
       await http().get('/marketplace/articles').expect(200);
       await http().get(`/marketplace/articles/${ARTICLE}`).expect(200);
       expect(marketplace.list).toHaveBeenCalledWith(expect.objectContaining({ page: 1, limit: 12, sort: 'newest' }));
+    });
+
+    it('serves the preview to anyone, with a valid id only, and never touches the content route', async () => {
+      await http().get(`/marketplace/articles/${ARTICLE}/preview`).expect(200);
+      expect(marketplace.preview).toHaveBeenCalledWith(ARTICLE);
+      await http().get('/marketplace/articles/not-a-uuid/preview').expect(400);
+      expect(marketplace.preview).toHaveBeenCalledTimes(1);
+      expect(marketplace.content).not.toHaveBeenCalled();
     });
 
     it('needs a login for access checks and content', async () => {

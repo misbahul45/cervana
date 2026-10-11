@@ -21,7 +21,6 @@ function start() {
     aria-labelledby="next-activity-title"
   >
     <header class="rc-next-activity-card__header">
-      <p class="rc-next-activity-card__eyebrow">Aktivitas berikutnya</p>
       <h2 id="next-activity-title" class="rc-next-activity-card__title">
         {{ title }}
       </h2>
@@ -57,13 +56,6 @@ function start() {
   border-radius: 1rem;
   background: linear-gradient(135deg, rgba(37, 99, 235, 0.08), rgba(124, 58, 237, 0.04));
   border: 1px solid rgba(37, 99, 235, 0.15);
-}
-.rc-next-activity-card__eyebrow {
-  font-size: 0.75rem;
-  color: var(--ui-primary, #2563eb);
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  font-weight: 600;
 }
 .rc-next-activity-card__title {
   font-size: 1.25rem;

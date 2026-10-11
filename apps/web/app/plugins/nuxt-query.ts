@@ -1,15 +1,10 @@
-import { QueryClient, QueryCache } from '@tanstack/vue-query'
+import { createQueryClient } from '~/lib/query-client'
 
 export default defineNuxtPlugin({
   enforce: 'pre',
   setup(nuxtApp) {
     nuxtApp.hook('nuxt-query:configure', (getPluginOptions) => {
-      const queryClient = new QueryClient({
-        queryCache: new QueryCache({
-          onError: (error: unknown) => console.error('Query Error:', error),
-        }),
-      })
-      getPluginOptions(queryClient)
+      getPluginOptions(createQueryClient((error) => console.error('Query Error:', error)))
     })
   },
 })

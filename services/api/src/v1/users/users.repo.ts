@@ -2,8 +2,23 @@ import { errorHandler, validation } from '@/common/lib/utils';
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../common/config/prisma/prisma.service';
 import { Query } from '@/common/interfaces';
-import { CreateUserDto, CreateUserDtoType, UpdateUserDto, UpdateUserDtoType } from './users.dto';
-import { MembershipStatus, StreakActivity, User } from '@prisma/client';
+import { CreateUserDto, CreateUserDtoType, UpdateUserDto, UpdateUserDtoType, UserListQueryType } from './users.dto';
+import { MembershipStatus, Prisma, StreakActivity, User } from '@prisma/client';
+
+const listSelect = {
+    id: true,
+    name: true,
+    email: true,
+    emailVerified: true,
+    image: true,
+    provider: true,
+    role: true,
+    isActive: true,
+    totalPoints: true,
+    stars: true,
+    currentStreak: true,
+    createdAt: true,
+} satisfies Prisma.UserSelect;
 
 @Injectable()
 export class UsersRepo {
@@ -48,63 +63,32 @@ export class UsersRepo {
     }
 
 
-    async findAll(q: Query) {
+    async findAll(q: UserListQueryType) {
         return errorHandler(async () => {
-            const page = Number(q.page) || 1;
-            const limit = Number(q.limit) || 10;
-            const skip = (page - 1) * limit;
-
-            const where: any = {};
-
-            if (q.q) {
-                where.OR = [
-                    { name: { contains: q.q, mode: 'insensitive' } },
-                    { email: { contains: q.q, mode: 'insensitive' } },
-                ];
-            }
-            for (const key in q) {
-                if (!['q', 'page', 'limit', 'sort', 'include'].includes(key)) {
-                    where[key] = q[key];
-                }
-            }
-
-            let orderBy: any = undefined;
-            if (q.sort) {
-            const [field, direction = 'asc'] = q.sort.split(':');
-                orderBy = { [field]: direction };
-            }
-
-            let include: any = undefined;
-            if (q.include) {
-            const includes = Array.isArray(q.include)
-                ? q.include
-                : q.include.split(',');
-            include = includes.reduce((acc, field) => {
-                acc[field] = true;
-                return acc;
-            }, {} as Record<string, boolean>);
-            }
-
+            const where: Prisma.UserWhereInput = {
+                ...(q.q && {
+                    OR: [
+                        { name: { contains: q.q, mode: 'insensitive' } },
+                        { email: { contains: q.q, mode: 'insensitive' } },
+                    ],
+                }),
+                ...(q.role && { role: q.role }),
+                ...(q.isActive !== undefined && { isActive: q.isActive }),
+            };
+            const [field, direction] = q.sort.split(':') as [string, 'asc' | 'desc'];
             const [data, total] = await Promise.all([
                 this.prisma.user.findMany({
                     where,
-                    skip,
-                    take: limit,
-                    orderBy,
-                    include,
+                    select: listSelect,
+                    orderBy: [{ [field]: direction }, { id: 'asc' }],
+                    skip: (q.page - 1) * q.limit,
+                    take: q.limit,
                 }),
                 this.prisma.user.count({ where }),
             ]);
-
-
             return {
-                data:data,
-                meta: {
-                    page,
-                    limit,
-                    total,
-                    totalPages: Math.ceil(total / limit),
-                },
+                data,
+                meta: { page: q.page, limit: q.limit, total, totalPages: Math.ceil(total / q.limit) },
             };
         });
     }

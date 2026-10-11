@@ -117,45 +117,86 @@ onBeforeUnmount(() => stopListeningSse())
 
 
 <template>
-  <div class="space-y-4 relative text-nowrap truncate">
-    <div class="flex gap-1 items-center">
-      <h3 v-if="isCollapsible" class="text-xs text-nowrap truncate">{{ stepTitle }}</h3>
+  <section class="rc-stepgroup">
+    <h3 v-if="isCollapsible" class="rc-stepgroup__title">{{ stepTitle }}</h3>
+
+    <div v-if="isGenerating" class="rc-stepgroup__loading" aria-busy="true">
+      <span v-for="value in 4" :key="value" class="rc-skel rc-skel--line"></span>
     </div>
 
-    <transition
-      enter-active-class="transition duration-300 ease-out"
-      enter-from-class="opacity-0 scale-95"
-      enter-to-class="opacity-100 scale-100"
-    >
-      <div class="ml-1 relative" v-if="true">
-        <div class="absolute top-0 -left-2 bg-primary rounded-r-full w-0.5 h-full" />
-
-        <div v-if="isGenerating" class="space-y-4">
-          <UiLoading v-for="value in 5" :key="value" size="xs" :show-text="isCollapsible" />
-        </div>
-
-        <UTooltip 
-          v-for="value in resUserSteps?.data?.data ?? []"
-          :key="value.id" :title="value.title">
-          <UButton
-            :color="value.isDone?'secondary':'primary'"
-            :variant="learning.userStepId === value.id ? 'outline' : 'ghost'"
-            @click="value.isUnlocked && goTo(value.id)"
-            :disabled="!value.isUnlocked"
-            :ui="{
-              leadingIcon:!value.isUnlocked?'text-error':value.isDone?'text-success':'text-secondary'
-            }"
-            class="flex items-center justify-start mb-4 cursor-pointer text-white"
-          >
-            <span v-if="!value.isUnlocked">🔒</span>
-            <span v-else>
-              <span v-if="!value.isDone">🚀</span>
-              <span v-else>✅</span>
-            </span>
-            <p v-if="isCollapsible" class="flex-1 text-[10px] max-w-full truncate ml-2">{{ value.title }}</p>
-          </UButton>
-        </UTooltip>
-      </div>
-    </transition>
-  </div>
+    <ul class="rc-stepgroup__list">
+      <li v-for="value in resUserSteps?.data?.data ?? []" :key="value.id">
+        <button
+          type="button"
+          class="rc-stepgroup__item"
+          :class="{ 'rc-stepgroup__item--active': learning.userStepId === value.id, 'rc-stepgroup__item--done': value.isDone }"
+          :disabled="!value.isUnlocked"
+          :aria-current="learning.userStepId === value.id ? 'step' : undefined"
+          @click="value.isUnlocked && goTo(value.id)"
+        >
+          <GameIcon :name="!value.isUnlocked ? 'lock' : value.isDone ? 'star' : 'node'" :size="24" decorative />
+          <span class="rc-stepgroup__label">{{ value.title }}</span>
+        </button>
+      </li>
+    </ul>
+  </section>
 </template>
+
+<style>
+.rc-stepgroup {
+  display: grid;
+  gap: 0.5rem;
+}
+.rc-stepgroup__title {
+  margin: 0;
+  color: var(--rc-muted);
+  font-size: 0.8125rem;
+  font-weight: 800;
+}
+.rc-stepgroup__loading {
+  display: grid;
+  gap: 0.5rem;
+}
+.rc-stepgroup__list {
+  display: grid;
+  gap: 0.375rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.rc-stepgroup__item {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  width: 100%;
+  min-height: 2.75rem;
+  padding: 0.375rem 0.75rem;
+  border: 2px solid transparent;
+  border-radius: calc(var(--rc-radius, 16px) - 4px);
+  background: transparent;
+  color: var(--rc-fg);
+  font: inherit;
+  font-weight: 700;
+  text-align: left;
+  cursor: pointer;
+}
+.rc-stepgroup__item:hover:not(:disabled) {
+  background-color: var(--rc-foam);
+}
+.rc-stepgroup__item--active {
+  border-color: var(--rc-secondary);
+  background-color: color-mix(in srgb, var(--rc-secondary) 10%, var(--rc-surface));
+}
+.rc-stepgroup__item:disabled {
+  color: var(--rc-muted);
+  cursor: not-allowed;
+}
+.rc-stepgroup__item:focus-visible {
+  outline: 3px solid var(--rc-focus);
+  outline-offset: 2px;
+}
+.rc-stepgroup__label {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+</style>

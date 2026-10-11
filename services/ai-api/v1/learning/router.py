@@ -9,6 +9,7 @@ from config.agent_session import AgentSession, mint_session
 from config.logging_config import configure_logging
 from config.rate_limit import rate_limit
 from config.trace_context import current_trace_id
+from config.service_identity import service_actor
 from config.user_auth import authenticated_user, bind_acting_user
 from errors.envelope import error_envelope
 from errors.types import AuthError, CrossServiceError
@@ -44,7 +45,7 @@ def _session_dict(session: AgentSession) -> dict:
 async def generate_learning_content(
     request: Request,
     body: dict = Body(..., description="Request body for generating learning content"),
-    user: dict = Depends(authenticated_user),
+    user: dict = Depends(service_actor),
 ):
     idempotency_key = getattr(request.state, "idempotency_key", None)
     if not idempotency_key:

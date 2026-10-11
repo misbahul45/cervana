@@ -1,4 +1,4 @@
-import type { NormalizedTheme, RawTheme, ThemeAtmosphere, ThemeTokens, ThemeVariant } from './types';
+import type { NormalizedTheme, OptionalThemeTokenKey, RawTheme, ThemeAtmosphere, ThemeShape, ThemeTokens, ThemeVariant } from './types';
 
 const DEFAULT_ATMOSPHERE: ThemeAtmosphere = {
   particles: { enabled: true, density: 0.3 },
@@ -7,6 +7,23 @@ const DEFAULT_ATMOSPHERE: ThemeAtmosphere = {
   waves: true,
   caustics: true,
 };
+
+export const DEFAULT_SHAPE: ThemeShape = { radius: 8, depth: 0 };
+
+const HEX_6 = /^#[0-9A-Fa-f]{6}$/;
+
+const OPTIONAL_KEYS: ReadonlyArray<OptionalThemeTokenKey> = [
+  'success',
+  'danger',
+  'warning',
+  'info',
+  'gold',
+  'flame',
+  'primaryDepth',
+  'secondaryDepth',
+  'dangerDepth',
+  'goldDepth',
+];
 
 const DEFAULT_TOKENS: ThemeTokens = {
   bg: '#F2FAFB',
@@ -23,6 +40,16 @@ const DEFAULT_TOKENS: ThemeTokens = {
   focus: '#0B5FA8',
   foam: '#DDF3F4',
   sand: '#E9DDB8',
+  success: '#58CC02',
+  danger: '#D92D2D',
+  warning: '#FF9600',
+  info: '#1CB0F6',
+  gold: '#FFC800',
+  flame: '#FF9600',
+  primaryDepth: '#074C59',
+  secondaryDepth: '#124F86',
+  dangerDepth: '#A31F1F',
+  goldDepth: '#C79A00',
 };
 
 const FALLBACK_DARK_TOKENS: ThemeTokens = {
@@ -40,7 +67,44 @@ const FALLBACK_DARK_TOKENS: ThemeTokens = {
   focus: '#7DD3FC',
   foam: '#0F4A61',
   sand: '#3A4A52',
+  success: '#58CC02',
+  danger: '#FF6B6B',
+  warning: '#FFB020',
+  info: '#49C0F8',
+  gold: '#FFC800',
+  flame: '#FF9600',
+  primaryDepth: '#2A9AAB',
+  secondaryDepth: '#2D8FC4',
+  dangerDepth: '#C93D3D',
+  goldDepth: '#C79A00',
 };
+
+function sanitizeTokens(input: Partial<ThemeTokens> | undefined): Partial<ThemeTokens> {
+  if (!input || typeof input !== 'object') return {};
+  const out: Record<string, string> = {};
+  for (const [key, value] of Object.entries(input)) {
+    if (typeof value !== 'string') continue;
+    if ((OPTIONAL_KEYS as ReadonlyArray<string>).includes(key) && !HEX_6.test(value)) continue;
+    out[key] = value;
+  }
+  return out as Partial<ThemeTokens>;
+}
+
+function normalizeShape(input: unknown): ThemeShape {
+  if (!input || typeof input !== 'object') return { ...DEFAULT_SHAPE };
+  const raw = input as Record<string, unknown>;
+  const { radius, depth } = raw;
+  const valid =
+    typeof radius === 'number' &&
+    typeof depth === 'number' &&
+    Number.isInteger(radius) &&
+    Number.isInteger(depth) &&
+    radius >= 6 &&
+    radius <= 24 &&
+    depth >= 0 &&
+    depth <= 6;
+  return valid ? { radius, depth } : { ...DEFAULT_SHAPE };
+}
 
 export function mergeTokens(
   base: ThemeTokens,
@@ -62,10 +126,10 @@ export function normalizeTheme(input: unknown): NormalizedTheme | null {
   if (!slug || !title || !primary || !secondary) return null;
 
   const tokensInput = raw.tokens as
-    | { light?: Partial<ThemeTokens>; dark?: Partial<ThemeTokens> }
+    | { light?: Partial<ThemeTokens>; dark?: Partial<ThemeTokens>; shape?: unknown }
     | undefined;
-  const light = mergeTokens(DEFAULT_TOKENS, tokensInput?.light ?? {});
-  const dark = mergeTokens(FALLBACK_DARK_TOKENS, tokensInput?.dark ?? tokensInput?.light ?? {});
+  const light = mergeTokens(DEFAULT_TOKENS, sanitizeTokens(tokensInput?.light));
+  const dark = mergeTokens(FALLBACK_DARK_TOKENS, sanitizeTokens(tokensInput?.dark ?? tokensInput?.light));
 
   const mood = Array.isArray(raw.mood)
     ? raw.mood.filter((m): m is string => typeof m === 'string')
@@ -81,6 +145,7 @@ export function normalizeTheme(input: unknown): NormalizedTheme | null {
     quaternary: typeof raw.quaternary === 'string' ? raw.quaternary : undefined,
     mood,
     tokens: { light, dark },
+    shape: normalizeShape(tokensInput?.shape),
     atmosphere: normalizeAtmosphere(raw.atmosphere) ?? DEFAULT_ATMOSPHERE,
     variants: normalizeVariants(raw.variants),
     isDefault: raw.isDefault === true,

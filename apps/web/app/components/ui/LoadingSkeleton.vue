@@ -61,15 +61,15 @@ const items = Array.from({ length: props.count }, (_, i) => i);
   display: grid;
   gap: 0.5rem;
   padding: 1rem;
-  border: 1px solid var(--ui-border, rgba(0, 0, 0, 0.08));
-  border-radius: 0.75rem;
+  border: 2px solid var(--rc-border);
+  border-radius: var(--rc-radius, 16px);
 }
 .rc-skeleton-card__header,
 .rc-skeleton-card__body,
 .rc-skeleton-card__footer {
   height: 1rem;
   border-radius: 0.375rem;
-  background: var(--ui-bg-muted, rgba(0, 0, 0, 0.05));
+  background: var(--rc-border);
 }
 .rc-skeleton-card__body { height: 3rem; }
 .rc-skeleton-row {
@@ -81,7 +81,7 @@ const items = Array.from({ length: props.count }, (_, i) => i);
   width: 2.5rem;
   height: 2.5rem;
   border-radius: 50%;
-  background: var(--ui-bg-muted, rgba(0, 0, 0, 0.05));
+  background: var(--rc-border);
 }
 .rc-skeleton-row__lines {
   display: grid;
@@ -91,27 +91,27 @@ const items = Array.from({ length: props.count }, (_, i) => i);
 .rc-skeleton-row__line {
   height: 0.75rem;
   border-radius: 0.25rem;
-  background: var(--ui-bg-muted, rgba(0, 0, 0, 0.05));
+  background: var(--rc-border);
 }
 .rc-skeleton-row__line--short { width: 60%; }
 .rc-skeleton-panel {
   display: grid;
   gap: 0.5rem;
   padding: 1rem;
-  border: 1px solid var(--ui-border, rgba(0, 0, 0, 0.08));
-  border-radius: 0.75rem;
+  border: 2px solid var(--rc-border);
+  border-radius: var(--rc-radius, 16px);
 }
 .rc-skeleton-panel__header,
 .rc-skeleton-panel__row {
   height: 1.25rem;
   border-radius: 0.375rem;
-  background: var(--ui-bg-muted, rgba(0, 0, 0, 0.05));
+  background: var(--rc-border);
 }
 .rc-skeleton-inline {
   height: 1rem;
   width: 100%;
   border-radius: 0.25rem;
-  background: var(--ui-bg-muted, rgba(0, 0, 0, 0.05));
+  background: var(--rc-border);
 }
 .rc-shimmer {
   position: relative;

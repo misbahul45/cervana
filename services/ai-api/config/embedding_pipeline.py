@@ -13,14 +13,12 @@ from llama_index.vector_stores.qdrant import QdrantVectorStore
 from qdrant_client import QdrantClient
 from qdrant_client.models import Filter, FieldCondition, MatchValue
 from llama_index.core.schema import TextNode
-from llama_index.core.vector_stores import (
-    MetadataFilter,
-    MetadataFilters,
-    FilterOperator,
-)
 
 from config.envs import ENVS
+from errors.types import RetrievalError
 from config.providers import build_chat_model, build_embedding_model
+from config.retrieval_governance import Governance, GovernanceError, RetrievalScope, build_qdrant_filter
+from config.governance_backfill import ensure_payload_indexes
 from config.vector_collections import ensure_collection
 from llama_index.core.node_parser import SentenceSplitter
 
@@ -32,6 +30,11 @@ QDRANT_API_KEY = ENVS["QDRANT_API_KEY"]
 COLLECTION_NAME = ENVS["QDRANT_COLLECTION"]
 EMBEDDING_DIM = ENVS["EMBEDDING_DIM"]
 RETRIEVAL_K = 20
+MIN_CONCEPT_RESULTS = 3
+GOVERNANCE_KEYS = frozenset({
+    "schema_version", "doc_kind", "domain_id", "status", "access_scope", "owner_id", "tenant_id",
+    "concept_ids", "chunk_id", "resource_id", "lesson_id", "topic_id", "sub_topic_id", "step_id",
+})
 
 
 # ==========================
@@ -53,6 +56,7 @@ qdrant_client = QdrantClient(url=QDRANT_URL, api_key=QDRANT_API_KEY)
 
 try:
     ensure_collection(qdrant_client, COLLECTION_NAME, EMBEDDING_DIM)
+    ensure_payload_indexes(qdrant_client, COLLECTION_NAME)
 except RuntimeError:
     raise
 except Exception as e:
@@ -160,12 +164,6 @@ class EmbeddingPipeline:
         response = self.llm.invoke([{"role": "user", "content": prompt}])
         return response.content.strip()
 
-    def _resolve_filter_operator(self):
-        if FilterOperator is not None:
-            return FilterOperator
-        from llama_index.core.vector_stores import FilterOperator as _op
-        return _op
-
     # ---------------------------
     # LLM CONTROL — THINKING MODE
     # ---------------------------
@@ -197,7 +195,10 @@ class EmbeddingPipeline:
     # ---------------------------
     # UPSERT DOCUMENT
     # ---------------------------
-    def upsert_document(self, content: str, source_id: str, metadata=None):
+    def upsert_document(self, content: str, source_id: str, metadata=None, *, governance: Governance):
+        if not isinstance(governance, Governance):
+            raise GovernanceError("a document cannot be written without governance metadata")
+        free_metadata = {k: v for k, v in (metadata or {}).items() if k not in GOVERNANCE_KEYS}
         cleaned = self.clean_text(content)
 
             # Translation jika diaktifkan
@@ -215,7 +216,8 @@ class EmbeddingPipeline:
                 metadata={
                     "source": source_id,
                     "chunk_index": i,
-                    **(metadata or {})
+                    **free_metadata,
+                    **governance.payload(source_id, i),
                 },
             )
             nodes.append(node)
@@ -231,43 +233,63 @@ class EmbeddingPipeline:
     # ---------------------------
     # RETRIEVAL (CAN BE DISABLED)
     # ---------------------------
-    def retrieve(self, query: str, metadata_filter=None, top_k: int = RETRIEVAL_K):
+    def retrieve(self, query: str, *, scope: RetrievalScope, top_k: int = RETRIEVAL_K):
+        if not isinstance(scope, RetrievalScope):
+            raise GovernanceError("a retrieval cannot run without a scope")
+
         if not self.enable_retrieval:
             return []
 
         if self.enable_translation:
             query = self.translate(query)
 
-        filters = None
-        if metadata_filter:
-            op = self._resolve_filter_operator()
-            conditions = []
-            for key, value in metadata_filter.items():
-                if isinstance(value, dict):
-                    inner = []
-                    for op_name, op_value in value.items():
-                        inner.append(MetadataFilter(key=f"metadata.{key}", value=op_value, operator=getattr(op, op_name.upper(), op.EQ)))
-                    conditions.append(MetadataFilters(filters=inner))
-                else:
-                    conditions.append(MetadataFilter(key=f"metadata.{key}", value=value, operator=op.EQ))
-            filters = MetadataFilters(filters=conditions)
+        if scope.concept_ids:
+            results = self._search(query, scope, top_k)
+            if len(results) < MIN_CONCEPT_RESULTS:
+                seen = {self._chunk_key(item) for item in results}
+                wider = [
+                    item for item in self._search(query, scope.without_concepts(), top_k)
+                    if self._chunk_key(item) not in seen
+                ]
+                results = (results + wider)[:top_k]
+        else:
+            results = self._search(query, scope, top_k)
 
-        retriever = self.index.as_retriever(
-            similarity_top_k=top_k,
-            filters=filters,
+        logger.info(
+            "[RETRIEVE] actor=%s domain=%s concepts=%d returned=%d chunks=%s",
+            scope.actor_id,
+            scope.domain_id,
+            len(scope.concept_ids),
+            len(results),
+            [item["metadata"].get("chunk_id") for item in results],
         )
+        return results
 
-        results = retriever.retrieve(query)
-
-        # Return TextNode saja
+    def _search(self, query: str, scope: RetrievalScope, top_k: int):
+        try:
+            retriever = self.index.as_retriever(
+                similarity_top_k=top_k,
+                vector_store_kwargs={"qdrant_filters": build_qdrant_filter(scope)},
+            )
+            found = retriever.retrieve(query)
+        except Exception as exc:
+            logger.error("[RETRIEVE] search failed for actor=%s: %s", scope.actor_id, exc)
+            raise RetrievalError("retrieval failed", details={"reason": type(exc).__name__}) from exc
         return [
             {
                 "score": float(item.score),
-                "text": item.node.text,       # convenience
-                "metadata": item.node.metadata
+                "text": item.node.text,
+                "metadata": item.node.metadata,
             }
-            for item in results
+            for item in found
         ]
+
+    @staticmethod
+    def _chunk_key(item: dict):
+        metadata = item["metadata"]
+        return metadata.get("chunk_id") or (metadata.get("source"), metadata.get("chunk_index"))
+
+
 # SINGLETON INSTANCE
 PIPELINE_INSTANCE = EmbeddingPipeline()
 

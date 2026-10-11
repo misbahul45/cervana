@@ -208,6 +208,38 @@ describe('Users security', () => {
       expect(JSON.stringify(res.body)).not.toContain('hash');
     });
 
+    it('ADMIN lists with defaults and only the filters the contract names', async () => {
+      await request(app.getHttpServer()).get('/users').set(asUser(ADMIN_A)).expect(200);
+      expect(usersRepo.findAll).toHaveBeenLastCalledWith({ page: 1, limit: 20, sort: 'createdAt:desc' });
+
+      await request(app.getHttpServer())
+        .get('/users?q=maya&role=TEACHER&isActive=false&page=2&limit=50&sort=name:asc')
+        .set(asUser(ADMIN_A))
+        .expect(200);
+      expect(usersRepo.findAll).toHaveBeenLastCalledWith({ page: 2, limit: 50, q: 'maya', role: 'TEACHER', isActive: false, sort: 'name:asc' });
+    });
+
+    it('never forwards free-form filters, relations or sort fields to the database', async () => {
+      await request(app.getHttpServer())
+        .get('/users?password=x&emailVerified=1&include=sessions,accounts&where=1&email=a@b.c')
+        .set(asUser(ADMIN_A))
+        .expect(200);
+      expect(usersRepo.findAll).toHaveBeenLastCalledWith({ page: 1, limit: 20, sort: 'createdAt:desc' });
+    });
+
+    it.each([
+      ['a limit above one hundred', 'limit=101'],
+      ['a page below one', 'page=0'],
+      ['an unknown role', 'role=SUPERUSER'],
+      ['a boolean that is not one', 'isActive=maybe'],
+      ['a sort on the password hash', 'sort=password:asc'],
+      ['a sort direction that is not one', 'sort=name:sideways'],
+      ['a search that is far too long', `q=${'x'.repeat(101)}`],
+    ])('rejects %s', async (_label, query) => {
+      await request(app.getHttpServer()).get(`/users?${query}`).set(asUser(ADMIN_A)).expect(400);
+      expect(usersRepo.findAll).not.toHaveBeenCalled();
+    });
+
     it('ADMIN can list and read any user', async () => {
       await request(app.getHttpServer()).get('/users').set(asUser(ADMIN_A)).expect(200);
       await request(app.getHttpServer()).get('/users/student-b').set(asUser(ADMIN_A)).expect(200);

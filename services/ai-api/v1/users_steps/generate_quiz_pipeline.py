@@ -1,13 +1,15 @@
 from __future__ import annotations
 
-import json as _json
 import logging
 
 from langgraph.graph import END, START, StateGraph
 
 from config.agent_session import AgentSession
 from config.embedding_pipeline import get_embedding_pipeline
-from errors.types import CrossServiceError
+from config.llm_output import json_validator, parse_json_object
+from config.model_router import get_router
+from errors.types import CrossServiceError, RetrievalError
+from v1.domain.governance import learner_summary_governance, retrieval_scope
 from utils.text import text_clean
 from v1.users_steps.dto import (
     GenerateQuestionPipeline,
@@ -78,8 +80,11 @@ def analyze_text(state: GenerateQuestionPipeline) -> QuizResponse:
         "tanpa opini tambahan, dan hanya fokus pada inti:\n\n"
         f"{state.context}"
     )
-    summary_raw = pipeline.llm.invoke([{"role": "user", "content": summary_prompt}])
-    summary = summary_raw.content.strip()
+    summary = get_router().invoke(
+        "context_summary",
+        summary_prompt,
+        subject=state.acting_user_id or "",
+    ).text.strip()
 
     source_id = f"{state.topic_id}-{state.lesson_id}-{state.acting_user_id}"
     pipeline.upsert_document(
@@ -90,9 +95,14 @@ def analyze_text(state: GenerateQuestionPipeline) -> QuizResponse:
             "lessonId": state.lesson_id,
             "userId": state.acting_user_id,
         },
+        governance=learner_summary_governance(state.acting_user_id, topic_id=state.topic_id, lesson_id=state.lesson_id),
     )
 
-    retrieval_results = pipeline.retrieve(query=summary, top_k=10)
+    try:
+        retrieval_results = pipeline.retrieve(query=summary, scope=retrieval_scope(state.acting_user_id), top_k=10)
+    except RetrievalError as exc:
+        logger.warning("[QUIZ] retrieval failed, the quiz is built from the summary only: %s", exc.message)
+        retrieval_results = []
     rag_context = "\n".join([r["text"] for r in retrieval_results]) or ""
     ls = getattr(state.learning_style, "dominant_style", "reading")
 
@@ -178,13 +188,16 @@ Output JSON only.
 </trigger>
 """
 
-    structured_llm = pipeline.llm.with_structured_output(QuizResponse)
-
     try:
-        response = structured_llm.invoke([{"role": "user", "content": quiz_prompt}])
-        parsed = QuizResponse.model_validate(response)
+        routed = get_router().invoke(
+            "quiz_generation",
+            quiz_prompt,
+            validator=json_validator(QuizResponse),
+            subject=state.acting_user_id or "",
+        )
+        parsed = QuizResponse.model_validate(parse_json_object(routed.text))
     except Exception as exc:
-        logger.warning("[QUIZ] structured output failed: %s", exc)
+        logger.warning("[QUIZ] quiz generation failed: %s", exc)
         parsed = QuizResponse(quiz=[])
 
     return parsed

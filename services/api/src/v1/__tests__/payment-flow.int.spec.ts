@@ -266,6 +266,16 @@ describeDb('payment domain on a real database (requires TEST_DATABASE_URL)', () 
       );
     });
 
+    it('shows the reviewer what was bought, by title, on the submission', async () => {
+      const w = await paidWorld();
+
+      const submission = (await stack.manual.findOne(admin(w.reviewer), w.submissionId)).data;
+
+      expect(submission.order.items).toHaveLength(1);
+      expect(submission.order.items[0].article?.title).toEqual(expect.any(String));
+      expect(submission.order.items[0].article?.title.length).toBeGreaterThan(0);
+    });
+
     it('a repeated approval produces no duplicate entitlement, earning, ledger entry, capture or event', async () => {
       const w = await paidWorld();
       await stack.manual.approve(admin(w.reviewer), w.submissionId, 'first', 't1');

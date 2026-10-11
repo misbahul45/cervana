@@ -1,169 +1,169 @@
 <script setup lang="ts">
+import MarketplaceCard from '~/components/marketplace/MarketplaceCard.vue';
+import PageHeader from '~/components/play/PageHeader.vue';
+import PlayButton from '~/components/play/PlayButton.vue';
+import { articleCard, catalogPages, classCard, interleave, SORT_OPTIONS, type CatalogCard } from '~/lib/marketplace';
+import EmptyState from '~/components/ui/EmptyState.vue';
+import ErrorState from '~/components/ui/ErrorState.vue';
+import LoadingSkeleton from '~/components/ui/LoadingSkeleton.vue';
 import { marketplaceApi } from '~/lib/api';
 import { describeApiError } from '~/lib/api-error';
-import { formatMoney } from '~/lib/format';
+import type { FilterDefs } from '~/lib/query-filters';
 
 definePageMeta({
   title: 'Marketplace — ReduCera',
   protection: { kind: 'public' },
-  layout: 'public',
 });
 
 useHead({
   title: 'Marketplace — ReduCera',
   meta: [
-    { name: 'description', content: 'Marketplace pembelajaran akuntansi dari kreator ReduCera.' },
+    { name: 'description', content: 'Artikel dan kelas akuntansi dari kreator ReduCera.' },
     { property: 'og:title', content: 'Marketplace — ReduCera' },
     { property: 'og:description', content: 'Temukan artikel dan kelas akuntansi dari kreator ReduCera.' },
   ],
 });
 
-const route = useRoute();
-const query = computed(() => String(route.query.q ?? '').trim());
-const typeFilter = computed(() => (route.query.type === 'ARTIKEL' || route.query.type === 'KELAS' ? route.query.type : 'ALL'));
-const searchText = ref(query.value);
+const PAGE_SIZE = 12;
 
-interface CatalogItem {
-  id: string;
-  title: string;
-  creator: string | undefined;
-  productType: 'ARTIKEL' | 'KELAS';
-  difficulty?: 'BEGINNER' | 'INTERMEDIATE' | 'ADVANCED';
-  estimatedMinutes?: number;
-  priceLabel: string;
-  to: string;
-}
+const defs = {
+  page: { kind: 'page' },
+  q: { kind: 'text', max: 100 },
+  type: { kind: 'enum', values: ['article', 'class'] },
+  access: { kind: 'enum', values: ['FREE', 'PAID'] },
+  sort: { kind: 'enum', values: SORT_OPTIONS.map((option) => option.value) },
+} satisfies FilterDefs;
 
-const { data: products, status, error, refresh } = useAsyncData<CatalogItem[]>(
+const { filters, set } = useQueryFilters(defs);
+const search = ref(String(filters.value.q ?? ''));
+
+watch(
+  () => filters.value.q,
+  (value) => {
+    search.value = String(value ?? '');
+  },
+);
+
+const { data, status, error, refresh } = useAsyncData(
   'marketplace:catalog',
   async () => {
+    const current = filters.value;
+    const query = {
+      q: current.q || undefined,
+      accessType: current.access || undefined,
+      sort: current.sort || undefined,
+      page: Number(current.page),
+      limit: PAGE_SIZE,
+    };
+    const wantArticles = current.type !== 'class';
+    const wantClasses = current.type !== 'article';
     const [articles, classes] = await Promise.all([
-      marketplaceApi.articles(query.value ? { q: query.value } : {}),
-      marketplaceApi.classes(query.value ? { q: query.value } : {}),
+      wantArticles ? marketplaceApi.articles(query) : Promise.resolve(undefined),
+      wantClasses ? marketplaceApi.classes(query) : Promise.resolve(undefined),
     ]);
-    const fromArticles: CatalogItem[] = articles.data.map((article) => ({
-      id: article.id,
-      title: article.title,
-      creator: article.author?.name ?? article.tenant?.name,
-      productType: 'ARTIKEL',
-      priceLabel: article.accessType === 'FREE' ? 'Gratis' : formatMoney(article.price, article.currency),
-      to: `/marketplace/articles/${article.id}`,
-    }));
-    const fromClasses: CatalogItem[] = classes.data.map((cls) => ({
-      id: cls.id,
-      title: cls.title,
-      creator: cls.instructor?.name ?? cls.tenant?.name,
-      productType: 'KELAS',
-      difficulty: cls.difficulty as CatalogItem['difficulty'],
-      estimatedMinutes: cls.durationMinutes ?? undefined,
-      priceLabel: cls.accessType === 'FREE' ? 'Gratis' : formatMoney(cls.price, cls.currency),
-      to: `/marketplace/classes/${cls.id}`,
-    }));
-    return [...fromArticles, ...fromClasses];
+    const cards: CatalogCard[] = interleave((articles?.data ?? []).map(articleCard), (classes?.data ?? []).map(classCard));
+    return {
+      cards,
+      page: Number(current.page),
+      totalPages: catalogPages(articles?.pagination, classes?.pagination),
+      total: (articles?.pagination.total ?? 0) + (classes?.pagination.total ?? 0),
+    };
   },
-  { lazy: true, watch: [query] },
+  { lazy: true, watch: [filters] },
 );
 
-const visible = computed(() =>
-  (products.value ?? []).filter((product) => typeFilter.value === 'ALL' || product.productType === typeFilter.value),
-);
+const cards = computed(() => data.value?.cards ?? []);
+const state = computed(() => (data.value ? 'success' : status.value));
+const filtered = computed(() => Boolean(filters.value.q || filters.value.type || filters.value.access));
 
-function search() {
-  navigateTo({ query: { ...route.query, q: searchText.value.trim() || undefined } });
-}
+const TYPES = [
+  { value: '', label: 'Semua' },
+  { value: 'article', label: 'Artikel' },
+  { value: 'class', label: 'Kelas' },
+] as const;
 
-function filterType(event: Event) {
-  const value = (event.target as HTMLSelectElement).value;
-  navigateTo({ query: { ...route.query, type: value === 'ALL' ? undefined : value } });
+const ACCESS = [
+  { value: '', label: 'Semua harga' },
+  { value: 'FREE', label: 'Gratis' },
+  { value: 'PAID', label: 'Berbayar' },
+] as const;
+
+function clearFilters() {
+  search.value = '';
+  set({ q: '', type: '', access: '', sort: '' });
 }
 </script>
 
 <template>
-  <main id="main" aria-labelledby="marketplace-h">
-    <header class="rc-marketplace__head">
-      <h1 id="marketplace-h">Marketplace</h1>
-      <p>Temukan artikel dan kelas akuntansi dari kreator ReduCera.</p>
-    </header>
+  <div class="rc-stack">
+    <PageHeader title="Marketplace" subtitle="Artikel dan kelas akuntansi dari kreator ReduCera." />
 
-    <form class="rc-marketplace__filters" role="search" aria-label="Filter marketplace" @submit.prevent="search">
-      <label>
-        Cari
-        <input v-model="searchText" type="search" placeholder="Cari judul" aria-label="Cari produk" class="rc-field" />
+    <form class="rc-toolbar" role="search" aria-label="Cari di marketplace" @submit.prevent="set({ q: search })">
+      <label class="rc-toolbar__grow">
+        Cari judul atau ringkasan
+        <input v-model="search" type="search" maxlength="100" class="rc-field" placeholder="Contoh: jurnal penyesuaian" />
       </label>
       <label>
-        Tipe
-        <select :value="typeFilter" aria-label="Tipe produk" class="rc-field" @change="filterType">
-          <option value="ALL">Semua</option>
-          <option value="ARTIKEL">Artikel</option>
-          <option value="KELAS">Kelas</option>
+        Urutkan
+        <select class="rc-field" :value="filters.sort || 'newest'" @change="set({ sort: ($event.target as HTMLSelectElement).value })">
+          <option v-for="option in SORT_OPTIONS" :key="option.value" :value="option.value">{{ option.label }}</option>
         </select>
       </label>
-      <button type="submit" class="rc-btn rc-btn--sm">Cari</button>
+      <PlayButton type="submit" size="sm">Cari</PlayButton>
     </form>
 
-    <LoadingSkeleton v-if="status === 'pending'" variant="card" :count="3" />
-    <ErrorState
-      v-else-if="error"
-      title="Gagal memuat marketplace"
-      :message="describeApiError(error)"
-      @retry="refresh()"
-    />
-    <EmptyState
-      v-else-if="visible.length === 0"
-      title="Belum ada produk yang cocok"
-      message="Coba ubah filter atau cari dengan kata kunci lain."
-    />
-    <ul v-else class="rc-marketplace__grid">
-      <li v-for="p in visible" :key="`${p.productType}-${p.id}`">
-        <ProductCard
-          :title="p.title"
-          :creator="p.creator"
-          :product-type="p.productType"
-          :difficulty="p.difficulty"
-          :estimated-minutes="p.estimatedMinutes"
-          :price-label="p.priceLabel"
-          :to="p.to"
-        />
-      </li>
-    </ul>
-  </main>
-</template>
+    <div class="rc-toolbar">
+      <div class="rc-segment" role="group" aria-label="Jenis produk">
+        <button
+          v-for="item in TYPES"
+          :key="item.value"
+          type="button"
+          class="rc-segment__item"
+          :aria-pressed="(filters.type || '') === item.value"
+          @click="set({ type: item.value })"
+        >
+          {{ item.label }}
+        </button>
+      </div>
+      <div class="rc-segment" role="group" aria-label="Harga">
+        <button
+          v-for="item in ACCESS"
+          :key="item.value"
+          type="button"
+          class="rc-segment__item"
+          :aria-pressed="(filters.access || '') === item.value"
+          @click="set({ access: item.value })"
+        >
+          {{ item.label }}
+        </button>
+      </div>
+    </div>
 
-<style scoped>
-.rc-marketplace__head { margin-bottom: 1rem; }
-.rc-marketplace__head h1 { font-size: 1.5rem; font-weight: 700; }
-.rc-marketplace__filters {
-  display: flex;
-  gap: 0.75rem;
-  flex-wrap: wrap;
-  align-items: flex-end;
-  margin-bottom: 1rem;
-}
-.rc-marketplace__filters label {
-  display: flex;
-  flex-direction: column;
-  font-size: 0.75rem;
-  color: var(--ui-text-muted);
-}
-.rc-marketplace__filters input,
-.rc-marketplace__filters select {
-  padding: 0.5rem;
-  border-radius: 0.375rem;
-  border: 1px solid var(--ui-border, rgba(0, 0, 0, 0.15));
-  font-size: 0.875rem;
-}
-.rc-marketplace__filters button {
-  padding: 0.5rem 1rem;
-  border-radius: 0.375rem;
-  border: 1px solid var(--ui-border, rgba(0, 0, 0, 0.15));
-  cursor: pointer;
-}
-.rc-marketplace__grid {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: grid;
-  gap: 0.75rem;
-  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-}
-</style>
+    <LoadingSkeleton v-if="state === 'pending' || state === 'idle'" variant="card" :count="6" />
+    <ErrorState v-else-if="error && !data" title="Marketplace gagal dimuat" :message="describeApiError(error)" @retry="refresh()" />
+    <EmptyState
+      v-else-if="cards.length === 0"
+      :title="filtered ? 'Tidak ada yang cocok' : 'Belum ada produk'"
+      :message="filtered ? 'Coba kata kunci lain atau hapus filter.' : 'Produk dari kreator akan muncul di sini setelah terbit.'"
+    />
+    <template v-else>
+      <ul class="rc-mgrid" aria-label="Hasil marketplace">
+        <li v-for="card in cards" :key="`${card.kind}-${card.id}`">
+          <MarketplaceCard :card="card" />
+        </li>
+      </ul>
+      <AdminPager
+        v-if="data"
+        :page="data.page"
+        :total-pages="data.totalPages"
+        :total="data.total"
+        label="Halaman hasil"
+        @change="set({ page: $event })"
+      />
+    </template>
+
+    <p v-if="filtered && cards.length > 0" class="rc-hint">
+      <button type="button" class="rc-table__link" @click="clearFilters">Hapus semua filter</button>
+    </p>
+  </div>
+</template>

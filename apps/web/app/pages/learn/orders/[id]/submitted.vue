@@ -1,27 +1,30 @@
 <script setup lang="ts">
-const route = useRoute();
-const orderId = route.params.id as string;
+import PageHeader from '~/components/play/PageHeader.vue';
+import PlayButton from '~/components/play/PlayButton.vue';
+import PlayCard from '~/components/play/PlayCard.vue';
 
-useHead({
-  title: 'Bukti Pembayaran Terkirim | ReduCera',
+definePageMeta({
+  title: 'Bukti Pembayaran Terkirim — ReduCera',
+  protection: { kind: 'authenticated' },
+  layout: 'learner',
 });
+
+useHead({ title: 'Bukti Pembayaran Terkirim — ReduCera' });
+
+const route = useRoute();
+const orderId = computed(() => String(route.params.id || ''));
 </script>
 
 <template>
-  <div class="min-h-screen px-4 py-16 mx-auto max-w-2xl text-center" :style="{ backgroundColor: 'var(--rc-bg)', color: 'var(--rc-fg)' }">
-    <div class="p-8 rounded-xl" :style="{ backgroundColor: 'var(--rc-surface)', border: '1px solid var(--rc-border)' }">
-      <h1 class="text-2xl md:text-3xl font-bold" :style="{ color: 'var(--rc-primary)' }">Bukti Pembayaran Terkirim</h1>
-      <p class="mt-3" :style="{ color: 'var(--rc-fg)' }">
-        Pesanan <code class="font-mono">#{{ orderId.slice(0, 8) }}</code> sedang menunggu verifikasi admin.
-      </p>
-      <p class="mt-2 text-sm" :style="{ color: 'var(--rc-muted)' }">
-        Anda akan mendapat akses otomatis setelah pembayaran dikonfirmasi (biasanya 1-2 jam pada jam kerja).
-      </p>
-
-      <div class="mt-6 flex flex-col sm:flex-row gap-3 justify-center">
-        <UButton to="/learn/orders" color="primary">Lihat Pesanan Saya</UButton>
-        <UButton to="/marketplace" variant="outline">Kembali ke Marketplace</UButton>
+  <div class="rc-stack">
+    <PageHeader title="Bukti pembayaran terkirim" :subtitle="`Pesanan #${orderId.slice(0, 8)} menunggu verifikasi admin.`" />
+    <PlayCard tone="success" as="section" aria-labelledby="submitted-next">
+      <h2 id="submitted-next" class="rc-h2">Apa selanjutnya</h2>
+      <p>Akses ke artikel atau kelas terbuka otomatis setelah admin memverifikasi pembayaranmu. Kamu bisa memantau statusnya di halaman pesanan.</p>
+      <div class="rc-actions">
+        <PlayButton :to="`/learn/orders/${orderId}`">Lihat pesanan</PlayButton>
+        <PlayButton to="/marketplace" variant="secondary">Kembali ke marketplace</PlayButton>
       </div>
-    </div>
+    </PlayCard>
   </div>
 </template>

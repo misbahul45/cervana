@@ -50,15 +50,6 @@ export interface AuthResponse {
 }
 
 
-export interface GoogleLoginResponse {
-  message: string;
-  data: {
-    id: string;
-    email: string;
-  };
-  tokens:TokenPair
-}
-
 export interface SendOtpResponse {
   success: boolean;
 }

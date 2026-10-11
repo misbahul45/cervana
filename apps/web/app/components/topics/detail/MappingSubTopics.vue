@@ -1,105 +1,75 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, onBeforeUnmount, nextTick } from 'vue'
-import type { TimelineItem } from '@nuxt/ui'
+import { computed } from 'vue'
 import type { ApiResponse } from '~/interfaces/api'
 import type { SubTopicsListResponse } from '~/interfaces/curriculum/subTopics'
+import { plainText } from '~/lib/topics'
 import { subTopicsService } from '~/services/curriculum/subTopics'
-import { universeIcons } from '~/constants'
-
-
-const randomIcon = () => universeIcons[Math.floor(Math.random() * universeIcons.length)]
 
 const { topicId } = defineProps<{ topicId?: string }>()
 
 const { data: resSubTopic } = await useAsyncData<ApiResponse<SubTopicsListResponse<true>>>(
   `subTopic-${topicId}`,
-  async () =>
-    subTopicsService.findAll({ page: 1, limit: 100, topicId, include: 'theme' })
+  async () => subTopicsService.findAll({ page: 1, limit: 100, topicId }),
 )
 
-const items = computed<(TimelineItem & { idx: number })[]>(() =>
-  (resSubTopic.value?.data?.data || []).map((subtopic, i) => ({
-    idx: i,
-    title: subtopic.title,
-    description: subtopic.description || '',
-    icon: randomIcon(),
-  }))
+const items = computed(() =>
+  [...(resSubTopic.value?.data?.data ?? [])]
+    .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0))
+    .map((subTopic) => ({
+      id: subTopic.id,
+      title: subTopic.title,
+      summary: plainText(subTopic.description, 140),
+    })),
 )
-
-const activeIndexes = ref<Set<number>>(new Set())
-const defaultValue = ref(0)
-let observer: IntersectionObserver | null = null
-
-const openedIndex = ref<number | null>(null)
-
-function toggleDescription(index: number) {
-  openedIndex.value = openedIndex.value === index ? null : index
-}
-
-onMounted(async () => {
-  await nextTick()
-  const els = document.querySelectorAll('.timeline-item')
-  if (!els.length) return
-
-  observer = new IntersectionObserver(
-    (entries) => {
-      entries.forEach((entry) => {
-        const index = Number((entry.target as HTMLElement).dataset.index)
-        if (entry.isIntersecting) activeIndexes.value.add(index)
-        else activeIndexes.value.delete(index)
-        const lastVisible = [...activeIndexes.value].sort((a, b) => b - a)[0] ?? 0
-        defaultValue.value = lastVisible + 1
-      })
-    },
-    { threshold: 0.5 }
-  )
-
-  els.forEach((el) => observer!.observe(el))
-})
-
-onBeforeUnmount(() => {
-  observer?.disconnect()
-  observer = null
-})
 </script>
 
 <template>
-  <div class="max-h-fit overflow-y-auto px-2 z-0">
-    <UTimeline
-      :items="items"
-      color="primary"
-      size="md"
-      class="max-w-2xl mx-auto space-y-4"
-      :default-value="defaultValue"
-    >
-      <template #title="{ item }">
-        <button
-          class="flex items-center justify-between w-full font-semibold text-primary hover:underline transition-colors text-left"
-          @click="toggleDescription(item.idx)"
-        >
-          <span>{{ item.title }}</span>
-          <UIcon
-            :name="openedIndex === item.idx ? 'i-lucide-chevron-up' : 'i-lucide-chevron-down'"
-            class="transition-transform duration-300"
-          />
-        </button>
-      </template>
-
-      <template #description="{ item }">
-        <div
-          class="timeline-item transition-all duration-700 ease-out overflow-hidden"
-          :class="{
-            'opacity-100 max-h-[500px] translate-y-0': openedIndex === item.idx,
-            'opacity-0 max-h-0 -translate-y-2': openedIndex !== item.idx
-          }"
-          :data-index="item.idx"
-        >
-          <div
-            class="prose prose-invert max-w-none pt-2"
-            v-html="item.description"
-          ></div>
+  <section class="rc-card" aria-labelledby="detail-contents">
+    <h2 id="detail-contents" class="rc-h2">Isi topik</h2>
+    <ol v-if="items.length" class="rc-contents">
+      <li v-for="(item, index) in items" :key="item.id" class="rc-contents__item">
+        <span class="rc-contents__num" aria-hidden="true">{{ index + 1 }}</span>
+        <div class="rc-contents__text">
+          <h3 class="rc-contents__title">{{ item.title }}</h3>
+          <p v-if="item.summary" class="rc-hint">{{ item.summary }}</p>
         </div>
-      </template>
-    </UTimeline>
-  </div>
+      </li>
+    </ol>
+    <p v-else class="rc-hint">Bagian belajar belum ditambahkan.</p>
+  </section>
 </template>
+
+<style>
+.rc-contents {
+  display: grid;
+  gap: 0.75rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.rc-contents__item {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+}
+.rc-contents__num {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  border: 2px solid var(--rc-border);
+  border-radius: 999px;
+  color: var(--rc-muted);
+  font-size: 0.875rem;
+  font-weight: 800;
+}
+.rc-contents__text {
+  min-width: 0;
+}
+.rc-contents__title {
+  margin: 0;
+  font-size: 1rem;
+  overflow-wrap: anywhere;
+}
+</style>

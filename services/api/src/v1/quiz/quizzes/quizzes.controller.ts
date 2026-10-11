@@ -1,5 +1,8 @@
 import { RequireOwnership } from '@/v1/common/guards/ownership.decorator';
-import { Roles } from '@/v1/auth/auth.decorator';
+import { GetUser, Roles } from '@/v1/auth/auth.decorator';
+import { AuthUser } from '@/common/interfaces/auth.interface';
+import { forViewer, viewerQuery } from '../answer-key';
+import { QuizAccessService } from '../quiz-access.service';
 import { Role } from '@prisma/client';
 import { Controller, Get, Post, Body, Patch, Param, Delete, Query } from '@nestjs/common';
 import { QuizzesService } from './quizzes.service';
@@ -7,7 +10,10 @@ import { CreateQuizType, UpdateQuizType } from './Quizzes.dto';
 import { Query as QueryInterface } from '@/common/interfaces';
 @Controller('quizs')
 export class QuizzesController {
-  constructor(private readonly quizsService: QuizzesService) {}
+  constructor(
+    private readonly quizsService: QuizzesService,
+    private readonly access: QuizAccessService,
+  ) {}
 
   @Post()
   @Roles(Role.ADMIN, Role.TEACHER)
@@ -24,12 +30,14 @@ export class QuizzesController {
   }
 
   @Get(':id')
-  @RequireOwnership('quiz')
-  findOne(
+  @RequireOwnership('quiz', { allowUnownedRead: true })
+  async findOne(
     @Param('id') id: string,
-    @Query() query:QueryInterface
+    @Query() query:QueryInterface,
+    @GetUser() user: AuthUser,
   ) {
-    return this.quizsService.findOne(id, query);
+    await this.access.assertCanTake(user, id);
+    return forViewer(user?.role, await this.quizsService.findOne(id, viewerQuery(user?.role, query)));
   }
 
   @Get(':id/quiz-attempts')
@@ -42,12 +50,14 @@ export class QuizzesController {
   }
 
   @Get(':id/questions')
-  @RequireOwnership('quiz')
-  findAllQuestions(
+  @RequireOwnership('quiz', { allowUnownedRead: true })
+  async findAllQuestions(
     @Param('id') id:string,
-    @Query() query:QueryInterface
+    @Query() query:QueryInterface,
+    @GetUser() user: AuthUser,
   ){
-    return this.quizsService.findAllQuestions(id, query)
+    await this.access.assertCanTake(user, id);
+    return forViewer(user?.role, await this.quizsService.findAllQuestions(id, query))
   }
 
 

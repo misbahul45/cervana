@@ -1,11 +1,9 @@
-import { Controller, Get, Query, UseGuards } from '@nestjs/common';
-import { JwtAuthGuard } from '@/v1/auth/guards/jwt.guard';
+import { Controller, Get, Query } from '@nestjs/common';
 import { GetUser, Roles } from '@/v1/auth/auth.decorator';
 import { Role } from '@prisma/client';
 import { CreatorEligibilityService } from './creator-eligibility.service';
 
-@Controller('teacher/eligibility')
-@UseGuards(JwtAuthGuard)
+@Controller()
 export class CreatorEligibilityController {
   constructor(private readonly eligibility: CreatorEligibilityService) {}
 

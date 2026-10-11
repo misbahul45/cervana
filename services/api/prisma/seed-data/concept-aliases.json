@@ -1,0 +1,87 @@
+[
+  {
+    "scheme": "PYTHON_DOMAIN",
+    "alias": "accounting_equation",
+    "kind": "EXACT",
+    "status": "APPROVED",
+    "targets": ["l1-t01-accounting-equation"],
+    "note": "same name and meaning"
+  },
+  {
+    "scheme": "PYTHON_DOMAIN",
+    "alias": "double_entry",
+    "kind": "EXACT",
+    "status": "APPROVED",
+    "targets": ["l1-t13-double-entry-logic"],
+    "note": "same name and meaning"
+  },
+  {
+    "scheme": "PYTHON_DOMAIN",
+    "alias": "journal_entry",
+    "kind": "EXACT",
+    "status": "APPROVED",
+    "targets": ["l1-t03-journal-entries"],
+    "note": "same name and meaning"
+  },
+  {
+    "scheme": "PYTHON_DOMAIN",
+    "alias": "adjusting_entry",
+    "kind": "EXACT",
+    "status": "APPROVED",
+    "targets": ["l1-t06-adjusting-entries"],
+    "note": "same name and meaning"
+  },
+  {
+    "scheme": "PYTHON_DOMAIN",
+    "alias": "accrual_vs_cash",
+    "kind": "EXACT",
+    "status": "APPROVED",
+    "targets": ["l1-t11-cash-vs-accrual"],
+    "note": "same name and meaning"
+  },
+  {
+    "scheme": "PYTHON_DOMAIN",
+    "alias": "trial_balance",
+    "kind": "EXACT",
+    "status": "APPROVED",
+    "targets": ["l1-t05-trial-balance"],
+    "note": "same name and meaning"
+  },
+  {
+    "scheme": "PYTHON_DOMAIN",
+    "alias": "revenue_recognition",
+    "kind": "EXACT",
+    "status": "APPROVED",
+    "targets": ["l2-t13-revenue-recognition"],
+    "note": "same name and meaning"
+  },
+  {
+    "scheme": "PYTHON_DOMAIN",
+    "alias": "normal_balance",
+    "kind": "PART_OF",
+    "status": "PROPOSED",
+    "targets": ["l1-t02-debits-credits"],
+    "note": "the normal balance of an account is taught inside debits and credits; no concept of its own"
+  },
+  {
+    "scheme": "PYTHON_DOMAIN",
+    "alias": "financial_statements",
+    "kind": "UMBRELLA",
+    "status": "PROPOSED",
+    "targets": [
+      "l2-t01-balance-sheet",
+      "l2-t02-income-statement",
+      "l2-t03-cash-flow-statement",
+      "l2-t04-statement-of-changes-equity"
+    ],
+    "note": "one Python concept spans four golden concepts"
+  },
+  {
+    "scheme": "PYTHON_DOMAIN",
+    "alias": "contra_account",
+    "kind": "UNMATCHED",
+    "status": "PROPOSED",
+    "targets": [],
+    "note": "no golden concept covers contra accounts; the owner decides whether to add one"
+  }
+]

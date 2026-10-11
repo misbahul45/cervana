@@ -106,12 +106,12 @@ export class ResourcesRepo {
     }
 
 
-  async create(values: CreateResourceType, token:string) {
+  async create(values: CreateResourceType, userId: string) {
     return errorHandler(async () => {
       const data = validation(CreateResourceDto, values);
 
       const created = await this.prisma.resource.create({ data });
-      await this.queueService.addKnowledgeJob({ resourceId: created.id, token });
+      await this.queueService.addKnowledgeJob({ resourceId: created.id, userId });
 
       return created;
     });

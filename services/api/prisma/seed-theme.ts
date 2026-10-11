@@ -1,129 +1,37 @@
 import * as fs from 'fs';
 import * as path from 'path';
-import "dotenv/config";
+import 'dotenv/config';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { PrismaClient } from '@prisma/client';
+import { ThemeSeeder, SeedTheme } from '../src/v1/gamify/themes/theme-seeder';
+import { defaultThemeIcons } from '../src/v1/gamify/themes/theme-icons';
 
-const connectionString = `${process.env.DATABASE_URL}`;
+const connectionString = process.env.DATABASE_URL;
 if (!connectionString) {
   throw new Error('DATABASE_URL must be set');
 }
 
-const adapter = new PrismaPg({ connectionString });
-const prisma = new PrismaClient({ adapter });
+const DEFAULT_SLUG = 'reducera-play';
+const ICON_THEMES = ['reducera-play'];
 
-interface ThemeJson {
-  slug: string;
-  title: string;
-  description?: string;
-  primary: string;
-  secondary: string;
-  tertiary?: string;
-  quaternary?: string;
-  mood?: string[];
-  tokens?: unknown;
-  atmosphere?: unknown;
-  variants?: unknown;
-}
+const prisma = new PrismaClient({ adapter: new PrismaPg({ connectionString }) });
+const seedDir = path.resolve(__dirname, 'seed-data');
 
-const HEX = /^#[0-9a-fA-F]{6}$/;
-
-function assertHex(name: string, value: string | undefined) {
-  if (value !== undefined && !HEX.test(value)) {
-    throw new Error(`seed-theme: ${name} must match #RRGGBB, got ${value}`);
-  }
-}
-
-function validate(payload: ThemeJson) {
-  assertHex('primary', payload.primary);
-  assertHex('secondary', payload.secondary);
-  assertHex('tertiary', payload.tertiary);
-  assertHex('quaternary', payload.quaternary);
-  if (!payload.slug) {
-    throw new Error('seed-theme: slug is required');
-  }
-  if (!payload.title) {
-    throw new Error('seed-theme: title is required');
-  }
-}
+const themes = (): SeedTheme[] =>
+  fs
+    .readdirSync(seedDir)
+    .filter((file) => file.endsWith('.theme.json'))
+    .sort()
+    .map((file) => JSON.parse(fs.readFileSync(path.join(seedDir, file), 'utf8')) as SeedTheme);
 
 async function main() {
-  const file = path.resolve(__dirname, 'seed-data', 'reducera-ocean.theme.json');
-  const raw = fs.readFileSync(file, 'utf8');
-  const payload = JSON.parse(raw) as ThemeJson;
-  validate(payload);
-
-  const now = new Date();
-
-  await prisma.$transaction(async (tx) => {
-    await tx.theme.updateMany({
-      where: {
-        isDefault: true,
-        NOT: { slug: payload.slug },
-      },
-      data: { isDefault: false },
-    });
-
-    const existing = await tx.theme.findUnique({ where: { slug: payload.slug } });
-
-    if (existing) {
-      await tx.theme.update({
-        where: { slug: payload.slug },
-        data: {
-          title: payload.title,
-          description: payload.description,
-          primary: payload.primary,
-          secondary: payload.secondary,
-          tertiary: payload.tertiary,
-          quaternary: payload.quaternary,
-          status: 'PUBLISHED',
-          scope: 'GLOBAL',
-          isDefault: true,
-          version: { increment: 1 },
-          mood: payload.mood ?? [],
-          tokens: payload.tokens ?? undefined,
-          atmosphere: payload.atmosphere ?? undefined,
-          variants: payload.variants ?? undefined,
-          publishedAt: now,
-        },
-      });
-    } else {
-      await tx.theme.create({
-        data: {
-          slug: payload.slug,
-          title: payload.title,
-          description: payload.description,
-          primary: payload.primary,
-          secondary: payload.secondary,
-          tertiary: payload.tertiary,
-          quaternary: payload.quaternary,
-          status: 'PUBLISHED',
-          scope: 'GLOBAL',
-          isDefault: true,
-          version: 1,
-          mood: payload.mood ?? [],
-          tokens: payload.tokens ?? undefined,
-          atmosphere: payload.atmosphere ?? undefined,
-          variants: payload.variants ?? undefined,
-          publishedAt: now,
-        },
-      });
-    }
+  const report = await new ThemeSeeder(prisma).run({
+    themes: themes(),
+    defaultSlug: DEFAULT_SLUG,
+    icons: Object.fromEntries(ICON_THEMES.map((slug) => [slug, defaultThemeIcons(slug)])),
   });
-
-  const result = await prisma.theme.findUnique({
-    where: { slug: payload.slug },
-    select: {
-      slug: true,
-      isDefault: true,
-      status: true,
-      scope: true,
-      version: true,
-      publishedAt: true,
-    },
-  });
-
-  console.log('✅ Default theme upserted:', result);
+  const defaults = await prisma.theme.findMany({ where: { isDefault: true }, select: { slug: true, version: true, status: true, scope: true } });
+  console.log(`Seeded ${report.themes} themes and ${report.icons} icons; default: ${report.defaultSlug}`, defaults);
 }
 
 main()

@@ -67,11 +67,11 @@ const otpTemplate = `
     <div class="logo">ReduCera</div>
     <div class="message">
       Hai <strong>{{USERNAME}}</strong>,<br />
-      Berikut adalah kode OTP untuk verifikasi akun Anda:
+      Berikut adalah kode 6 digit dari ReduCera:
     </div>
     <div class="token-box">{{TOKEN}}</div>
     <div class="note">
-      Kode ini hanya berlaku selama <strong>1 hari</strong>. Jangan bagikan kepada siapa pun.
+      Kode ini hanya berlaku selama <strong>15 menit</strong> dan hanya bisa dipakai sekali. Jangan bagikan kepada siapa pun.
     </div>
     <div class="footer">
       Jika Anda tidak merasa melakukan permintaan ini, abaikan saja pesan ini.
@@ -80,40 +80,6 @@ const otpTemplate = `
 </body>
 </html>
 `
-
-// export async function sendOTPVerificationEmail({
-//   to,
-//   username,
-//   token
-// }: {
-//   to: string
-//   username: string
-//   token: string
-// }) {
-//   try {
-//     const resend = new Resend(process.env.RESEND_API_KEY)
-
-//     const htmlContent = otpTemplate
-//       .replace(/{{USERNAME}}/g, username)
-//       .replace(/{{TOKEN}}/g, token)
-
-//     const response = await resend.emails.send({
-//       from: 'ReduCera <noreply@email.cervana-lidm.unair.ac.id>',
-//       to,
-//       subject: 'OTP Verifikasi Akun Anda - ReduCera',
-//       html: htmlContent
-//     })
-
-//     if (response.error) {
-//       throw new AppError('Email send failed', 500, AppErrorCode.EMAIL_SEND_FAILED)
-//     }
-
-//     return response
-//   } catch (error) {
-//     throw error
-//   }
-// }
-
 
 export async function sendOTPVerificationEmail({
   to,
@@ -132,7 +98,6 @@ export async function sendOTPVerificationEmail({
     .replace(/{{USERNAME}}/g, username)
     .replace(/{{TOKEN}}/g, token)
 
-  // DEV MODE
   if (isDev) {
     console.log("===== DEV MODE (EMAIL MOCK) =====")
     console.log({ to, username, token })
@@ -147,12 +112,11 @@ export async function sendOTPVerificationEmail({
     }
   }
 
-  // PRODUCTION
   try {
     const resend = new Resend(process.env.RESEND_API_KEY)
 
     const response = await resend.emails.send({
-      from: "ReduCera <onboarding@resend.dev>", // ✔ aman & pasti jalan
+      from: process.env.EMAIL_FROM || "ReduCera <onboarding@resend.dev>",
       to,
       subject: "OTP Verifikasi Akun Anda - ReduCera",
       html: htmlContent

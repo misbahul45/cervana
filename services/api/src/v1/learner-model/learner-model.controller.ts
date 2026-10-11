@@ -1,19 +1,27 @@
-import { Controller, Post, UseGuards, HttpCode } from '@nestjs/common';
-import { Roles } from '@/v1/auth/auth.decorator';
-import { Role } from '@prisma/client';
-import { TopicMasteryBackfillService } from './topic-mastery-backfill.service';
+import { Controller, Get } from '@nestjs/common';
+import { AuthenticatedOnly } from '@/common/authz/access';
+import { GetUser } from '@/v1/auth/auth.decorator';
+import { LearnerStateService } from './learner-state.service';
 
 @Controller('learner-model')
-@UseGuards()
 export class LearnerModelController {
-  constructor(
-    private readonly backfillService: TopicMasteryBackfillService,
-  ) {}
+  constructor(private readonly state: LearnerStateService) {}
 
-  @Post('backfill/topic-mastery')
-  @Roles(Role.ADMIN)
-  @HttpCode(202)
-  async runTopicMasteryBackfill() {
-    return this.backfillService.runBackfill();
+  @Get('me/mastery')
+  @AuthenticatedOnly()
+  async mastery(@GetUser('id') userId: string) {
+    return { message: 'Concept mastery', data: await this.state.listMastery(userId) };
+  }
+
+  @Get('me/next')
+  @AuthenticatedOnly()
+  async next(@GetUser('id') userId: string) {
+    return { message: 'Next concept', data: await this.state.nextConcept(userId) };
+  }
+
+  @Get('me/skill-nodes')
+  @AuthenticatedOnly()
+  async skillNodes(@GetUser('id') userId: string) {
+    return { message: 'Skill nodes', data: await this.state.skillNodes(userId) };
   }
 }

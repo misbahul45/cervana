@@ -9,5 +9,6 @@ import { NotificationsModule } from '@/v1/notifications/notifications.module';
   imports:[PrismaModule, NotificationsModule],
   controllers: [LearningStylesController],
   providers: [LearningStylesService, LearningStylesRepo],
+  exports: [LearningStylesService],
 })
 export class LearningStylesModule {}

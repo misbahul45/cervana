@@ -21,6 +21,21 @@ export const TOKEN_KEYS = [
 
 export type ThemeTokenKey = (typeof TOKEN_KEYS)[number];
 
+export const OPTIONAL_TOKEN_KEYS = [
+  'success',
+  'danger',
+  'warning',
+  'info',
+  'gold',
+  'flame',
+  'primaryDepth',
+  'secondaryDepth',
+  'dangerDepth',
+  'goldDepth',
+] as const;
+
+export type OptionalThemeTokenKey = (typeof OPTIONAL_TOKEN_KEYS)[number];
+
 export const hexColor = z
   .string()
   .regex(HEX_REGEX, { message: 'expected #RRGGBB' });
@@ -40,11 +55,27 @@ export const themeTokensSchema = z.object({
   focus: hexColor,
   foam: hexColor,
   sand: hexColor,
+  success: hexColor.optional(),
+  danger: hexColor.optional(),
+  warning: hexColor.optional(),
+  info: hexColor.optional(),
+  gold: hexColor.optional(),
+  flame: hexColor.optional(),
+  primaryDepth: hexColor.optional(),
+  secondaryDepth: hexColor.optional(),
+  dangerDepth: hexColor.optional(),
+  goldDepth: hexColor.optional(),
+});
+
+export const themeShapeSchema = z.object({
+  radius: z.number().int().min(6).max(24),
+  depth: z.number().int().min(0).max(6),
 });
 
 export const themeSchemePairSchema = z.object({
   light: themeTokensSchema,
   dark: themeTokensSchema,
+  shape: themeShapeSchema.optional(),
 });
 
 export const atmosphereOptionsSchema = z.object({
@@ -111,6 +142,7 @@ export const createThemeSchema = z.object({
 });
 
 export type ThemeTokens = z.infer<typeof themeTokensSchema>;
+export type ThemeShape = z.infer<typeof themeShapeSchema>;
 export type NormalizedTheme = z.infer<typeof normalizedThemeSchema>;
 export type ThemeAtmosphere = z.infer<typeof atmosphereSchema>;
 export type ThemeVariantKey = z.infer<typeof themeVariantKeySchema>;

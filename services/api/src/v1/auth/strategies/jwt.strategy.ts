@@ -1,4 +1,3 @@
-// src/auth/strategies/jwt.strategy.ts
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { PassportStrategy } from '@nestjs/passport';
 import { Strategy } from 'passport-jwt';
@@ -44,11 +43,21 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
   }
 
   async validate(payload: JwtPayload): Promise<AuthUser> {
-    if (!payload.sub || !payload.email) {
+    if (!payload.sub || !payload.email || !payload.sessionToken) {
       throw new UnauthorizedException('Invalid token payload');
     }
 
-    const user = await this.prisma.user.findUnique({ where: { id: payload.sub } })
+    const [user, session] = await Promise.all([
+      this.prisma.user.findUnique({ where: { id: payload.sub } }),
+      this.prisma.session.findUnique({
+        where: { sessionToken: payload.sessionToken },
+        select: { userId: true, expires: true },
+      }),
+    ]);
+
+    if (!session || session.userId !== payload.sub || session.expires <= new Date()) {
+      throw new UnauthorizedException('Session expired');
+    }
     if (!user) {
       throw new AppError('User not found', 404);
     }

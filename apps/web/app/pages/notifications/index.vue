@@ -1,85 +1,130 @@
 <script setup lang="ts">
-import { useQuery } from '@tanstack/vue-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query';
+import { computed } from 'vue';
+import EmptyState from '~/components/ui/EmptyState.vue';
+import ErrorState from '~/components/ui/ErrorState.vue';
+import type { User } from '~/interfaces/auth';
+import type { NotificationDetailResponse } from '~/interfaces/notification';
+import { canMarkRead, formatNotificationTime, notificationIcon, sortNotifications } from '~/lib/notifications';
 import { QK } from '~/lib/query-keys';
+import { notificationService } from '~/services/notifications';
 
 definePageMeta({
-  title: 'Notifikasi — ReduCera',
+  title: 'Notifikasi | ReduCera',
   protection: { kind: 'authenticated' },
-  layout: 'learner',
 });
 
-const { data: notifications, isLoading } = useQuery({
+const user = useState<User | null>('user');
+const queryClient = useQueryClient();
+
+const { data, isLoading, isError, refetch } = useQuery({
   queryKey: QK.notifications(),
-  queryFn: async () => [
-    { id: 'n-1', kind: 'lesson.graded' as const, body: 'Pelajaran Jurnal Umum telah dinilai. Skor: 85%', at: '2026-10-04T10:00:00Z', read: false },
-    { id: 'n-2', kind: 'mastery.milestone' as const, body: 'Anda menguasai konsep Double-Entry.', at: '2026-10-03T15:00:00Z', read: true },
-    { id: 'n-3', kind: 'order.paid' as const, body: 'Pembayaran pesanan #o-2 diterima.', at: '2026-10-02T09:00:00Z', read: false },
-  ],
+  queryFn: () => notificationService.findAll({ page: 1, limit: 50 }),
   staleTime: 30_000,
 });
 
-function markAllRead() {
-  if (!notifications.value) return;
-  for (const n of notifications.value) n.read = true;
-}
+const items = computed(() => sortNotifications((data.value?.data ?? []) as NotificationDetailResponse[]));
+const unreadMine = computed(() => items.value.filter((item) => canMarkRead(item, user.value?.id)));
+
+const markRead = useMutation({
+  mutationFn: (ids: string[]) =>
+    Promise.all(ids.map((id) => notificationService.update(id, { readAt: new Date().toISOString() }))),
+  onSuccess: () => queryClient.invalidateQueries({ queryKey: QK.notifications() }),
+});
+
+useHead({ title: 'Notifikasi | ReduCera' });
 </script>
 
 <template>
-  <main id="main" aria-labelledby="notif-h">
-    <PreviewNotice />
-    <header class="rc-notif__head">
-      <h1 id="notif-h">Notifikasi</h1>
-      <button type="button" @click="markAllRead">Tandai semua dibaca</button>
-    </header>
+  <div class="rc-stack rc-learning">
+    <PageHeader title="Notifikasi" subtitle="Kabar tentang streak, pencapaian, dan pengumuman.">
+      <template v-if="unreadMine.length" #actions>
+        <PlayButton
+          variant="outline"
+          size="sm"
+          :loading="markRead.isPending.value"
+          @click="markRead.mutate(unreadMine.map((item) => item.id))"
+        >
+          Tandai semua dibaca
+        </PlayButton>
+      </template>
+    </PageHeader>
 
-    <LoadingSkeleton v-if="isLoading" variant="row" :count="3" />
-    <ul v-else-if="notifications && notifications.length" class="rc-notif__list">
-      <li
-        v-for="n in notifications"
-        :key="n.id"
-        :class="['rc-notif__item', n.read ? 'rc-notif__item--read' : 'rc-notif__item--unread']"
-      >
-        <p>{{ n.body }}</p>
-        <span>{{ new Date(n.at).toLocaleString('id-ID') }}</span>
-        <span v-if="!n.read" class="rc-notif__unread-dot" aria-label="Belum dibaca" />
+    <div v-if="isLoading" class="rc-notif" aria-busy="true">
+      <div v-for="n in 3" :key="n" class="rc-card"><span class="rc-skel rc-skel--line rc-skel--w80"></span></div>
+    </div>
+
+    <ErrorState v-else-if="isError" title="Notifikasi belum bisa dimuat" message="Periksa koneksimu lalu coba lagi." @retry="refetch()" />
+
+    <EmptyState
+      v-else-if="!items.length"
+      icon-name="i-lucide-bell"
+      title="Belum ada notifikasi"
+      message="Kabar tentang streak dan pencapaianmu akan muncul di sini."
+    />
+
+    <ul v-else class="rc-notif">
+      <li v-for="item in items" :key="item.id">
+        <PlayCard class="rc-notif__item" :tone="item.readAt || item.isGlobal ? 'default' : 'info'">
+          <GameIcon v-if="notificationIcon(item.type)" :name="notificationIcon(item.type)!" :size="36" decorative />
+          <UIcon v-else name="i-lucide-bell" class="rc-notif__bell" aria-hidden="true" />
+          <div class="rc-notif__text">
+            <h2 class="rc-notif__title">{{ item.title }}</h2>
+            <p v-if="item.body" class="rc-notif__body">{{ item.body }}</p>
+            <p class="rc-hint">{{ formatNotificationTime(item.createdAt) }}</p>
+          </div>
+          <PlayButton
+            v-if="canMarkRead(item, user?.id)"
+            variant="ghost"
+            size="sm"
+            :disabled="markRead.isPending.value"
+            @click="markRead.mutate([item.id])"
+          >
+            Tandai dibaca
+          </PlayButton>
+        </PlayCard>
       </li>
     </ul>
-  </main>
+  </div>
 </template>
 
-<style scoped>
-.rc-notif__head {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 1rem;
-}
-.rc-notif__list {
-  list-style: none;
+<style>
+.rc-notif {
+  display: grid;
+  gap: 0.75rem;
   margin: 0;
   padding: 0;
-  display: grid;
-  gap: 0.5rem;
+  list-style: none;
 }
-.rc-notif__item {
-  position: relative;
-  padding: 0.875rem 1rem;
-  border-radius: 0.5rem;
-  border: 1px solid var(--ui-border, rgba(0, 0, 0, 0.08));
-  background: var(--ui-bg, white);
+.rc-card.rc-notif__item {
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+  padding: 1rem;
 }
-.rc-notif__item--unread { border-color: var(--ui-primary, #2563eb); }
-.rc-notif__item span {
-  font-size: 0.75rem;
-  color: var(--ui-text-muted);
+.rc-notif__bell {
+  flex: none;
+  width: 2.25rem;
+  height: 2.25rem;
+  color: var(--rc-secondary);
 }
-.rc-notif__unread-dot {
-  position: absolute;
-  top: 0.5rem;
-  right: 0.5rem;
-  width: 0.5rem;
-  height: 0.5rem;
-  border-radius: 50%;
-  background: var(--ui-primary, #2563eb);
+.rc-notif__text {
+  flex: 1;
+  min-width: 0;
+}
+.rc-notif__title {
+  margin: 0;
+  font-size: 1.0625rem;
+  overflow-wrap: anywhere;
+}
+.rc-notif__body {
+  margin: 0.25rem 0 0.25rem;
+  color: var(--rc-fg);
+  overflow-wrap: anywhere;
+}
+@media (max-width: 480px) {
+  .rc-card.rc-notif__item {
+    flex-wrap: wrap;
+  }
 }
 </style>

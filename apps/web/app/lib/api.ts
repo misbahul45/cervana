@@ -1,11 +1,17 @@
 import type { ApiResponse, AppErrorCode, Query } from "~/interfaces/api";
 import { authService } from "~/services/auth";
-import { isApiError, kindFromStatus, toApiError, unwrap, unwrapList } from "~/lib/api-error";
+import { ApiError, isApiError, kindFromStatus, toApiError, unwrap, unwrapList } from "~/lib/api-error";
 import type {
   ManualPaymentStatus,
   ManualSubmissionView,
   StudioArticle,
   StudioArticleSummary,
+  StudioClass,
+  StudioClassSession,
+  StudioClassSummary,
+  TeacherApplicationView,
+  ClassMaterialsView,
+  EnrollmentView,
   MarketplaceArticleView,
   MarketplaceClassView,
   OrderView,
@@ -18,7 +24,10 @@ import type {
   SandboxJournalValidation,
   SandboxScenario,
   PlacementResult,
+  ConceptMasteryEntry,
 } from "~/interfaces/sandbox";
+import type { AchievementList, GamifyMe, TopicBoard } from "~/interfaces/gamify";
+import type { NextConceptView } from "~/lib/learner";
 
 type HttpMethod = "GET" | "POST" | "PUT" | "DELETE" | "HEAD" | "PATCH";
 
@@ -107,8 +116,8 @@ export const sandboxApi = {
 
 export const personalizationApi = {
   listMastery: (token?: string) =>
-    request<MasteryScore[]>(
-      `/api/v1/personalization/mastery/me`,
+    request<ConceptMasteryEntry[]>(
+      `/api/v1/learner-model/me/mastery`,
       "GET",
       undefined,
       {},
@@ -124,47 +133,41 @@ export const personalizationApi = {
       true,
       token ? { access_token: token } : undefined,
     ).then(unwrapList),
-  nextActivity: (token?: string) =>
-    request<NextActivityDecision>(
-      `/api/v1/personalization/policy/next`,
-      "GET",
-      undefined,
-      {},
-      true,
-      token ? { access_token: token } : undefined,
-    ).then((res) => unwrap(res) as NextActivityDecision | undefined),
+  nextConcept: (token?: string) =>
+    request<NextConceptView>(`/api/v1/learner-model/me/next`, "GET", undefined, {}, true, token ? { access_token: token } : undefined).then(
+      (res) => unwrap(res) as NextConceptView,
+    ),
   listMyEvents: () =>
     request<Array<{ id: string; action: string; createdAt: string }>>(`/api/v1/analytics/events/me`).then(unwrapList),
-  listSkillNodes: (token?: string) =>
-    request<SkillNodeRecord[]>(
-      `/api/v1/personalization/skill-nodes/me`,
-      "GET",
-      undefined,
-      {},
-      true,
-      token ? { access_token: token } : undefined,
-    ).then(unwrapList),
 };
 
-export const gamificationApi = {
-  listBadges: (token?: string) =>
-    request<UserAchievement[]>(
-      `/api/v1/gamify/badges/me`,
+export const gamifyApi = {
+  me: (token?: string) =>
+    request<GamifyMe>(`/api/v1/gamify/me`, "GET", undefined, {}, true, token ? { access_token: token } : undefined).then(
+      (res) => unwrap(res) as GamifyMe,
+    ),
+  achievements: (token?: string) =>
+    request<AchievementList>(`/api/v1/gamify/achievements/me`, "GET", undefined, {}, true, token ? { access_token: token } : undefined).then(
+      (res) => unwrap(res) as AchievementList,
+    ),
+  topicBoard: (topicId: string, limit = 20, token?: string) =>
+    request<TopicBoard>(
+      `/api/v1/gamify/leaderboards/topics/${encodeURIComponent(topicId)}?limit=${limit}`,
       "GET",
       undefined,
       {},
       true,
       token ? { access_token: token } : undefined,
-    ).then(unwrapList),
-  level: (token?: string) =>
-    request<LevelInfo>(
-      `/api/v1/gamify/level/me`,
-      "GET",
-      undefined,
+    ).then((res) => unwrap(res) as TopicBoard),
+  updateBoardMembership: (body: { optIn?: boolean; handle?: string }, token?: string) =>
+    request<{ optedIn: boolean; handle: string | null }>(
+      `/api/v1/gamify/leaderboards/me`,
+      "PUT",
+      body,
       {},
       true,
       token ? { access_token: token } : undefined,
-    ).then((res) => unwrap(res) as LevelInfo | undefined),
+    ),
 };
 
 export const creatorApi = {
@@ -203,7 +206,9 @@ export const creatorApi = {
       token ? { access_token: token } : undefined,
     ).then((res) => unwrap(res) as { eligible: boolean; score: number | null } | undefined),
   apply: (body: Record<string, unknown>, token?: string) =>
-    request(`/api/v1/teacher/applications`, "POST", body, {}, true, token ? { access_token: token } : undefined),
+    request(`/api/v1/teacher/applications`, "POST", body, {}, true, token ? { access_token: token } : undefined).then(unwrap),
+  myApplication: () =>
+    request<Paginated<TeacherApplicationView>>(`/api/v1/teacher/applications?limit=1`).then((res) => unwrap(res).data[0] ?? null),
   profile: (id: string, token?: string) =>
     request<Record<string, unknown>>(
       `/api/v1/teacher/creators/${id}`,
@@ -213,36 +218,6 @@ export const creatorApi = {
       true,
       token ? { access_token: token } : undefined,
     ).then(unwrap),
-};
-
-export const moderationApi = {
-  listPending: (token?: string) =>
-    request<{ articles: any[]; classes: any[] }>(
-      `/api/v1/admin/moderation/pending`,
-      "GET",
-      undefined,
-      {},
-      true,
-      token ? { access_token: token } : undefined,
-    ).then((res) => unwrap(res) ?? { articles: [], classes: [] }),
-  approve: (kind: 'article' | 'class', id: string, token?: string) =>
-    request(
-      `/api/v1/admin/moderation/${kind === 'article' ? 'articles' : 'classes'}/${id}/approve`,
-      "POST",
-      undefined,
-      {},
-      true,
-      token ? { access_token: token } : undefined,
-    ),
-  reject: (kind: 'article' | 'class', id: string, feedback: string, token?: string) =>
-    request(
-      `/api/v1/admin/moderation/${kind === 'article' ? 'articles' : 'classes'}/${id}/reject`,
-      "POST",
-      { feedback },
-      {},
-      true,
-      token ? { access_token: token } : undefined,
-    ),
 };
 
 export const checkoutApi = {
@@ -321,6 +296,8 @@ export const paymentsApi = {
     ).then(unwrap),
 };
 
+const UPLOAD_FAILED = "Unggah gagal. Pastikan file berupa gambar (maksimal 4 MB), lalu coba lagi.";
+
 export const uploadApi = {
   proof: async (file: File) => {
     const form = new FormData();
@@ -335,8 +312,8 @@ export const uploadApi = {
       if (!uploaded) throw toApiError(failureEnvelope({ data: { message: "Upload gagal" } }));
       return uploaded;
     } catch (error) {
-      if (isApiError(error)) throw error;
-      throw toApiError(failureEnvelope(error));
+      const failure = isApiError(error) ? error : toApiError(failureEnvelope(error));
+      throw new ApiError({ message: UPLOAD_FAILED, status: failure.status, code: failure.code, requestId: failure.requestId });
     }
   },
 };
@@ -350,9 +327,9 @@ export const payoutApi = {
 };
 
 export const adminPaymentsApi = {
-  queue: (status?: ManualPaymentStatus) =>
+  queue: (status?: ManualPaymentStatus, page = 1) =>
     request<Paginated<ManualSubmissionView>>(
-      `/api/v1/admin/payments/manual/submissions?${toQueryString({ limit: 50, ...(status ? { status } : {}) })}`,
+      `/api/v1/admin/payments/manual/submissions?${toQueryString({ limit: 20, page, ...(status ? { status } : {}) })}`,
     ).then(unwrap),
   get: (id: string) =>
     request<ManualSubmissionView>(`/api/v1/admin/payments/manual/submissions/${encodeURIComponent(id)}`).then(unwrap),
@@ -386,25 +363,91 @@ export const studioArticlesApi = {
     ),
   get: (id: string, tenantId?: string) =>
     request<StudioArticle>(`/api/v1/articles/${encodeURIComponent(id)}`, "GET", undefined, withTenant(tenantId)).then(unwrap),
-  update: (id: string, body: { title?: string; content?: string; excerpt?: string }, tenantId?: string) =>
+  update: (
+    id: string,
+    body: { title?: string; content?: string; excerpt?: string; accessType?: "FREE" | "PAID"; price?: number },
+    tenantId?: string,
+  ) =>
     request<StudioArticleSummary>(`/api/v1/articles/${encodeURIComponent(id)}`, "PATCH", body, withTenant(tenantId)).then(unwrap),
   submitReview: (id: string, tenantId?: string) =>
     request<StudioArticleSummary>(`/api/v1/articles/${encodeURIComponent(id)}/submit-review`, "POST", {}, withTenant(tenantId)).then(unwrap),
+  withdraw: (id: string, tenantId?: string) =>
+    request<StudioArticleSummary>(`/api/v1/articles/${encodeURIComponent(id)}/withdraw`, "POST", {}, withTenant(tenantId)).then(unwrap),
+  archive: (id: string, tenantId?: string) =>
+    request<StudioArticleSummary>(`/api/v1/articles/${encodeURIComponent(id)}/archive`, "POST", {}, withTenant(tenantId)).then(unwrap),
+};
+
+export const studioClassesApi = {
+  list: (tenantId?: string) =>
+    request<Paginated<StudioClassSummary>>(`/api/v1/classes?limit=50`, "GET", undefined, withTenant(tenantId)).then(
+      (res) => unwrap(res).data,
+    ),
+  get: (id: string, tenantId?: string) =>
+    request<StudioClass>(`/api/v1/classes/${encodeURIComponent(id)}`, "GET", undefined, withTenant(tenantId)).then(unwrap),
+  update: (
+    id: string,
+    body: {
+      title?: string;
+      description?: string;
+      accessType?: "FREE" | "PAID";
+      price?: number;
+      format?: string;
+      difficulty?: string;
+      durationMinutes?: number;
+      capacity?: number;
+    },
+    tenantId?: string,
+  ) => request<StudioClassSummary>(`/api/v1/classes/${encodeURIComponent(id)}`, "PATCH", body, withTenant(tenantId)).then(unwrap),
+  submitReview: (id: string, tenantId?: string) =>
+    request<StudioClassSummary>(`/api/v1/classes/${encodeURIComponent(id)}/submit-review`, "POST", {}, withTenant(tenantId)).then(unwrap),
+  withdraw: (id: string, tenantId?: string) =>
+    request<StudioClassSummary>(`/api/v1/classes/${encodeURIComponent(id)}/withdraw`, "POST", {}, withTenant(tenantId)).then(unwrap),
+  archive: (id: string, tenantId?: string) =>
+    request<StudioClassSummary>(`/api/v1/classes/${encodeURIComponent(id)}/archive`, "POST", {}, withTenant(tenantId)).then(unwrap),
+  addSession: (
+    id: string,
+    body: { startsAt: string; endsAt: string; meetingUrl?: string; recordingUrl?: string },
+    tenantId?: string,
+  ) => request<StudioClassSession>(`/api/v1/classes/${encodeURIComponent(id)}/sessions`, "POST", body, withTenant(tenantId)).then(unwrap),
+  cancelSession: (id: string, sessionId: string, tenantId?: string) =>
+    request<StudioClassSession>(
+      `/api/v1/classes/${encodeURIComponent(id)}/sessions/${encodeURIComponent(sessionId)}/cancel`,
+      "POST",
+      {},
+      withTenant(tenantId),
+    ).then(unwrap),
+};
+
+export const tenantsApi = {
+  mine: () =>
+    request<Array<{ id: string; name: string; slug: string; status: string; membershipRole: string }>>(`/api/v1/tenants/mine`).then(unwrapList),
 };
 
 export const marketplaceApi = {
-  articles: (query: { q?: string; page?: number; limit?: number } = {}) =>
+  articles: (query: { q?: string; page?: number; limit?: number; sort?: string; accessType?: string } = {}) =>
     request<Paginated<MarketplaceArticleView>>(`/api/v1/marketplace/articles?${toQueryString({ limit: 24, ...query })}`).then(unwrap),
   article: (id: string) =>
     request<MarketplaceArticleView>(`/api/v1/marketplace/articles/${encodeURIComponent(id)}`).then(unwrap),
-  classes: (query: { q?: string; page?: number; limit?: number } = {}) =>
+  classes: (query: { q?: string; page?: number; limit?: number; sort?: string; accessType?: string } = {}) =>
     request<Paginated<MarketplaceClassView>>(`/api/v1/marketplace/classes?${toQueryString({ limit: 24, ...query })}`).then(unwrap),
   class: (id: string) =>
     request<MarketplaceClassView>(`/api/v1/marketplace/classes/${encodeURIComponent(id)}`).then(unwrap),
+  articlePreview: (id: string) =>
+    request<{ id: string; preview: string; truncated: boolean; wordCount: number; readingMinutes: number }>(
+      `/api/v1/marketplace/articles/${encodeURIComponent(id)}/preview`,
+    ).then(unwrap),
   articleContent: (id: string) =>
     request<{ id: string; title: string; content: string; publishedAt: string | null }>(
       `/api/v1/marketplace/articles/${encodeURIComponent(id)}/content`,
     ).then(unwrap),
+  classAccess: (id: string) =>
+    request<{ classId: string; accessible: boolean; enrolled: boolean; entitled: boolean }>(
+      `/api/v1/marketplace/classes/${encodeURIComponent(id)}/access`,
+    ).then(unwrap),
+  classMaterials: (id: string) =>
+    request<ClassMaterialsView>(`/api/v1/marketplace/classes/${encodeURIComponent(id)}/materials`).then(unwrap),
+  myEnrollments: (page = 1) =>
+    request<Paginated<EnrollmentView>>(`/api/v1/marketplace/classes/enrollments/mine?${toQueryString({ page, limit: 50 })}`).then(unwrap),
   enrollFreeClass: (id: string) =>
     request<unknown>(`/api/v1/marketplace/classes/${encodeURIComponent(id)}/enroll`, "POST", {}).then(unwrap),
   articleAccess: (id: string) =>
@@ -453,9 +496,9 @@ export const analyticsApi = {
       true,
       token ? { access_token: token } : undefined,
     ).then(unwrap),
-  topTopics: (token?: string) =>
-    request<Array<{ topicId: string; learners: number; avgScore: number }>>(
-      `/api/v1/analytics/admin/top-topics`,
+  topConcepts: (token?: string) =>
+    request<Array<{ conceptId: string; title: string; learners: number; avgScore: number }>>(
+      `/api/v1/analytics/admin/top-concepts`,
       "GET",
       undefined,
       {},
@@ -586,14 +629,30 @@ export function normalizeEnvelope<T>(parsed: any, status: number): ApiResponse<T
   };
 }
 
-export function relaySetCookies(res: { headers?: { getSetCookie?: () => string[] } }) {
+export function relaySetCookies(res: { headers?: { getSetCookie?: () => string[] } }, event?: ServerEvent) {
   const cookies = res.headers?.getSetCookie?.() ?? [];
   if (cookies.length === 0) return;
-  const nodeRes = useRequestEvent()?.node?.res;
+  const nodeRes = (event ?? useRequestEvent())?.node?.res;
   if (!nodeRes) return;
   const existing = nodeRes.getHeader("set-cookie");
   const current = Array.isArray(existing) ? existing : existing ? [String(existing)] : [];
   nodeRes.setHeader("set-cookie", [...current, ...cookies]);
+}
+
+type ServerEvent = { node?: { res?: { getHeader: (name: string) => unknown; setHeader: (name: string, value: string[]) => unknown } } };
+
+export interface SsrContext {
+  cookie: Record<string, string>;
+  event: ServerEvent | undefined;
+  apiUrl: string | undefined;
+}
+
+export function captureSsrContext(tokens?: Tokens): SsrContext {
+  try {
+    return { cookie: forwardedCookie(tokens), event: useRequestEvent() as ServerEvent | undefined, apiUrl: getApiUrl() };
+  } catch {
+    return { cookie: {}, event: undefined, apiUrl: undefined };
+  }
 }
 
 export function forwardedCookie(tokens?: Tokens): Record<string, string> {
@@ -608,10 +667,12 @@ export async function request<T>(
   body?: any,
   headers: Record<string, string> = {},
   retry: boolean = true,
-  tokens?: Tokens
+  tokens?: Tokens,
+  ssrContext?: SsrContext,
 ): Promise<ApiResponse<T>> {
-  const API_URL = getApiUrl();
   const isServer = isServerRuntime();
+  const ssr = isServer ? (ssrContext ?? captureSsrContext(tokens)) : undefined;
+  const API_URL = ssr?.apiUrl ?? getApiUrl();
   const path = normalizeApiPath(endpoint);
   const canRetry = retry && path.split("?")[0] !== REFRESH_PATH;
 
@@ -647,7 +708,7 @@ export async function request<T>(
       method,
       headers: {
         "Content-Type": "application/json",
-        ...forwardedCookie(tokens),
+        ...(ssr?.cookie ?? {}),
         ...authHeaders,
         ...headers,
       },
@@ -656,15 +717,23 @@ export async function request<T>(
           ? JSON.stringify(body)
           : undefined,
     });
-    relaySetCookies(res);
+    relaySetCookies(res, ssr?.event);
 
     if (res.status === 401 && canRetry) {
-      const refreshed = await authService.refreshToken(tokens);
+      const refreshed = await authService.refreshToken(tokens, ssr);
       if (refreshed.success && refreshed.data) {
-        return await request<T>(endpoint, method, body, headers, false, {
-          access_token: refreshed.data.access_token,
-          refresh_token: refreshed.data.refresh_token,
-        });
+        return await request<T>(
+          endpoint,
+          method,
+          body,
+          headers,
+          false,
+          {
+            access_token: refreshed.data.access_token,
+            refresh_token: refreshed.data.refresh_token,
+          },
+          ssr,
+        );
       }
     }
 

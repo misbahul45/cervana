@@ -110,3 +110,17 @@ export const SetActivationDto = extendApi(
 );
 
 export type SetActivationDtoType = z.infer<typeof SetActivationDto>;
+
+export const UserListQueryDto = z.object({
+  page: z.coerce.number().int().min(1).default(1),
+  limit: z.coerce.number().int().min(1).max(100).default(20),
+  q: z.string().trim().min(1).max(100).optional(),
+  role: z.nativeEnum(Role).optional(),
+  isActive: z
+    .enum(['true', 'false'])
+    .transform((value) => value === 'true')
+    .optional(),
+  sort: z.string().regex(/^(createdAt|name|email|role):(asc|desc)$/).default('createdAt:desc'),
+});
+
+export type UserListQueryType = z.infer<typeof UserListQueryDto>;

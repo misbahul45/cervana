@@ -1,11 +1,12 @@
 import { randomUUID } from 'crypto';
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '@/common/config/prisma/prisma.service';
-import { MasteryService } from '../learner-model/services/mastery.service';
+import { LearnerStateService } from '../learner-model/learner-state.service';
+import { LearnerPolicyService } from '../learner-model/policy/learner-policy.service';
+import type { PolicyDecisionInput, TeachingDecision } from '../learner-model/policy/policy.types';
 import { MisconceptionLifecycleService } from '../misconception/misconception-lifecycle.service';
 import { QuestionUnderstandingService } from '../question-intelligence/question-understanding.service';
 import { QuestionBlueprintService, ThreeValuedValidatorService } from '../question-intelligence/question-blueprint.service';
-import { AdaptivePolicyService, type AdaptiveTutoringStrategy, type PolicyDecisionInput } from '../policy/adaptive-policy.service';
 import { PersonalPolicyService, type PersonalPolicy, POLICY_RULES } from '../policy/personal-policy.service';
 
 export interface TutorMessageInput {
@@ -27,6 +28,7 @@ export interface TutorResponse {
   difficultyTarget: number;
   scaffoldLevel: string;
   rationale: string;
+  reasonCodes: string[];
   responseText: string;
   clarifyingQuestion?: string;
   suggestedPractice?: string;
@@ -46,12 +48,12 @@ export class TutorService {
 
   constructor(
     private readonly prisma: PrismaService,
-    private readonly mastery: MasteryService,
+    private readonly learnerState: LearnerStateService,
     private readonly misconception: MisconceptionLifecycleService,
     private readonly questionUnderstanding: QuestionUnderstandingService,
     private readonly blueprint: QuestionBlueprintService,
     private readonly threeValuedValidator: ThreeValuedValidatorService,
-    private readonly adaptivePolicy: AdaptivePolicyService,
+    private readonly adaptivePolicy: LearnerPolicyService,
     private readonly personalPolicyService: PersonalPolicyService,
   ) {}
 
@@ -66,13 +68,7 @@ export class TutorService {
       conceptIds: input.conceptKey ? [input.conceptKey] : [],
     });
 
-    const masteryRow = input.conceptKey
-      ? await this.prisma.topicMasteryRecord.findUnique({
-          where: {
-            userId_topicId: { userId: input.userId, topicId: input.topicId ?? input.conceptKey },
-          },
-        })
-      : null;
+    const conceptState = input.conceptKey ? await this.learnerState.conceptState(input.userId, input.conceptKey) : null;
 
     const openMisconceptions = await this.prisma.misconception.findMany({
       where: {
@@ -86,23 +82,21 @@ export class TutorService {
     const policyInput: PolicyDecisionInput = {
       intent: this.toPolicyIntent(understanding.intent),
       learner: {
-        mastery: masteryRow?.score ?? 0.4,
-        confidence: masteryRow?.confidence ?? 0.3,
-        evidenceCount: masteryRow?.evidenceCount ?? 0,
+        mastery: conceptState?.mastery.score ?? 0.5,
+        evidenceCount: conceptState?.mastery.evidenceCount ?? 0,
         openMisconceptionCount: openMisconceptions.length,
         daysSinceLastReview: 0,
-        consecutiveCorrect: 0,
         recentItemDifficulty: 0.5,
       },
       concept: {
-        prerequisiteMasteryMet: true,
+        prerequisiteMasteryMet: conceptState?.prerequisiteMasteryMet ?? true,
         isTransferEligible: understanding.cognitiveDemand === 'TRANSFER',
         difficulty: understanding.difficultyEstimate,
       },
       policy: personalPolicy,
     };
 
-    const strategy = this.adaptivePolicy.decide(policyInput);
+    const strategy = this.adaptivePolicy.teachingStrategy(policyInput);
 
     const responseText = this.composeResponse(understanding, strategy);
     const stopReason = this.computeStopReason(understanding);
@@ -136,7 +130,8 @@ export class TutorService {
       strategy: strategy.strategy,
       difficultyTarget: strategy.difficultyTarget,
       scaffoldLevel: strategy.scaffoldLevel,
-      rationale: strategy.rationale,
+      rationale: strategy.reasonCodes.join(', '),
+      reasonCodes: strategy.reasonCodes,
       responseText,
       clarifyingQuestion: understanding.clarifyingQuestion,
       suggestedPractice: this.suggestPractice(understanding, strategy),
@@ -154,7 +149,7 @@ export class TutorService {
   async recordAttemptOutcome(input: {
     userId: string;
     topicId: string;
-    strategy: AdaptiveTutoringStrategy['strategy'];
+    strategy: TeachingDecision['strategy'];
     scoreDelta: number;
     wasCorrect: boolean;
     openMisconceptionKeys?: string[];
@@ -199,7 +194,7 @@ export class TutorService {
 
   private composeResponse(
     understanding: ReturnType<QuestionUnderstandingService['understand']>,
-    strategy: AdaptiveTutoringStrategy,
+    strategy: TeachingDecision,
   ): string {
     if (understanding.clarifyingQuestion) {
       return understanding.clarifyingQuestion;
@@ -210,7 +205,7 @@ export class TutorService {
 
   private suggestPractice(
     understanding: ReturnType<QuestionUnderstandingService['understand']>,
-    strategy: AdaptiveTutoringStrategy,
+    strategy: TeachingDecision,
   ): string | undefined {
     if (strategy.strategy === 'PRACTICE' && understanding.conceptIds.length > 0) {
       return `Coba latihan untuk: ${understanding.conceptIds.join(', ')}`;
@@ -245,7 +240,7 @@ export class TutorService {
     sessionId?: string;
     traceId: string;
     understanding: ReturnType<QuestionUnderstandingService['understand']>;
-    strategy: AdaptiveTutoringStrategy;
+    strategy: TeachingDecision;
     responseText: string;
     latencyMs: number;
   }) {
@@ -271,7 +266,7 @@ export class TutorService {
     sessionId?: string;
     taskId: string;
     understanding: ReturnType<QuestionUnderstandingService['understand']>;
-    strategy: AdaptiveTutoringStrategy;
+    strategy: TeachingDecision;
     responseText: string;
     latencyMs: number;
   }) {

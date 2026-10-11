@@ -1,0 +1,25 @@
+{
+  "topicSlug": "akuntansi-dasar-golden-graph",
+  "subTopics": [
+    { "title": "Akuntansi Fundamentals", "status": "PROPOSED", "conceptIds": ["l1-t09-accounting-cycle"] },
+    { "title": "Persamaan Dasar Akuntansi", "status": "APPROVED", "conceptIds": ["l1-t01-accounting-equation"] },
+    { "title": "Jenis Akun", "status": "PROPOSED", "conceptIds": ["l1-t10-chart-of-accounts"] },
+    { "title": "Debit dan Kredit", "status": "APPROVED", "conceptIds": ["l1-t02-debits-credits"] },
+    { "title": "Double Entry", "status": "APPROVED", "conceptIds": ["l1-t13-double-entry-logic"] },
+    { "title": "Jurnal Entries", "status": "APPROVED", "conceptIds": ["l1-t03-journal-entries"] },
+    { "title": "Buku Besar", "status": "APPROVED", "conceptIds": ["l1-t04-ledger-accounts"] },
+    { "title": "Neraca Saldo", "status": "APPROVED", "conceptIds": ["l1-t05-trial-balance"] },
+    { "title": "Jurnal Penyesuaian", "status": "APPROVED", "conceptIds": ["l1-t06-adjusting-entries"] },
+    {
+      "title": "Laporan Keuangan",
+      "status": "APPROVED",
+      "conceptIds": ["l2-t01-balance-sheet", "l2-t02-income-statement", "l2-t03-cash-flow-statement"]
+    }
+  ],
+  "lessons": [
+    { "subTopicTitle": "Laporan Keuangan", "title": "Laporan posisi keuangan", "status": "APPROVED", "conceptIds": ["l2-t01-balance-sheet"] },
+    { "subTopicTitle": "Laporan Keuangan", "title": "Laporan laba rugi", "status": "APPROVED", "conceptIds": ["l2-t02-income-statement"] },
+    { "subTopicTitle": "Laporan Keuangan", "title": "Laporan arus kas", "status": "APPROVED", "conceptIds": ["l2-t03-cash-flow-statement"] },
+    { "subTopicTitle": "Jurnal Penyesuaian", "title": "Penyusutan aset tetap", "status": "PROPOSED", "conceptIds": ["l2-t11-pppe-depreciation"] }
+  ]
+}

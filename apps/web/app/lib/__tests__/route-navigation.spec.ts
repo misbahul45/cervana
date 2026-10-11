@@ -30,6 +30,17 @@ describe('resolveNavigation', () => {
     expect(resolveNavigation({ kind: 'authenticated' }, null)).toEqual({ redirect: '/login' });
   });
 
+  it('remembers where a guest was going so login can bring them back', () => {
+    expect(resolveNavigation({ kind: 'authenticated' }, null, '/learn/orders/1/pay')).toEqual({
+      redirect: '/login?next=%2Flearn%2Forders%2F1%2Fpay',
+    });
+  });
+
+  it('does not remember an unsafe or login destination', () => {
+    expect(resolveNavigation({ kind: 'authenticated' }, null, '//evil.test')).toEqual({ redirect: '/login' });
+    expect(resolveNavigation({ kind: 'authenticated' }, null, '/login')).toEqual({ redirect: '/login' });
+  });
+
   it('sends a signed-in user without the role home', () => {
     expect(resolveNavigation({ kind: 'role', role: 'ADMIN' }, student)).toEqual({ redirect: '/' });
   });

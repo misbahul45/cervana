@@ -5,6 +5,7 @@ from config.embedding_pipeline import get_embedding_pipeline
 from v1.resources.service import get_resource, extract_pdf, get_yt_transcript, callback_resource
 
 from config.celery import celery_app
+from v1.domain.governance import resource_governance
 
 pipeline = None
 
@@ -60,7 +61,8 @@ def extract_task(self, type: str, resource_id: str, acting_user_id: str):
         get_pipeline().upsert_document(
             content=text,
             source_id=resource.id,
-            metadata=metadata_payload
+            metadata=metadata_payload,
+            governance=resource_governance(dict(resource)),
         )
 
         callback_resource(
@@ -109,7 +111,8 @@ def embedding_task(self, resource_data: Dict[str, Any], acting_user_id: str):
         get_pipeline().upsert_document(
             content=content,
             source_id=resource_id,
-            metadata=metadata_payload
+            metadata=metadata_payload,
+            governance=resource_governance(resource_data),
         )
 
         callback_resource(

@@ -78,9 +78,9 @@ async function onSubmit(event: FormSubmitEvent<LearningStyleSchemaType>) {
     :schema="LearningStyleSchema"
     :state="form"
     @submit="onSubmit"
-    class="w-full max-w-2xl mx-auto border-2 border-secondary/80 rounded-md p-4 space-y-4"
+    class="w-full max-w-2xl mx-auto space-y-4"
   >
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 text-white">
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
       <UFormField
         v-for="(item, index) in formItems"
         :key="item.key"
@@ -124,9 +124,9 @@ async function onSubmit(event: FormSubmitEvent<LearningStyleSchemaType>) {
         leadingIcon:'text-success animate-pulse',
         trailingIcon:'text-success animate-pulse'
       }"
-      class="cursor-pointer ml-auto block font-semibold text-white"
+      class="cursor-pointer ml-auto block font-semibold"
     >
-      Submit
+      Simpan gaya belajar
     </UButton>
   </UForm>
 </template>

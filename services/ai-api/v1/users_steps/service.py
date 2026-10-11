@@ -3,11 +3,11 @@ from __future__ import annotations
 import logging
 from typing import Optional
 
-import requests
 
 from config.agent_session import AgentSession
-from config.envs import ENVS
-from errors.types import CrossServiceError
+from config.internal_client import InternalApiClient
+from errors.types import CrossServiceError, RetrievalError
+from v1.domain.governance import retrieval_scope
 from v1.users_steps.dto import (
     LearningStyleProfileBase,
     StepBase,
@@ -17,77 +17,21 @@ from v1.users_steps.dto import (
 
 logger = logging.getLogger(__name__)
 
-API_TIMEOUT_SECONDS = 15
-
-
-def _headers(session: AgentSession) -> dict[str, str]:
-    return {
-        "x-acting-user-id": session.acting_user_id,
-        "x-trace-id": session.trace_id,
-        "x-idempotency-key": session.idempotency_key,
-    }
-
-
-def _get(path: str, *, session: AgentSession) -> requests.Response:
-    url = f"{ENVS['NEST_API']}{path}"
-    logger.info("[SIGNED][GET] %s acting=%s trace=%s", url, session.acting_user_id, session.trace_id)
-    try:
-        response = requests.get(url, headers=_headers(session), timeout=API_TIMEOUT_SECONDS)
-    except requests.RequestException as exc:
-        raise CrossServiceError(
-            "failed to reach internal api",
-            details={"url": url, "error": str(exc)},
-        ) from exc
-    if response.status_code >= 500:
-        raise CrossServiceError(
-            "internal api error",
-            details={"url": url, "status": response.status_code},
-        )
-    return response
-
-
-def _post(path: str, *, session: AgentSession, json_body: dict) -> requests.Response:
-    url = f"{ENVS['NEST_API']}{path}"
-    logger.info("[SIGNED][POST] %s acting=%s trace=%s", url, session.acting_user_id, session.trace_id)
-    try:
-        response = requests.post(
-            url,
-            json=json_body,
-            headers={**_headers(session), "Content-Type": "application/json"},
-            timeout=20,
-        )
-    except requests.RequestException as exc:
-        raise CrossServiceError(
-            "failed to reach internal api",
-            details={"url": url, "error": str(exc)},
-        ) from exc
-    if response.status_code >= 500:
-        raise CrossServiceError(
-            "internal api error",
-            details={"url": url, "status": response.status_code},
-        )
-    return response
-
-
 def get_steps(lesson_id: str, session: AgentSession) -> list[StepBase]:
-    response = _get(
-        f"/curriculum/steps?lessonId={lesson_id}&sort=sortOrder:asc", session=session
+    data = InternalApiClient(session).get(
+        "/internal/steps",
+        params={"lessonId": lesson_id, "sort": "sortOrder:asc"},
     )
-    response.raise_for_status()
-    data = response.json().get("data", {}).get("data", [])
-    return [StepBase(**item) for item in data]
+    return [StepBase(**item) for item in (data or {}).get("data", [])]
 
 
 def get_step(step_id: str, session: AgentSession) -> StepBase:
-    response = _get(f"/curriculum/steps/{step_id}", session=session)
-    response.raise_for_status()
-    return StepBase(**response.json().get("data"))
+    return StepBase(**InternalApiClient(session).get(f"/internal/steps/{step_id}"))
 
 
 def get_topic(topic_id: str, session: AgentSession) -> TopicBase:
-    response = _get(f"/curriculum/topics?id={topic_id}", session=session)
-    response.raise_for_status()
-    items = response.json().get("data", {}).get("data", [])
+    data = InternalApiClient(session).get("/curriculum/topics", params={"id": topic_id})
+    items = (data or {}).get("data", [])
     if not items:
         raise CrossServiceError("topic not found", details={"topicId": topic_id})
     return TopicBase(**items[0])
@@ -96,41 +40,29 @@ def get_topic(topic_id: str, session: AgentSession) -> TopicBase:
 def get_learning_style(
     learning_style_id: str, session: AgentSession
 ) -> LearningStyleProfileBase:
-    response = _get(
-        f"/learning/learning-styles/{learning_style_id}", session=session
-    )
-    response.raise_for_status()
-    return LearningStyleProfileBase(**response.json().get("data"))
+    data = InternalApiClient(session).get(f"/internal/learning-styles/{learning_style_id}")
+    return LearningStyleProfileBase(**data)
 
 
 def create_personality_quiz(payload: dict, session: AgentSession) -> dict:
-    response = _post(
-        "/learning/personality-quizzes", session=session, json_body=payload
+    return InternalApiClient(session).send(
+        "POST", "/internal/personality-quizzes", json_body=payload
     )
-    response.raise_for_status()
-    return response.json()
 
 
 def get_personality_quiz(
     lesson_id: str, user_id: str, session: AgentSession
 ) -> Optional[dict]:
-    url = f"{ENVS['NEST_API']}/learning/personality-quizzes?lessonId={lesson_id}&userId={user_id}"
-    logger.info("[PERSONALITY_QUIZ][GET] %s", url)
     try:
-        response = _get(
-            f"/learning/personality-quizzes?lessonId={lesson_id}&userId={user_id}",
-            session=session,
+        data = InternalApiClient(session).get(
+            "/internal/personality-quizzes",
+            params={"lessonId": lesson_id, "userId": user_id},
         )
     except CrossServiceError as exc:
         logger.error("[PERSONALITY_QUIZ] API Request failed: %s", exc.message)
         return None
 
-    if response.status_code == 404:
-        return None
-
-    response.raise_for_status()
-    payload = response.json()
-    data_list = payload.get("data", {}).get("data", [])
+    data_list = (data or {}).get("data", [])
     if not data_list:
         logger.warning("[PERSONALITY_QUIZ] No quiz found for user %s", user_id)
         return None
@@ -201,8 +133,13 @@ async def build_learning_introduction_llm(
     ]
 
     retrieval_info = []
-    for s in steps:
-        results = pipeline.retrieve(query=s.title, top_k=5)
+    scope = retrieval_scope(session.acting_user_id) if session else None
+    for s in steps if scope else []:
+        try:
+            results = pipeline.retrieve(query=s.title, scope=scope, top_k=5)
+        except RetrievalError as exc:
+            logger.warning("[INTRODUCTION] retrieval failed for a step: %s", exc.message)
+            results = []
         texts = [r["text"] for r in results]
         if texts:
             retrieval_info.append(f"- {s.title}: {' '.join(texts)}")
@@ -275,7 +212,6 @@ async def _load_profile_and_steps(
 
 
 __all__ = [
-    "API_TIMEOUT_SECONDS",
     "get_steps",
     "get_step",
     "get_topic",

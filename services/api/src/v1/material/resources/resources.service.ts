@@ -9,9 +9,9 @@ import { JOBSTATUSTYPE } from '@prisma/client';
 @Injectable()
 export class ResourcesService {
   constructor(private readonly resourcesRepo:ResourcesRepo){}
-  create(data: CreateResourceType, token:string) {
+  create(data: CreateResourceType, userId: string) {
     return  errorHandler(async()=>{
-      const newResource=await this.resourcesRepo.create(data, token)
+      const newResource=await this.resourcesRepo.create(data, userId)
 
       return {
         message:"Successfully created resource",

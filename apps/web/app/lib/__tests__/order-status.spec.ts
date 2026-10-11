@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { OrderItemView } from '~/interfaces/commerce';
-import { orderStatusMeta, orderTitle } from '~/lib/order-status';
+import { orderItemLink, orderNext, orderStatusMeta, orderTitle, topicOrderState } from '~/lib/order-status';
 
 const item = (overrides: Partial<OrderItemView>): OrderItemView => ({
   id: 'i1',
@@ -42,5 +42,75 @@ describe('orderTitle', () => {
 
   it('falls back safely when there are no items', () => {
     expect(orderTitle([])).toBe('Pesanan');
+  });
+});
+
+
+describe('orderItemLink', () => {
+  it('opens the article or class that was bought', () => {
+    expect(orderItemLink(item({ articleId: 'a1' }))).toBe('/marketplace/articles/a1');
+    expect(orderItemLink(item({ classId: 'c1' }))).toBe('/marketplace/classes/c1');
+  });
+
+  it('has no link for a topic item', () => {
+    expect(orderItemLink(item({ topicId: 't1' }))).toBeNull();
+  });
+});
+
+describe('orderNext', () => {
+  it('sends a pending order with a payment to the payment page', () => {
+    expect(orderNext({ id: 'o1', status: 'PENDING', payment: {} })).toEqual({ kind: 'pay', to: '/learn/orders/o1/pay', label: 'Lanjutkan pembayaran' });
+  });
+
+  it('says the proof is being verified once submitted', () => {
+    expect(orderNext({ id: 'o1', status: 'PAYMENT_SUBMITTED', payment: {} }).kind).toBe('verifying');
+  });
+
+  it('says access is open for a paid or fulfilled order', () => {
+    expect(orderNext({ id: 'o1', status: 'PAID', payment: null }).kind).toBe('open');
+    expect(orderNext({ id: 'o1', status: 'FULFILLED', payment: null }).kind).toBe('open');
+  });
+
+  it('treats everything else as closed, including a pending order without a payment', () => {
+    expect(orderNext({ id: 'o1', status: 'PENDING', payment: null }).kind).toBe('closed');
+    expect(orderNext({ id: 'o1', status: 'EXPIRED', payment: null }).kind).toBe('closed');
+    expect(orderNext({ id: 'o1', status: 'REFUNDED', payment: null }).kind).toBe('closed');
+  });
+});
+
+
+describe('topicOrderState', () => {
+  const order = (id: string, status: string, topicId: string | null, payment: unknown | null = {}) => ({
+    id,
+    status,
+    payment,
+    items: [{ topicId }],
+  });
+
+  it('is new when the user never ordered this topic', () => {
+    expect(topicOrderState([], 't1')).toEqual({ kind: 'new' });
+    expect(topicOrderState([order('o1', 'PENDING', 't2')], 't1')).toEqual({ kind: 'new' });
+  });
+
+  it('is owned once an order for the topic is paid or fulfilled', () => {
+    expect(topicOrderState([order('o1', 'FULFILLED', 't1')], 't1')).toEqual({ kind: 'owned', orderId: 'o1' });
+    expect(topicOrderState([order('o1', 'PAID', 't1', null)], 't1').kind).toBe('owned');
+  });
+
+  it('prefers owned over an older open order', () => {
+    const state = topicOrderState([order('o1', 'PENDING', 't1'), order('o2', 'PAID', 't1')], 't1');
+
+    expect(state).toEqual({ kind: 'owned', orderId: 'o2' });
+  });
+
+  it('continues an open order instead of creating a second one', () => {
+    expect(topicOrderState([order('o1', 'PENDING', 't1')], 't1')).toEqual({ kind: 'open', orderId: 'o1', next: 'pay' });
+    expect(topicOrderState([order('o1', 'PAYMENT_SUBMITTED', 't1')], 't1')).toEqual({ kind: 'open', orderId: 'o1', next: 'verify' });
+  });
+
+  it('ignores cancelled, expired and refunded orders', () => {
+    for (const status of ['CANCELLED', 'EXPIRED', 'FAILED', 'REFUNDED', 'REFUND_PENDING']) {
+      expect(topicOrderState([order('o1', status, 't1')], 't1')).toEqual({ kind: 'new' });
+    }
   });
 });

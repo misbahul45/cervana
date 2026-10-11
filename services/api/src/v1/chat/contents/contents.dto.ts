@@ -12,7 +12,10 @@ export const CreateContentDto = extendApi(
       .string()
       .describe("Main content data, e.g., markdown text, table, or structured JSON"),
     citations: z
-      .union([z.array(z.string()), z.record(z.string(), z.any())])
+      .union([
+        z.array(z.union([z.string(), z.record(z.string(), z.any())])),
+        z.record(z.string(), z.any()),
+      ])
       .optional()
       .describe("Optional citations or references for the content"),
     metadata: z

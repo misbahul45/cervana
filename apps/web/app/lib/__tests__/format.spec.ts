@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { formatDate, formatDateTime, formatMoney } from '~/lib/format';
+import { formatAmount, formatDate, formatDateTime, formatMoney } from '~/lib/format';
 
 describe('formatMoney', () => {
   it('formats decimal strings from the API as rupiah', () => {
@@ -29,5 +29,20 @@ describe('date formatting', () => {
   it('returns a dash for invalid dates', () => {
     expect(formatDateTime('nope')).toBe('-');
     expect(formatDate(null)).toBe('-');
+  });
+});
+
+
+describe('formatAmount', () => {
+  it('shows a zero balance as a real amount, never as free', () => {
+    expect(formatAmount(0)).toMatch(/Rp\s?0/);
+    expect(formatAmount('0.00')).toMatch(/Rp\s?0/);
+  });
+
+  it('formats positive and negative amounts and refuses to invent a number', () => {
+    expect(formatAmount('150000.00')).toMatch(/Rp\s?150\.000/);
+    expect(formatAmount(-5000)).toMatch(/5\.000/);
+    expect(formatAmount(null)).toBe('-');
+    expect(formatAmount('abc')).toBe('-');
   });
 });

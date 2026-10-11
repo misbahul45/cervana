@@ -1,158 +1,101 @@
-<template>
-  <section class="w-full pt-12 relative flex flex-col justify-center items-center h-screen overflow-hidden">
-    <div class="universe-bg absolute inset-0 -z-10"></div>
-    <Sunset/>
+<script setup lang="ts">
+import { reactive, ref, watch } from 'vue';
+import AuthAlert from '~/components/auth/AuthAlert.vue';
+import AuthField from '~/components/auth/AuthField.vue';
+import { useCooldown } from '~/composables/useCooldown';
+import { authMessage, fieldErrors } from '~/lib/auth-form';
+import { VerificationSchema } from '~/schemas';
+import { authService } from '~/services/auth';
 
-    <div class="w-full max-w-2xl mx-auto backdrop-blur-md rounded-lg p-8 shadow-lg relative z-10">
-      <h1 class="font-exo2 text-center mb-4 title font-bold">
-        Verifikasi OTP
-      </h1>
-      <p v-if="step === 1" class="md:text-base text-sm font-medium text-primary text-center">
-         Masukkan email kamu untuk memulai petualangan!
-      </p>
-
-      <p v-if="step === 2" class="text-sm md:text-base text-primary text-center">
-         Periksa kotak masuk email kamu untuk kode OTP rahasia!
-      </p>
-
-      <UForm :schema="VerificationSchema" :state="state" @submit="onSubmit" class="space-y-6 w-full mx-auto mt-8 p-6 rounded-lg shadow-xl border border-primary/30 bg-black/50">
-        <UFormField v-if="step === 1" label="Email" name="identifier" class="w-full">
-          <UInput
-            v-model="state.identifier"
-            type="email"
-            placeholder="Masukkan email kamu"
-            size="xl"
-            class="w-full"
-          />
-        </UFormField>
-
-        <div v-if="step === 2">
-          <UFormField label="Kode OTP" name="otp" class="w-full">
-            <UInput
-              v-model="state.otp"
-              type="text"
-              placeholder="Masukkan kode OTP"
-              size="xl"
-              class="w-full py-2"
-            />
-          </UFormField>
-          <p
-          v-if="responVerify?.message"
-          :class="['font-medium text-sm',responVerify.success?'text-primary':'text-red-500']"
-          >{{ responVerify?.message }}
-          </p>
-
-          <p class="text-sm text-gray-400 mt-1">
-            Tidak menerima OTP?
-            <button type="button" class="text-primary underline cursor-pointer" @click="resendOtp">
-              Kirim ulang OTP
-            </button>
-          </p>
-        </div>
-
-        <div class="flex justify-end">
-          <UButton
-            :type="step === 1 ? 'button' : 'submit'"
-            size="xl"
-            :ui="{
-              leadingIcon: loading?'text-gray-400':'text-primary' ,
-            }"
-            :loading="loading"
-            :disabled="loading"
-            color="neutral"
-            variant="outline"
-            :icon="step === 1 ? 'i-lucide-arrow-right' : 'i-lucide-check'"
-            :class="['py-2 font-semibold cursor-pointer flex items-center justify-center gap-2', loading ? 'cursor-not-allowed' : 'hover:bg-primary/10']"
-            @click="step === 1 && goToOtp()"
-          >
-            {{ loading ? 'Memverifikasi...' : (step === 1 ? 'Lanjut' : 'Verifikasi') }}
-          </UButton>
-        </div>
-      </UForm>
-    </div>
-    <DownStarAnimation />
-  </section>
-</template>
-
-<script lang="ts" setup>
-import type { FormSubmitEvent } from '@nuxt/ui'
-import { reactive, ref } from 'vue'
-import { VerificationSchema, type VerificationSchemaType } from '~/schemas'
-import { authService } from '~/services/auth'
-import DownStarAnimation from '~/components/ui/DownStarAnimation.vue'
-import { useApi } from '~/composable/useApi'
-import Sunset from '~/components/ui/Sunset.vue'
-const siteUrl = useRuntimeConfig().public.SITE_URL
+definePageMeta({
+  title: 'Verifikasi email | ReduCera',
+  protection: { kind: 'guest-only' },
+  layout: 'auth',
+});
 
 useHead({
-  title: 'Verify Your Email | ReduCera',
-  meta: [
-    {
-      name: 'description',
-      content:
-        'Confirm your email to activate your ReduCera account and unlock your path to the stars of knowledge.',
-    },
-    { name: 'keywords', content: 'ReduCera, verify email, activation, AI learning' },
-    { property: 'og:title', content: 'Verify Your Email | ReduCera' },
-    { property: 'og:description', content: 'Activate your ReduCera account and embark on your cosmic learning adventure.' },
-    { property: 'og:type', content: 'website' },
-    { property: 'og:url', content: `${siteUrl}/verify-email` },
-    { property: 'og:image', content: '/meta/og-verify-email.png' },
-    { name: 'twitter:card', content: 'summary_large_image' },
-    { name: 'twitter:title', content: 'Verify Your Email | ReduCera' },
-    { name: 'twitter:description', content: 'Activate your ReduCera account and embark on your cosmic learning adventure.' },
-    { name: 'twitter:image', content: '/meta/og-verify-email.png' },
-  ],
+  title: 'Verifikasi email | ReduCera',
+  meta: [{ name: 'description', content: 'Masukkan kode 6 angka dari emailmu untuk mengaktifkan akun ReduCera.' }],
   link: [{ rel: 'icon', type: 'image/png', href: '/favicon-32x32.png' }],
-})
+});
 
+const route = useRoute();
+const state = reactive({
+  identifier: typeof route.query.email === 'string' ? route.query.email : '',
+  otp: '',
+});
+const hasEmail = Boolean(state.identifier);
+const errors = ref<Record<string, string>>({});
+const message = ref('');
+const notice = ref('');
+const loading = ref(false);
+const cooldown = useCooldown(60);
 
-const router = useRouter()
-const step = ref(1)
-const toast = useToast()
+watch(
+  () => state.otp,
+  (value) => {
+    const digits = value.replace(/\D/g, '').slice(0, 6);
+    if (digits !== value) state.otp = digits;
+  },
+);
 
-const { call: callVerify, loading, respon: responVerify } = useApi(authService.verifyOtp)
-const resendAction = useApi(authService.resendOtp)
-const errorMessage = ref('')
+async function onSubmit() {
+  message.value = '';
+  notice.value = '';
+  errors.value = fieldErrors(VerificationSchema, state);
+  if (Object.keys(errors.value).length) return;
 
-const state = reactive<{
-  identifier: string
-  otp: string
-}>({
-  identifier: router.currentRoute.value.query.email as string || "",
-  otp: "",
-})
-
-watch(() => state.identifier, (newVal) => {
-  if (newVal) {
-    step.value = 2
+  loading.value = true;
+  try {
+    const result = await authService.verifyOtp({ ...state });
+    if (result.success) {
+      await navigateTo({ path: '/login', query: { verified: '1' } });
+      return;
+    }
+    message.value = authMessage(result.message, result.meta?.statusCode);
+  } finally {
+    loading.value = false;
   }
-}, { immediate: true })
-
-const goToOtp = () => {
-  if (!state.identifier) {
-    errorMessage.value = 'Silakan masukkan email terlebih dahulu'
-    return
-  }
-  step.value = 2
 }
 
-const onSubmit = async (event: FormSubmitEvent<VerificationSchemaType>) => {
-  await callVerify(event.data)
-}
+async function resend() {
+  if (cooldown.active.value) return;
+  message.value = '';
+  errors.value = fieldErrors(VerificationSchema.pick({ identifier: true }), state);
+  if (errors.value.identifier) return;
 
-watch(responVerify, (newVal) => {
-  if (newVal?.success) {
-    router.push('/login')
+  const result = await authService.resendOtp(state.identifier, 'email');
+  if (result.success) {
+    notice.value = 'Jika email terdaftar dan belum terverifikasi, kode baru sedang dikirim.';
+    cooldown.start();
+    return;
   }
-})
-
-const resendOtp = async () => {
-  resendAction.call(state.identifier, 'email')
-  toast.add({
-    title: 'OTP Dikirim Ulang',
-    icon: 'i-lucide-mail-check',
-    color: 'info'
-  })
+  message.value = authMessage(result.message, result.meta?.statusCode);
 }
 </script>
+
+<template>
+  <div class="rc-auth__panel">
+    <div class="rc-auth__head">
+      <h1 class="rc-auth__title">Verifikasi email</h1>
+      <p class="rc-auth__switch">
+        Sudah terverifikasi?
+        <NuxtLink to="/login">Masuk</NuxtLink>
+      </p>
+    </div>
+    <p class="rc-auth__lead">
+      <template v-if="hasEmail">Masukkan kode 6 angka yang dikirim ke {{ state.identifier }}. Kode berlaku 15 menit.</template>
+      <template v-else>Masukkan email akunmu dan kode 6 angka dari emailmu.</template>
+    </p>
+    <form class="rc-auth__form" novalidate @submit.prevent="onSubmit">
+      <AuthField v-if="!hasEmail" id="verify-email" v-model="state.identifier" label="Email" type="email" autocomplete="email" inputmode="email" :error="errors.identifier" :disabled="loading" />
+      <AuthField id="verify-otp" v-model="state.otp" label="Kode 6 angka" autocomplete="one-time-code" inputmode="numeric" :maxlength="6" :error="errors.otp" :disabled="loading" />
+      <AuthAlert :message="notice" tone="success" />
+      <AuthAlert :message="message" tone="error" />
+      <PlayButton type="submit" block :loading="loading">Verifikasi</PlayButton>
+      <button type="button" class="rc-auth__linkbtn" :disabled="cooldown.active.value" @click="resend">
+        {{ cooldown.active.value ? `Kirim ulang kode (${cooldown.remaining.value} dtk)` : 'Kirim ulang kode' }}
+      </button>
+    </form>
+  </div>
+</template>

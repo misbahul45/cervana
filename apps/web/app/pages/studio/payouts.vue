@@ -1,13 +1,23 @@
 <script setup lang="ts">
+import PageHeader from '~/components/play/PageHeader.vue';
+import PlayButton from '~/components/play/PlayButton.vue';
+import PlayCard from '~/components/play/PlayCard.vue';
+import EmptyState from '~/components/ui/EmptyState.vue';
+import ErrorState from '~/components/ui/ErrorState.vue';
+import LoadingSkeleton from '~/components/ui/LoadingSkeleton.vue';
+import StatusBadge from '~/components/ui/StatusBadge.vue';
+import { statusMeta } from '~/lib/admin';
 import { payoutApi, walletApi } from '~/lib/api';
 import { describeApiError } from '~/lib/api-error';
-import { formatDate, formatMoney } from '~/lib/format';
+import { formatAmount, formatDate } from '~/lib/format';
 
 definePageMeta({
   title: 'Pencairan — ReduCera Studio',
   protection: { kind: 'tenant-role', tenantRoles: ['OWNER', 'MANAGER'] },
   layout: 'studio',
 });
+
+useHead({ title: 'Pencairan — ReduCera Studio' });
 
 const { data: overview, status, error, refresh } = useAsyncData(
   'studio:payouts',
@@ -26,15 +36,6 @@ const requesting = ref(false);
 const requestError = ref<string | null>(null);
 const requested = ref(false);
 const idempotency = useIdempotencyKey();
-
-const STATUS_META: Record<string, { label: string; tone: 'info' | 'success' | 'warning' | 'error' | 'neutral' }> = {
-  REQUESTED: { label: 'Diajukan', tone: 'warning' },
-  UNDER_REVIEW: { label: 'Ditinjau', tone: 'info' },
-  APPROVED: { label: 'Disetujui', tone: 'info' },
-  PAID: { label: 'Dibayar', tone: 'success' },
-  REJECTED: { label: 'Ditolak', tone: 'error' },
-  CANCELLED: { label: 'Dibatalkan', tone: 'neutral' },
-};
 
 async function request() {
   if (requesting.value) return;
@@ -70,132 +71,65 @@ async function request() {
 </script>
 
 <template>
-  <main id="main" aria-labelledby="payouts-h">
-    <h1 id="payouts-h">Pencairan</h1>
+  <div class="rc-stack">
+    <PageHeader title="Pencairan" subtitle="Ajukan pencairan saldo ke rekeningmu. Admin meninjau lalu mentransfer." />
 
     <LoadingSkeleton v-if="status === 'pending'" variant="panel" :count="2" />
-    <ErrorState
-      v-else-if="error || !overview"
-      title="Gagal memuat pencairan"
-      :message="describeApiError(error)"
-      @retry="refresh()"
-    />
-    <template v-else>
-      <p v-if="overview.wallet">
-        Saldo yang dapat dicairkan:
-        <strong>{{ formatMoney(overview.wallet.balance, overview.wallet.currency) }}</strong>
-      </p>
-      <p v-else>Dompet Anda belum memiliki saldo.</p>
+    <ErrorState v-else-if="error || !overview" title="Gagal memuat pencairan" :message="describeApiError(error)" @retry="refresh()" />
 
-      <section class="rc-payouts__form" aria-labelledby="request-h">
-        <h2 id="request-h">Ajukan pencairan</h2>
-        <form @submit.prevent="request">
-          <label>
-            Jumlah (Rp)
-            <input v-model.number="amount" class="rc-field" type="number" min="1" step="1" required />
-          </label>
-          <label>
-            Bank
-            <input v-model="bankName" class="rc-field" type="text" minlength="2" maxlength="80" required />
-          </label>
-          <label>
-            Nomor rekening
-            <input v-model="accountNumber" class="rc-field" type="text" inputmode="numeric" minlength="3" maxlength="40" required />
-          </label>
-          <label>
-            Nama pemilik rekening
-            <input v-model="accountName" class="rc-field" type="text" minlength="2" maxlength="120" required />
-          </label>
-          <button type="submit" class="rc-btn" :disabled="requesting">
-            {{ requesting ? 'Mengirim...' : 'Ajukan' }}
-          </button>
+    <template v-else>
+      <ul class="rc-studio-stats" aria-label="Saldo">
+        <li class="rc-card">
+          <span class="rc-hint">Saldo yang dapat dicairkan</span>
+          <strong>{{ overview.wallet ? formatAmount(overview.wallet.balance, overview.wallet.currency) : formatAmount(0) }}</strong>
+        </li>
+      </ul>
+
+      <PlayCard as="section" aria-labelledby="request-h">
+        <h2 id="request-h" class="rc-h2">Ajukan pencairan</h2>
+        <form class="rc-studio-form" novalidate @submit.prevent="request">
+          <div class="rc-studio-form__row">
+            <label class="rc-label">
+              Jumlah (Rp)
+              <input v-model.number="amount" class="rc-field" type="number" min="1" step="1" required />
+            </label>
+            <label class="rc-label">
+              Bank
+              <input v-model="bankName" class="rc-field" type="text" minlength="2" maxlength="80" required />
+            </label>
+            <label class="rc-label">
+              Nomor rekening
+              <input v-model="accountNumber" class="rc-field" type="text" inputmode="numeric" minlength="3" maxlength="40" required />
+            </label>
+            <label class="rc-label">
+              Nama pemilik rekening
+              <input v-model="accountName" class="rc-field" type="text" minlength="2" maxlength="120" required />
+            </label>
+          </div>
+          <p v-if="requested" class="rc-alert rc-alert--success" role="status">Pengajuan pencairan diterima dan menunggu peninjauan.</p>
+          <p v-if="requestError" class="rc-alert rc-alert--error" role="alert">{{ requestError }}</p>
+          <div class="rc-actions">
+            <PlayButton type="submit" :loading="requesting">Ajukan pencairan</PlayButton>
+          </div>
         </form>
-        <p v-if="requested" role="status">Pengajuan pencairan diterima dan menunggu peninjauan.</p>
-        <p v-if="requestError" role="alert">{{ requestError }}</p>
-      </section>
+      </PlayCard>
 
       <section aria-labelledby="history-h">
-        <h2 id="history-h">Riwayat pencairan</h2>
-        <ul v-if="overview.payouts.length" class="rc-payouts__list">
-          <li v-for="p in overview.payouts" :key="p.id" class="rc-payouts__item">
-            <header>
-              <div>
-                <p class="rc-payouts__date">{{ formatDate(p.requestedAt) }}</p>
-                <p class="rc-payouts__amount">{{ formatMoney(p.amount) }}</p>
-                <p v-if="p.destinationInfo" class="rc-payouts__destination">
-                  ke {{ p.destinationInfo.bankName }} · {{ p.destinationInfo.accountNumber }}
-                </p>
-              </div>
-              <StatusBadge
-                :tone="STATUS_META[p.status]?.tone ?? 'neutral'"
-                :label="STATUS_META[p.status]?.label ?? p.status"
-              />
-            </header>
-            <p v-if="p.status === 'REJECTED' && p.rejectionReason" class="rc-payouts__reason">
-              Catatan: {{ p.rejectionReason }}
-            </p>
+        <h2 id="history-h" class="rc-h2">Riwayat pencairan</h2>
+        <ul v-if="overview.payouts.length" class="rc-studio-list" aria-label="Riwayat pencairan">
+          <li v-for="payout in overview.payouts" :key="payout.id" class="rc-card">
+            <div class="rc-studio-list__main">
+              <p class="rc-studio-list__title">{{ formatAmount(payout.amount) }}</p>
+              <p class="rc-hint">
+                {{ formatDate(payout.requestedAt) }}<template v-if="payout.destinationInfo"> · {{ payout.destinationInfo.bankName }} {{ payout.destinationInfo.accountNumber }}</template>
+              </p>
+              <p v-if="payout.status === 'REJECTED' && payout.rejectionReason" class="rc-error-text">Catatan: {{ payout.rejectionReason }}</p>
+            </div>
+            <StatusBadge :tone="statusMeta('payout', payout.status).tone" :label="statusMeta('payout', payout.status).label" />
           </li>
         </ul>
-        <EmptyState v-else title="Belum ada pencairan" message="Pencairan akan muncul di sini setelah Anda mengajukannya." />
+        <EmptyState v-else title="Belum ada pencairan" message="Pencairan akan muncul di sini setelah kamu mengajukannya." />
       </section>
     </template>
-  </main>
+  </div>
 </template>
-
-<style scoped>
-.rc-payouts__form { margin-bottom: 1.5rem; }
-.rc-payouts__form form {
-  display: flex;
-  gap: 0.5rem;
-  align-items: flex-end;
-}
-.rc-payouts__form label {
-  display: flex;
-  flex-direction: column;
-  font-size: 0.875rem;
-  color: var(--ui-text-muted);
-}
-.rc-payouts__form input {
-  padding: 0.5rem;
-  border-radius: 0.5rem;
-  border: 1px solid var(--ui-border, rgba(0, 0, 0, 0.15));
-}
-.rc-payouts__form button {
-  padding: 0.625rem 1.25rem;
-  border-radius: 0.625rem;
-  background: var(--ui-primary, #2563eb);
-  color: var(--ui-primary-fg, white);
-  border: 0;
-  font-weight: 600;
-  cursor: pointer;
-}
-.rc-payouts__form button:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-.rc-payouts__list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: grid;
-  gap: 0.5rem;
-}
-.rc-payouts__item {
-  padding: 0.875rem 1rem;
-  border-radius: 0.5rem;
-  border: 1px solid var(--ui-border, rgba(0, 0, 0, 0.08));
-  background: var(--ui-bg, white);
-}
-.rc-payouts__item header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-}
-.rc-payouts__date {
-  font-size: 0.75rem;
-  color: var(--ui-text-muted);
-}
-.rc-payouts__amount { font-weight: 700; font-size: 1.125rem; }
-.rc-payouts__destination { font-size: 0.75rem; color: var(--ui-text-muted); }
-.rc-payouts__reason { font-size: 0.875rem; color: #b91c1c; margin-top: 0.5rem; }
-</style>

@@ -1,0 +1,134 @@
+{
+  "slug": "reducera-play",
+  "title": "Play",
+  "description": "Belajar sebagai permainan yang jujur: jalur pendek, umpan balik cepat, hadiah hanya untuk pemahaman yang terbukti.",
+  "primary": "#2F7D00",
+  "secondary": "#1D6FB8",
+  "tertiary": "#FFC800",
+  "quaternary": "#E8F7DC",
+  "mood": [
+    "playful",
+    "encouraging",
+    "clear"
+  ],
+  "tokens": {
+    "light": {
+      "bg": "#FFFFFF",
+      "surface": "#FFFFFF",
+      "fg": "#3C3C3C",
+      "muted": "#6B6B6B",
+      "border": "#E5E5E5",
+      "borderStrong": "#8A8A8A",
+      "primary": "#2F7D00",
+      "primaryFg": "#FFFFFF",
+      "secondary": "#1D6FB8",
+      "secondaryFg": "#FFFFFF",
+      "accent": "#B85C00",
+      "focus": "#1D6FB8",
+      "foam": "#F7F7F7",
+      "sand": "#FFF4D6",
+      "success": "#58CC02",
+      "danger": "#D92D2D",
+      "warning": "#FF9600",
+      "info": "#1CB0F6",
+      "gold": "#FFC800",
+      "flame": "#FF9600",
+      "primaryDepth": "#1F5A00",
+      "secondaryDepth": "#124F86",
+      "dangerDepth": "#A31F1F",
+      "goldDepth": "#C79A00"
+    },
+    "dark": {
+      "bg": "#131F24",
+      "surface": "#1F2C33",
+      "fg": "#F1F7FA",
+      "muted": "#9FB0B8",
+      "border": "#37464F",
+      "borderStrong": "#6B7F89",
+      "primary": "#58CC02",
+      "primaryFg": "#0B2B00",
+      "secondary": "#49C0F8",
+      "secondaryFg": "#06202E",
+      "accent": "#FFB020",
+      "focus": "#49C0F8",
+      "foam": "#18262D",
+      "sand": "#3A3320",
+      "success": "#58CC02",
+      "danger": "#FF6B6B",
+      "warning": "#FFB020",
+      "info": "#49C0F8",
+      "gold": "#FFC800",
+      "flame": "#FF9600",
+      "primaryDepth": "#3E9A00",
+      "secondaryDepth": "#2D8FC4",
+      "dangerDepth": "#C93D3D",
+      "goldDepth": "#C79A00"
+    },
+    "shape": {
+      "radius": 16,
+      "depth": 4
+    }
+  },
+  "atmosphere": {
+    "particles": {
+      "enabled": false,
+      "density": 0
+    },
+    "motion": {
+      "intensity": 0.3
+    },
+    "lighting": {
+      "intensity": 0.4
+    },
+    "waves": false,
+    "caustics": false
+  },
+  "variants": {
+    "PRACTICE": {
+      "atmosphere": {
+        "motion": {
+          "intensity": 0.2
+        },
+        "lighting": {
+          "intensity": 0.3
+        }
+      }
+    },
+    "CHALLENGE": {
+      "atmosphere": {
+        "motion": {
+          "intensity": 0.1
+        },
+        "lighting": {
+          "intensity": 0.2
+        }
+      },
+      "tokens": {
+        "light": {
+          "muted": "#555555",
+          "borderStrong": "#6E6E6E"
+        },
+        "dark": {
+          "muted": "#C2D0D6",
+          "borderStrong": "#8FA3AD"
+        }
+      }
+    },
+    "EXAM": {
+      "atmosphere": {
+        "particles": {
+          "enabled": false,
+          "density": 0
+        },
+        "motion": {
+          "intensity": 0
+        },
+        "lighting": {
+          "intensity": 0
+        },
+        "waves": false,
+        "caustics": false
+      }
+    }
+  }
+}

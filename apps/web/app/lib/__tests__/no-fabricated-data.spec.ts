@@ -22,11 +22,10 @@ function vueFiles(dir: string): string[] {
 const files = [...vueFiles(join(APP_ROOT, 'pages')), ...vueFiles(join(APP_ROOT, 'components')), ...vueFiles(join(APP_ROOT, 'layouts'))];
 
 describe('pages never present invented data as real', () => {
-  it('flags every page backed by a literal fixture with a preview notice', () => {
+  it('has no page or component backed by a literal fixture', () => {
     const offenders = files
       .map((file) => ({ file, source: readFileSync(file, 'utf8') }))
       .filter(({ source }) => LITERAL_QUERY.test(source) || LITERAL_PROMISE.test(source))
-      .filter(({ source }) => !source.includes('<PreviewNotice'))
       .map(({ file }) => relative(APP_ROOT, file));
 
     expect(offenders).toEqual([]);

@@ -1,114 +1,156 @@
-<template>
-  <div class="relative" @mousemove="handleMove">
-    <div
-      class="absolute inset-0 pointer-events-none transition-all duration-300"
-      :style="{
-        background: `radial-gradient(400px circle at ${mouseX}px ${mouseY}px, rgba(0,41,102,0.25), transparent 80%)`
-      }"
-    ></div>
-
-    <div
-      v-if="isLoading && topics.length === 0"
-      class="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4 space-y-1 sm:space-y-3 md:space-y-4 relative z-10"
-    >
-      <div
-        v-for="n in count"
-        :key="n"
-        class="break-inside-avoid mb-1 sm:mb-3 md:mb-4 rounded-2xl bg-slate-800/20 border border-slate-700/30 shadow-md overflow-hidden animate-pulse"
-        :class="`h-${randomHeights[n % randomHeights.length]}`"
-      >
-        <div
-          :class="`w-full md:h-${randomHeights[n % randomHeights.length]} sm:h-40 h-32 bg-slate-700/30`"
-        ></div>
-        <div class="p-4 space-y-2">
-          <div class="h-4 bg-slate-700/30 rounded w-3/4"></div>
-          <div class="h-3 bg-slate-700/20 rounded w-1/2"></div>
-        </div>
-      </div>
-    </div>
-
-    <div class="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-1 sm:gap-3 md:gap-4 relative z-10">
-      <div
-        v-for="(value, index) in topics"
-        :key="value.id"
-        class="b"
-      >
-        <TopicCard v-bind="value" :index="index" :is-loading="isLoading" />
-      </div>
-      <div ref="bottomRef" class="h-10 w-full"></div>
-    </div>
-
-    <div v-if="isFetchingNextPage" class="text-center py-4 text-slate-400">
-      Memuat topik berikutnya...
-    </div>
-  </div>
-</template>
-
 <script setup lang="ts">
-import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
-import { useInfiniteQuery } from '@tanstack/vue-query'
-import { topicsService } from '~/services/curriculum/topics'
-import type { TopicDetailResponse, TopicsListResponse } from '~/interfaces/curriculum/topics'
-import TopicCard from './TopicCard.vue'
+import { useInfiniteQuery } from '@tanstack/vue-query';
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
+import TopicCard from '~/components/topics/TopicCard.vue';
+import EmptyState from '~/components/ui/EmptyState.vue';
+import ErrorState from '~/components/ui/ErrorState.vue';
+import type { TopicDetailResponse } from '~/interfaces/curriculum/topics';
+import { filterByCategory, listFromResponse } from '~/lib/topics';
+import { topicsService } from '~/services/curriculum/topics';
 
-const mouseX = ref(0)
-const mouseY = ref(0)
-const route = useRoute()
-const limit = ref(Number(route.query.limit) || 10)
+const props = withDefaults(defineProps<{ category?: string | null; heading?: string; exclude?: string }>(), {
+  category: null,
+  heading: 'Semua topik',
+  exclude: undefined,
+});
 
-const handleMove = (e: MouseEvent) => {
-  const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
-  mouseX.value = e.clientX - rect.left
-  mouseY.value = e.clientY - rect.top
-}
+const route = useRoute();
+const limit = Number(route.query.limit) > 0 ? Number(route.query.limit) : 12;
+const SKELETON_COUNT = 6;
 
-const count = 10
-const randomHeights = Array.from({ length: count }, () =>
-  Math.floor(Math.random() * 20) + 36
-)
-
-const { data, fetchNextPage, isFetchingNextPage, hasNextPage, isLoading } = useInfiniteQuery({
-  queryKey: ['topics', limit],
-  queryFn: async ({ pageParam = 1 }) => {
-    return await topicsService.findAll({ page: pageParam, limit: limit.value })
-  },
-  getNextPageParam: (lastPage) => {
-    const meta = lastPage?.data?.pagination
-    if (!meta || meta.page === undefined || meta.totalPages === undefined) return undefined
-    const nextPage = meta.page + 1
-    return nextPage <= meta.totalPages ? nextPage : undefined
-  },
+const { data, fetchNextPage, isFetchingNextPage, hasNextPage, isLoading, isError, refetch } = useInfiniteQuery({
+  queryKey: ['topics', 'list', limit],
   initialPageParam: 1,
-})
+  queryFn: ({ pageParam }) => topicsService.findAll<true>({ include: 'categories', page: pageParam, limit }),
+  getNextPageParam: (last) => {
+    const pagination = last?.data?.pagination;
+    if (!pagination || pagination.page === undefined || pagination.totalPages === undefined) return undefined;
+    return pagination.page < pagination.totalPages ? pagination.page + 1 : undefined;
+  },
+});
 
-const topics = computed<TopicDetailResponse<true>[]>(() => {
-  const pages = data.value?.pages || []
-  return pages.flatMap((page) => {
-    const d = page.data
-    if (Array.isArray(d)) return d as TopicDetailResponse<true>[]
-    const innerData = (d as TopicsListResponse<true> | null | undefined)?.data
-    if (Array.isArray(innerData)) return innerData as TopicDetailResponse<true>[]
-    return []
-  })
-})
+const allTopics = computed(() => {
+  const seen = new Set<string>();
+  const result: TopicDetailResponse<true>[] = [];
+  for (const page of data.value?.pages ?? []) {
+    for (const topic of listFromResponse<TopicDetailResponse<true>>(page?.data)) {
+      if (seen.has(topic.id)) continue;
+      seen.add(topic.id);
+      result.push(topic);
+    }
+  }
+  return result;
+});
 
-const bottomRef = ref<HTMLElement | null>(null)
-let observer: IntersectionObserver | null = null
+const topics = computed(() =>
+  filterByCategory(allTopics.value, props.category).filter((topic) => topic.id !== props.exclude),
+);
+
+const loadMore = () => {
+  if (hasNextPage.value && !isFetchingNextPage.value) fetchNextPage();
+};
+
+watch([topics, hasNextPage, isFetchingNextPage], () => {
+  if (props.category && topics.value.length === 0) loadMore();
+});
+
+const sentinel = ref<HTMLElement | null>(null);
+let observer: IntersectionObserver | null = null;
 
 onMounted(() => {
   observer = new IntersectionObserver(
     (entries) => {
-      const entry = entries?.[0]
-      if (entry && entry.isIntersecting && hasNextPage.value && !isFetchingNextPage.value) {
-        fetchNextPage()
-      }
+      if (entries.some((entry) => entry.isIntersecting)) loadMore();
     },
-    { threshold: 1 }
-  )
-  if (bottomRef.value) observer.observe(bottomRef.value)
-})
+    { rootMargin: '400px 0px' },
+  );
+  if (sentinel.value) observer.observe(sentinel.value);
+});
 
 onBeforeUnmount(() => {
-  if (observer && bottomRef.value) observer.unobserve(bottomRef.value)
-})
+  observer?.disconnect();
+  observer = null;
+});
 </script>
+
+<template>
+  <section class="rc-topics" aria-labelledby="topics-heading">
+    <h2 id="topics-heading" class="rc-topics__heading">{{ category ? category : heading }}</h2>
+
+    <div v-if="isLoading" class="rc-topics__grid" aria-hidden="true">
+      <div v-for="n in SKELETON_COUNT" :key="n" class="rc-card rc-topics__skel">
+        <div class="rc-skel rc-topics__skel-cover"></div>
+        <div class="rc-topics__skel-body">
+          <div class="rc-skel rc-skel--line rc-skel--w80"></div>
+          <div class="rc-skel rc-skel--line rc-skel--w60"></div>
+          <div class="rc-skel rc-skel--button"></div>
+        </div>
+      </div>
+    </div>
+
+    <ErrorState v-else-if="isError && !topics.length" title="Topik belum bisa dimuat" message="Periksa koneksimu lalu coba lagi." @retry="refetch()" />
+
+    <EmptyState
+      v-else-if="!topics.length && !hasNextPage"
+      icon-name="i-lucide-book-open"
+      :title="category ? `Belum ada topik ${category}` : 'Belum ada topik'"
+      :message="category ? 'Coba kategori lain atau lihat semua topik.' : 'Topik akan muncul di sini begitu tersedia.'"
+    />
+
+    <ul v-else class="rc-topics__grid">
+      <li v-for="topic in topics" :key="topic.id" class="rc-topics__cell">
+        <TopicCard :topic="topic" />
+      </li>
+    </ul>
+
+    <div ref="sentinel" class="rc-topics__sentinel" aria-hidden="true"></div>
+
+    <div v-if="hasNextPage && topics.length" class="rc-topics__more">
+      <PlayButton variant="outline" :loading="isFetchingNextPage" @click="loadMore">Muat lebih banyak</PlayButton>
+    </div>
+  </section>
+</template>
+
+<style>
+.rc-topics {
+  display: grid;
+  gap: 1rem;
+  min-width: 0;
+}
+.rc-topics__heading {
+  margin: 0;
+  font-size: 1.375rem;
+}
+.rc-topics__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 16rem), 1fr));
+  gap: 1rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.rc-topics__cell {
+  min-width: 0;
+}
+.rc-topics__skel {
+  display: grid;
+  padding: 0;
+  overflow: hidden;
+}
+.rc-topics__skel-cover {
+  aspect-ratio: 16 / 10;
+  border-radius: 0;
+}
+.rc-topics__skel-body {
+  display: grid;
+  gap: 0.75rem;
+  padding: 1rem;
+}
+.rc-topics__sentinel {
+  height: 1px;
+}
+.rc-topics__more {
+  display: flex;
+  justify-content: center;
+}
+</style>

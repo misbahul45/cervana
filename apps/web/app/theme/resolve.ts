@@ -3,11 +3,12 @@ import type {
   NormalizedTheme,
   RawTheme,
   ThemeAtmosphere,
+  ThemeShape,
   ThemeTokens,
   ThemeVariant,
   ThemeVariantKey,
 } from './types';
-import { mergeTokens } from './normalize';
+import { DEFAULT_SHAPE, mergeTokens } from './normalize';
 
 export interface ResolveThemeInput {
   chain: ReadonlyArray<RawTheme | null | undefined>;
@@ -20,6 +21,7 @@ export interface ResolveThemeInput {
 export interface ResolvedTheme {
   tokens: ThemeTokens;
   atmosphere: ThemeAtmosphere;
+  shape: ThemeShape;
   meta: {
     slug: string;
     title: string;
@@ -74,6 +76,7 @@ export function resolveTheme(input: ResolveThemeInput): ResolvedTheme {
     return {
       tokens: mergedTokens,
       atmosphere,
+      shape: candidate.shape ?? { ...DEFAULT_SHAPE },
       meta: {
         slug: candidate.slug,
         title: candidate.title,
@@ -98,6 +101,7 @@ export function resolveTheme(input: ResolveThemeInput): ResolvedTheme {
   return {
     tokens: fallbackTokens,
     atmosphere: fallbackAtmosphere,
+    shape: input.fallback.shape ?? { ...DEFAULT_SHAPE },
     meta: {
       slug: input.fallback.slug,
       title: input.fallback.title,

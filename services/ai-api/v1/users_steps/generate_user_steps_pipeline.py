@@ -9,7 +9,8 @@ from langchain_core.messages import HumanMessage, SystemMessage
 from langgraph.graph import END, START, StateGraph
 
 from config.agent_session import AgentSession, session_payload_is_safe
-from config.embedding_pipeline import get_embedding_pipeline
+from config.llm_output import json_validator, parse_json_object
+from config.model_router import get_router
 from errors.types import CrossServiceError, MemoryError, RetrievalError
 from utils.tools.memory import tool_memory_read, tool_memory_upsert, tool_semantic_search
 from utils.tools.web_search import tool_web_search
@@ -25,7 +26,6 @@ from v1.users_steps.service import (
 
 
 logger = logging.getLogger(__name__)
-embed_pipeline = get_embedding_pipeline()
 
 
 def _session(state: LPState) -> AgentSession:
@@ -140,8 +140,8 @@ def node_read_memory(state: LPState) -> LPState:
 def node_semantic_search(state: LPState) -> LPState:
     try:
         results = tool_semantic_search(
-            user_id=state.user_id,
-            lesson_id=state.lesson_id,
+            userId=state.user_id,
+            lessonId=state.lesson_id,
         )
     except RetrievalError as exc:
         logger.warning("[SEMANTIC] search failed: %s", exc.message)
@@ -228,15 +228,13 @@ NO commentary, NO markdown.
     user_msg = HumanMessage(content=prompt)
 
     try:
-        response = embed_pipeline.llm.invoke([system_msg, user_msg])
-        content = response.content.strip()
-
-        if content.startswith("```"):
-            lines = content.split("\n")
-            json_lines = [l for l in lines if not l.strip().startswith("```")]
-            content = "\n".join(json_lines).strip()
-
-        data = _json.loads(content)
+        routed = get_router().invoke(
+            "personality_quiz",
+            [system_msg, user_msg],
+            validator=json_validator(),
+            subject=state.acting_user_id or "",
+        )
+        data = parse_json_object(routed.text)
 
         strengths = data.get("strengths") or ["Rasa ingin tahu tinggi"]
         weaknesses = data.get("weaknesses") or ["Perlu meningkatkan konsistensi belajar"]
@@ -356,26 +354,20 @@ RETURN NOW: JSON ONLY
     user_msg = HumanMessage(content=prompt)
 
     try:
-        response = embed_pipeline.llm_thinking.invoke([system_msg, user_msg])
-        text = response.content.strip()
-
-        if text.startswith("```"):
-            lines = text.split("\n")
-            json_lines = [l for l in lines if not l.strip().startswith("```")]
-            text = "\n".join(json_lines).strip()
-
-        text = text.replace("```json", "").replace("```", "").strip()
-        import json as _json
-
-        payload = _json.loads(text)
-        validated = GenerateUserStepRespon(**payload)
+        routed = get_router().invoke(
+            "path_planning",
+            [system_msg, user_msg],
+            validator=json_validator(GenerateUserStepRespon),
+            subject=state.acting_user_id or "",
+        )
+        validated = GenerateUserStepRespon(**parse_json_object(routed.text))
         state.generated = validated
 
         summary = " | ".join([s.title for s in validated.data])
         try:
             tool_memory_upsert(
-                user_id=state.user_id,
-                lesson_id=state.lesson_id,
+                userId=state.user_id,
+                lessonId=state.lesson_id,
                 text=summary,
             )
         except MemoryError as exc:
@@ -393,6 +385,7 @@ RETURN NOW: JSON ONLY
                     step_template_id=state.target_step.id if state.target_step else None,
                     title=f"Mulai dari pemahaman dasar: {fallback_title}",
                     is_done=False,
+                    order=1,
                 )
             ]
         )

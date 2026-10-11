@@ -5,6 +5,17 @@ import MappingTopics from '~/components/topics/MappingTopics.vue';
 
 const siteUrl = useRuntimeConfig().public.SITE_URL
 
+const router = useRouter();
+const route = useRoute();
+
+const category = computed<string | null>({
+  get: () => (typeof route.query.kategori === 'string' && route.query.kategori.trim() ? route.query.kategori : null),
+  set: (value) => {
+    const { kategori: _removed, ...rest } = route.query;
+    router.replace({ query: value ? { ...rest, kategori: value } : rest });
+  },
+});
+
 useHead({
   title: 'Topik Akuntansi | ReduCera',
   meta: [
@@ -42,9 +53,10 @@ useHead({
 </script>
 
 <template>
-<div class="relative space-y-10 md:space-y-8 pb-10 overflow-hidden">
-  <BannerTopics />
-  <MappingCategories />
-  <MappingTopics />
-</div>
+  <div class="rc-stack rc-topics-page">
+    <PageHeader title="Topik" subtitle="Pilih topik, kerjakan penilaiannya, dan kumpulkan bukti belajarmu." />
+    <BannerTopics />
+    <MappingCategories v-model="category" />
+    <MappingTopics :category="category" />
+  </div>
 </template>

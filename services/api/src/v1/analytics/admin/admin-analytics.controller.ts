@@ -32,20 +32,27 @@ export class AdminAnalyticsController {
     };
   }
 
-  @Get('top-topics')
+  @Get('top-concepts')
   @Roles(Role.ADMIN, Role.REVIEWER)
-  async topTopics() {
-    const mastery = await this.prisma.topicMasteryRecord.groupBy({
-      by: ['topicId'],
+  async topConcepts() {
+    const grouped = await this.prisma.conceptMastery.groupBy({
+      by: ['conceptId'],
+      where: { evidenceCount: { gt: 0 }, concept: { status: 'ACTIVE' } },
       _count: { _all: true },
       _avg: { score: true },
-      orderBy: { _count: { topicId: 'desc' } },
+      orderBy: { _count: { conceptId: 'desc' } },
       take: 10,
     });
-    return mastery.map((m) => ({
-      topicId: m.topicId,
-      learners: m._count._all,
-      avgScore: Number(m._avg.score ?? 0),
+    const concepts = await this.prisma.concept.findMany({
+      where: { id: { in: grouped.map((g) => g.conceptId) } },
+      select: { id: true, title: true },
+    });
+    const titles = new Map(concepts.map((c) => [c.id, c.title]));
+    return grouped.map((g) => ({
+      conceptId: g.conceptId,
+      title: titles.get(g.conceptId) ?? g.conceptId,
+      learners: g._count._all,
+      avgScore: Number(g._avg.score ?? 0),
     }));
   }
 }

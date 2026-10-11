@@ -1,54 +1,77 @@
 <script setup lang="ts">
+import PageHeader from '~/components/play/PageHeader.vue';
+import EmptyState from '~/components/ui/EmptyState.vue';
+import ErrorState from '~/components/ui/ErrorState.vue';
+import LoadingSkeleton from '~/components/ui/LoadingSkeleton.vue';
 import { analyticsApi } from '~/lib/api';
+import { describeApiError } from '~/lib/api-error';
+import { formatAmount, formatDate } from '~/lib/format';
+import { orderStatusMeta } from '~/lib/order-status';
 
-const data = ref<{ metrics: any[]; recentOrders: any[]; refundCount: number } | null>(null);
-try {
-  data.value = (await analyticsApi.creatorMe()) ?? null;
-} catch {
-  data.value = null;
-}
+definePageMeta({
+  title: 'Analitik — ReduCera Studio',
+  protection: { kind: 'tenant-role', tenantRoles: ['OWNER', 'MANAGER', 'TEACHER', 'EDITOR'] },
+  layout: 'studio',
+});
 
-useHead({ title: 'Analitik Kreator — Studio ReduCera' });
+useHead({ title: 'Analitik — ReduCera Studio' });
+
+const { data, status, error, refresh } = useAsyncData('studio:analytics', () => analyticsApi.creatorMe(), { lazy: true });
 </script>
 
 <template>
-  <main>
-    <h1>Analitik Kreator</h1>
-    <section v-if="data">
-      <h2>Ringkasan</h2>
-      <p>Jumlah pesanan: {{ data.recentOrders.length }}</p>
-      <p>Refund diajukan: {{ data.refundCount }}</p>
+  <div class="rc-stack">
+    <PageHeader title="Analitik" subtitle="Penjualan dan pesanan terbaru dari karyamu." />
 
-      <h2>Metrics</h2>
-      <table v-if="data.metrics.length">
-        <thead>
-          <tr>
-            <th>Window</th>
-            <th>Sales</th>
-            <th>Completion</th>
-            <th>Satisfaction</th>
-            <th>Revenue</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="m in data.metrics" :key="m.id">
-            <td>{{ m.windowStart }} → {{ m.windowEnd }}</td>
-            <td>{{ m.salesCount }}</td>
-            <td>{{ m.completionRate }}</td>
-            <td>{{ m.satisfaction }}</td>
-            <td>{{ m.totalRevenue }}</td>
-          </tr>
-        </tbody>
-      </table>
-      <p v-else>Belum ada metrics (jalankan snapshot job terlebih dahulu).</p>
+    <LoadingSkeleton v-if="status === 'pending'" variant="panel" :count="2" />
+    <ErrorState v-else-if="error || !data" title="Gagal memuat analitik" :message="describeApiError(error)" @retry="refresh()" />
 
-      <h2>Pesanan Terbaru</h2>
-      <ul>
-        <li v-for="o in data.recentOrders" :key="o.id">
-          {{ o.id }} — {{ o.status }} — {{ o.createdAt }}
-        </li>
+    <template v-else>
+      <ul class="rc-studio-stats" aria-label="Ringkasan">
+        <li class="rc-card"><span class="rc-hint">Pesanan terbaru</span><strong>{{ data.recentOrders.length }}</strong></li>
+        <li class="rc-card"><span class="rc-hint">Refund diajukan</span><strong>{{ data.refundCount }}</strong></li>
       </ul>
-    </section>
-    <p v-else>Tidak ada data.</p>
-  </main>
+
+      <section aria-labelledby="metrics-h">
+        <h2 id="metrics-h" class="rc-h2">Metrik periode</h2>
+        <EmptyState v-if="data.metrics.length === 0" title="Belum ada metrik" message="Metrik muncul setelah ada penjualan dan snapshot harian berjalan." />
+        <div v-else class="rc-table-wrap">
+          <table class="rc-table">
+            <caption>Metrik per periode</caption>
+            <thead>
+              <tr>
+                <th scope="col">Periode</th>
+                <th scope="col" class="rc-table__num">Penjualan</th>
+                <th scope="col" class="rc-table__num">Penyelesaian</th>
+                <th scope="col" class="rc-table__num">Kepuasan</th>
+                <th scope="col" class="rc-table__num">Pendapatan</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="metric in data.metrics" :key="metric.id">
+                <td>{{ formatDate(metric.windowStart) }} – {{ formatDate(metric.windowEnd) }}</td>
+                <td class="rc-table__num">{{ metric.salesCount }}</td>
+                <td class="rc-table__num">{{ metric.completionRate }}</td>
+                <td class="rc-table__num">{{ metric.satisfaction }}</td>
+                <td class="rc-table__num">{{ formatAmount(metric.totalRevenue) }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section aria-labelledby="orders-h">
+        <h2 id="orders-h" class="rc-h2">Pesanan terbaru</h2>
+        <EmptyState v-if="data.recentOrders.length === 0" title="Belum ada pesanan" message="Pesanan pembeli akan muncul di sini." />
+        <ul v-else class="rc-studio-list" aria-label="Pesanan terbaru">
+          <li v-for="order in data.recentOrders" :key="order.id" class="rc-card">
+            <div class="rc-studio-list__main">
+              <p class="rc-studio-list__title">Pesanan #{{ String(order.id).slice(0, 8) }}</p>
+              <p class="rc-hint">{{ formatDate(order.createdAt) }} · {{ orderStatusMeta(order.status).label }}</p>
+            </div>
+          </li>
+        </ul>
+      </section>
+    </template>
+  </div>
 </template>

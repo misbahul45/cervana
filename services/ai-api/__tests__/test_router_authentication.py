@@ -88,8 +88,6 @@ def test_chat_requires_an_idempotency_key(client):
 @pytest.mark.parametrize(
     "method,path,body",
     [
-        ("post", "/ai/v1/learning/generate-material", {"userId": "victim"}),
-        ("post", "/ai/v1/users-steps/generate", {"userId": "victim"}),
         (
             "get",
             "/ai/v1/users-steps/generate-question?lessonId=l&topicId=t&learningStyleId=s&userId=victim",

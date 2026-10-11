@@ -7,7 +7,7 @@ import { UsersRepo } from './users.repo';
 import { PrismaService } from '@/common/config/prisma/prisma.service';
 import { Actor, PolicyService } from '@/common/authz/policy.service';
 import { AuditService } from '@/common/authz/audit.service';
-import { ChangeRoleDtoType, CreateUserDtoType, SetActivationDtoType, UpdateProfileDtoType } from './users.dto';
+import { ChangeRoleDtoType, CreateUserDtoType, SetActivationDtoType, UpdateProfileDtoType, UserListQueryType } from './users.dto';
 
 @Injectable()
 export class UsersService {
@@ -174,12 +174,12 @@ export class UsersService {
         });
     }
 
-    async findAll(q: QueryInterface) {
+    async findAll(q: UserListQueryType) {
         return errorHandler(async () => {
             const result = await this.usersRepo.findAll(q);
 
             const sanitizedUser=result.data.map((user)=>{
-                const { password, ...res }=user
+                const { password, ...res }=user as typeof user & { password?: string }
                 return res
             })
             return {

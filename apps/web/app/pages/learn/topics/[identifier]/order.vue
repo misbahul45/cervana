@@ -1,117 +1,97 @@
 <script setup lang="ts">
-import { computed } from 'vue'
-import { useRoute, useAsyncData, useHead, useRequestHeaders } from '#imports' 
-import { ordersService } from '~/services/order'
-import type { OrdersListResponse } from '~/interfaces/order'
-import type { User } from '~/interfaces/auth'
-import type { ApiResponse } from '~/interfaces/api'
+import PageHeader from '~/components/play/PageHeader.vue';
+import PlayButton from '~/components/play/PlayButton.vue';
+import PlayCard from '~/components/play/PlayCard.vue';
+import ErrorState from '~/components/ui/ErrorState.vue';
+import LoadingSkeleton from '~/components/ui/LoadingSkeleton.vue';
+import { ordersApi } from '~/lib/api';
+import { describeApiError, isApiError } from '~/lib/api-error';
+import { loginHref } from '~/lib/next-path';
+import { topicOrderState } from '~/lib/order-status';
+import { plainText, priceLabel } from '~/lib/topics';
+import { topicsService } from '~/services/curriculum/topics';
 
-const route = useRoute()
-const user = useState<User | null>('user')
+definePageMeta({
+  title: 'Beli Topik — ReduCera',
+  protection: { kind: 'authenticated' },
+});
 
-const headers = useRequestHeaders(['cookie'])
-let access_token: string | undefined
-let refresh_token: string | undefined
+useHead({ title: 'Beli Topik — ReduCera' });
 
-if (headers?.cookie) {
-  const cookieStr = headers.cookie
-  access_token = cookieStr.match(/access_token=([^;]+)/)?.[1]
-  refresh_token = cookieStr.match(/refresh_token=([^;]+)/)?.[1]
-}
+const route = useRoute();
+const topicId = computed(() => String(route.params.identifier || ''));
 
-const { data: resOrder } = await useAsyncData<ApiResponse<OrdersListResponse<false>>>(
-  `order-${route.params.identifier}`,
+const { data, status, error, refresh } = useAsyncData(
+  () => `topic-checkout:${topicId.value}`,
   async () => {
-    const tokens = { access_token, refresh_token }
+    const [topic, orders] = await Promise.all([topicsService.findOne(topicId.value, {}), ordersApi.list()]);
+    if (!topic.success || !topic.data) throw new Error(topic.message || 'Topik tidak ditemukan');
+    return { topic: topic.data, state: topicOrderState(orders, topic.data.id) };
+  },
+  { lazy: true, watch: [topicId] },
+);
 
-    const result = await ordersService.findAll<false>({
-      page: 1,
-      limit: 1,
-      userId: user.value?.id,
-      topicId: route.params.identifier,
-    }, tokens)
+const idempotency = useIdempotencyKey();
+const buying = ref(false);
+const buyError = ref<string | null>(null);
 
-    if (!result.data?.data?.length) {
-      const created = await ordersService.create({
-        userId: user.value?.id,
-        topicId: route.params.identifier as string,
-      }, tokens)
-
-
-      return {
-        success: true,
-        message: 'Order created',
-        data: {
-          data: [created.data],
-          pagination: { total: 1, page: 1, limit: 1 },
-        },
-      } as ApiResponse<OrdersListResponse<false>>
+async function buy() {
+  if (buying.value || !data.value) return;
+  buying.value = true;
+  buyError.value = null;
+  try {
+    const order = await ordersApi.create([{ type: 'TOPIC', id: data.value.topic.id }], idempotency.current());
+    idempotency.reset();
+    await navigateTo(order.status === 'PENDING' && order.payment ? `/learn/orders/${order.id}/pay` : `/learn/orders/${order.id}`);
+  } catch (err) {
+    if (isApiError(err) && err.kind === 'unauthorized') {
+      await navigateTo(loginHref(route.fullPath));
+      return;
     }
-
-    return result
+    buyError.value = describeApiError(err, 'Tidak bisa membuat pesanan. Coba lagi.');
+  } finally {
+    buying.value = false;
   }
-)
-
-const order = computed(() => resOrder.value?.data?.data[0])
-
-console.log(order.value)
-
-const siteUrl = useRuntimeConfig().public.SITE_URL
-
-useHead({
-  title: 'Transaksi Topik Penguasaan | ReduCera',
-  meta: [
-    {
-      name: 'description',
-      content:
-        'Lihat status transaksi topik penguasaan Anda di ReduCera. Pantau pembayaran dan akses pembelajaran Anda di sini.',
-    },
-    {
-      name: 'keywords',
-      content:
-        'ReduCera, transaksi, pembelian topik, penguasaan, pembayaran, topik belajar, AI, gamifikasi',
-    },
-    { property: 'og:type', content: 'article' },
-    { property: 'og:url', content: `${siteUrl}${route.fullPath}` },
-    {
-      property: 'og:title',
-      content: 'Transaksi Topik Penguasaan | ReduCera',
-    },
-    {
-      property: 'og:description',
-      content:
-        'Lihat detail transaksi pembelian topik penguasaan Anda dan status pembayaran di platform pembelajaran ReduCera.',
-    },
-    { property: 'og:image', content: '/meta/og-order.png' },
-    { name: 'twitter:card', content: 'summary_large_image' },
-    {
-      name: 'twitter:title',
-      content: 'Transaksi Topik Penguasaan | ReduCera',
-    },
-    {
-      name: 'twitter:description',
-      content:
-        'Pantau status transaksi pembelian topik penguasaan Anda di ReduCera.',
-    },
-    { name: 'twitter:image', content: '/meta/og-order.png' },
-  ],
-})
+}
 </script>
 
 <template>
-  <section class="p-6 text-center">
-    <h1 class="text-2xl font-bold text-primary mb-4">
-      Transaksi Topik Penguasaan
-    </h1>
-    <div v-if="order" class="text-gray-700 space-y-1">
-      <p><strong>Status:</strong> {{ order.status }}</p>
-      <p><strong>Jumlah:</strong> Rp{{ order.total }}</p>
-      <p><strong>Metode:</strong> {{ order.payment?.provider || '-' }}</p>
-      <p><strong>Dibayar pada:</strong> {{ order.paidAt || 'Belum dibayar' }}</p>
-    </div>
+  <div class="rc-stack rc-pay">
+    <LoadingSkeleton v-if="status === 'pending' && !data" variant="panel" :count="2" />
+    <ErrorState v-else-if="error || !data" title="Topik tidak dapat dimuat" :message="describeApiError(error, 'Topik tidak ditemukan.')" @retry="refresh()" />
 
-    <div v-else class="text-gray-500">
-      Memuat data transaksi...
-    </div>
-  </section>
+    <template v-else>
+      <PageHeader :title="data.topic.title" subtitle="Konfirmasi pembelian topik" />
+
+      <PlayCard as="section" aria-labelledby="topic-order-h">
+        <h2 id="topic-order-h" class="rc-h2">Ringkasan</h2>
+        <p v-if="data.topic.description">{{ plainText(data.topic.description, 220) }}</p>
+        <p class="rc-orders__total">Harga <strong>{{ priceLabel(data.topic.price) }}</strong></p>
+
+        <template v-if="data.state.kind === 'owned'">
+          <p class="rc-alert rc-alert--success" role="status">Topik ini sudah menjadi milikmu.</p>
+          <div class="rc-actions">
+            <PlayButton :to="`/my-learning/topics/${data.topic.slug}`">Mulai belajar</PlayButton>
+          </div>
+        </template>
+        <template v-else-if="data.state.kind === 'open'">
+          <p class="rc-alert" role="status">
+            {{ data.state.next === 'pay' ? 'Kamu sudah punya pesanan yang menunggu pembayaran.' : 'Bukti pembayaranmu sedang diverifikasi admin.' }}
+          </p>
+          <div class="rc-actions">
+            <PlayButton :to="data.state.next === 'pay' ? `/learn/orders/${data.state.orderId}/pay` : `/learn/orders/${data.state.orderId}`">
+              {{ data.state.next === 'pay' ? 'Lanjutkan pembayaran' : 'Lihat pesanan' }}
+            </PlayButton>
+          </div>
+        </template>
+        <template v-else>
+          <p v-if="buyError" class="rc-alert rc-alert--error" role="alert">{{ buyError }}</p>
+          <div class="rc-actions">
+            <PlayButton :loading="buying" @click="buy">Buat pesanan</PlayButton>
+            <PlayButton :to="`/learn/topics/${data.topic.slug}/detail`" variant="secondary">Kembali</PlayButton>
+          </div>
+        </template>
+      </PlayCard>
+    </template>
+  </div>
 </template>

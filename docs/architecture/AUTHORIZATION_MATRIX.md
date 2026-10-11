@@ -59,17 +59,15 @@ Guards run in this order for every request: `JwtAuthGuard` (authentication) → 
 | POST | `/admin/tenants/{id}/suspend` | Role | ADMIN |
 | GET | `/daily-log-sse/stream (SSE)` | Authenticated | Any signed-in user; row-level rules enforced in the service |
 | GET | `/auth/check` | Authenticated | Any signed-in user; row-level rules enforced in the service |
-| POST | `/auth/forgot-password` | Public | No credentials |
-| GET | `/auth/google` | Public | No credentials |
-| GET | `/auth/google/callback` | Public | No credentials |
+| POST | `/auth/forgot-password` | Public | No credentials; the answer is identical for a registered and an unregistered email |
 | POST | `/auth/login` | Public | No credentials |
-| DELETE | `/auth/logout` | Authenticated | Any signed-in user; row-level rules enforced in the service |
+| DELETE | `/auth/logout` | Authenticated | Any signed-in user; revokes the session behind the access token, so the refresh token and the access token stop working |
 | GET | `/auth/profile` | Authenticated | Any signed-in user; row-level rules enforced in the service |
 | POST | `/auth/refresh-token` | Public | No credentials |
 | POST | `/auth/register` | Public | No credentials |
-| POST | `/auth/resend-token` | Public | No credentials |
-| POST | `/auth/reset-password` | Public | No credentials |
-| POST | `/auth/verify-email` | Public | No credentials |
+| POST | `/auth/resend-token` | Public | No credentials; `type` is `email` or `pw`; the answer is identical for a registered and an unregistered email |
+| POST | `/auth/reset-password` | Public | No credentials; a 6-digit code valid 15 minutes, at most 5 wrong tries, single use; signs every device out |
+| POST | `/auth/verify-email` | Public | No credentials; a 6-digit code valid 15 minutes, at most 5 wrong tries, single use |
 | GET | `/categories` | Public | No credentials |
 | POST | `/categories` | Role | ADMIN or TEACHER |
 | DELETE | `/categories/{categoryId}/topics/topicId` | Role | TEACHER |
@@ -111,6 +109,7 @@ Guards run in this order for every request: `JwtAuthGuard` (authentication) → 
 | DELETE | `/curriculum/topics/{id}` | Role | ADMIN |
 | PATCH | `/curriculum/topics/{id}` | Role | ADMIN |
 | GET | `/curriculum/topics/{slug}` | Public | No credentials |
+| GET | `/gamify/achievements/me` | Authenticated | Reads the caller's own achievements and their progress; no `userId` input exists |
 | GET | `/gamify/daily-logs` | Own rows | Query and body forced to the caller; ADMIN unrestricted |
 | POST | `/gamify/daily-logs` | Role | ADMIN |
 | GET | `/gamify/daily-logs/user/{userId}` | Owner | Owner or ADMIN of `user@param:userId` |
@@ -119,10 +118,16 @@ Guards run in this order for every request: `JwtAuthGuard` (authentication) → 
 | GET | `/gamify/daily-logs/{id}` | Owner | Owner or ADMIN of `daily-log` |
 | PATCH | `/gamify/daily-logs/{id}` | Role | ADMIN |
 | GET | `/gamify/leaderboards` | Authenticated | Any signed-in user; row-level rules enforced in the service |
+| PUT | `/gamify/leaderboards/me` | Authenticated | The caller changes only their own board membership and handle; the body is strict |
+| GET | `/gamify/leaderboards/topics/{topicId}` | Authenticated | Opt-in board per topic; shows handles and ranks, never emails |
 | GET | `/gamify/leaderboards/{id}` | Authenticated | Any signed-in user; row-level rules enforced in the service |
+| GET | `/gamify/me` | Authenticated | Own level, XP, stars and streak, derived from the ledger; no `userId` input exists |
+| POST | `/gamify/rewards/ledger/{id}/reverse` | Role | ADMIN; body `{ reason }` (3 to 500 characters, strict); idempotent, writes a compensating ledger entry and an audit entry |
+| GET | `/gamify/rewards/me` | Authenticated | Reads the caller's own ledger entries and balance; no `userId` input exists; reason, actor and keys are not returned |
 | GET | `/gamify/streaks` | Own rows | Query and body forced to the caller; ADMIN unrestricted |
 | GET | `/gamify/streaks/latest` | Own rows | Query and body forced to the caller; ADMIN unrestricted |
 | DELETE | `/gamify/streaks/{id}` | Role | ADMIN |
+| GET | `/gamify/themes/default` | Public | The default theme and its icon set; no user data |
 | GET | `/gamify/themes` | Authenticated | Any signed-in user; row-level rules enforced in the service |
 | POST | `/gamify/themes` | Role | ADMIN |
 | POST | `/gamify/themes/icons` | Role | ADMIN |
@@ -134,7 +139,9 @@ Guards run in this order for every request: `JwtAuthGuard` (authentication) → 
 | POST | `/internal/resources/callback` | Service | Signed service request (HMAC-SHA256, 60 s window, replay-protected) |
 | GET | `/internal/resources/{id}` | Service | Signed service request (HMAC-SHA256, 60 s window, replay-protected) |
 | GET | `/leaderboard-sse/stream` | Authenticated | Any signed-in user; row-level rules enforced in the service |
-| POST | `/learner-model/backfill/topic-mastery` | Role | ADMIN |
+| GET | `/learner-model/me/mastery` | Authenticated | Reads the caller's own `ConceptMastery`; no `userId` input exists |
+| GET | `/learner-model/me/next` | Authenticated | Computed from the caller's own `ConceptMastery`; no `userId` input exists |
+| GET | `/learner-model/me/skill-nodes` | Authenticated | Derived on read from the caller's own `ConceptMastery`; no `userId` input exists |
 | POST | `/learning/learning-styles` | Owner | Owner or ADMIN of `user-topic@body:userTopicId` |
 | DELETE | `/learning/learning-styles/{id}` | Owner | Owner or ADMIN of `learning-style` |
 | GET | `/learning/learning-styles/{id}` | Owner | Owner or ADMIN of `learning-style` |
@@ -196,9 +203,11 @@ Guards run in this order for every request: `JwtAuthGuard` (authentication) → 
 | PATCH | `/quiz/answers/{id}` | Owner | Owner or ADMIN of `answer` |
 | POST | `/quiz/questions` | Role | ADMIN or TEACHER |
 | DELETE | `/quiz/questions/{id}` | Role | ADMIN |
-| GET | `/quiz/questions/{id}` | Owner | Owner or ADMIN of `question` |
+| GET | `/quiz/questions/{id}` | Owner | Owner or ADMIN of `question`; `correctAnswer` is only returned to ADMIN and TEACHER |
 | PATCH | `/quiz/questions/{id}` | Role | ADMIN or TEACHER |
 | POST | `/quiz/quiz-attempts` | Own rows | Query and body forced to the caller; ADMIN unrestricted |
+| POST | `/quiz/quiz-attempts/start` | Authenticated | Attempt is created for the caller; a `userId` in the body is rejected (strict DTO); a quiz in someone's progress is only for that owner and a template quiz only for a learner enrolled in its topic (`QuizAccessService`, 403 `ENTITLEMENT_REQUIRED`) |
+| POST | `/quiz/quiz-attempts/{id}/submit` | Owner | Owner or ADMIN of `quiz-attempt`; grading and learning events run in one transaction |
 | DELETE | `/quiz/quiz-attempts/{id}` | Owner | Owner or ADMIN of `quiz-attempt` |
 | GET | `/quiz/quiz-attempts/{id}` | Owner | Owner or ADMIN of `quiz-attempt` |
 | PATCH | `/quiz/quiz-attempts/{id}` | Owner | Owner or ADMIN of `quiz-attempt` |
@@ -206,9 +215,9 @@ Guards run in this order for every request: `JwtAuthGuard` (authentication) → 
 | GET | `/quiz/quizs` | Role | ADMIN or TEACHER |
 | POST | `/quiz/quizs` | Role | ADMIN or TEACHER |
 | DELETE | `/quiz/quizs/{id}` | Role | ADMIN |
-| GET | `/quiz/quizs/{id}` | Owner | Owner or ADMIN of `quiz` |
+| GET | `/quiz/quizs/{id}` | Owner | Owner of the progress the quiz belongs to, or a learner enrolled in the topic of a template quiz; ADMIN and TEACHER always; the answer key is removed for everyone else |
 | PATCH | `/quiz/quizs/{id}` | Role | ADMIN or TEACHER |
-| GET | `/quiz/quizs/{id}/questions` | Owner | Owner or ADMIN of `quiz` |
+| GET | `/quiz/quizs/{id}/questions` | Owner | Same rule as the quiz; `correctAnswer` is only returned to ADMIN and TEACHER |
 | GET | `/quiz/quizs/{id}/quiz-attempts` | Owner | Owner or ADMIN of `quiz` |
 | GET | `/streak-sse` | Authenticated | Any signed-in user; row-level rules enforced in the service |
 | GET | `/teacher/applications` | Authenticated | Any signed-in user; row-level rules enforced in the service |
@@ -233,7 +242,7 @@ Guards run in this order for every request: `JwtAuthGuard` (authentication) → 
 | DELETE | `/uploads` | Authenticated | Any signed-in user; row-level rules enforced in the service |
 | POST | `/uploads` | Authenticated | Any signed-in user; row-level rules enforced in the service |
 | GET | `/user-steps-sse` | Authenticated | Any signed-in user; row-level rules enforced in the service |
-| GET | `/users` | Role | ADMIN |
+| GET | `/users` | Role | ADMIN; query limited to `q`, `role`, `isActive`, `page`, `limit` (max 100) and `sort` (`createdAt`, `name`, `email`, `role`, with `:asc` or `:desc`); other keys are dropped, there is no `include`, the password hash is never selected |
 | POST | `/users` | Role | ADMIN |
 | DELETE | `/users/{id}` | Role | ADMIN |
 | GET | `/users/{id}` | Authenticated | Any signed-in user; row-level rules enforced in the service |
@@ -241,3 +250,37 @@ Guards run in this order for every request: `JwtAuthGuard` (authentication) → 
 | POST | `/users/{id}/activation` | Role | ADMIN |
 | POST | `/users/{id}/role` | Role | ADMIN |
 | POST | `/webhooks/payments/{provider}` | Public | No credentials |
+
+## Internal routes for `ai-api` (added 2026-10-09, not yet in the counts above)
+
+The counts above predate these routes and omit the other internal controllers (`episodes`, `decision-traces`, `agent-sessions`, `credits`); a full regeneration is task SP-020 of the progress tracker. Design: [ai-api-service-identity.md](./ai-api-service-identity.md).
+
+Decision names used here: **Service** is `@InternalOnly()` (signed service identity only). **Service + acting user** is `@InternalActing()`: signed service identity, then `ActingUserGuard` loads the user named in `x-acting-user-id` (400 without it, 403 when unknown or inactive) and applies the stated ownership rule with no `ADMIN` bypass. Writes also require `x-idempotency-key`, and a repeated key replays the first response.
+
+| Method | Path | Decision | Rule |
+|---|---|---|---|
+| GET | `/internal/lessons/{id}` | Service | Curriculum is platform-global |
+| GET | `/internal/steps` | Service | Curriculum is platform-global |
+| GET | `/internal/steps/{id}` | Service | Curriculum is platform-global |
+| GET | `/internal/user-steps/{id}` | Service + acting user | Acting user owns the step |
+| GET | `/internal/learning-styles/{id}` | Service + acting user | Acting user owns the profile |
+| GET | `/internal/personality-quizzes` | Service + acting user | `userId` query is the acting user or absent, otherwise 403 |
+| GET | `/internal/contents/similarity` | Service + acting user | Acting user owns the chat named by `chatId` |
+| GET | `/internal/concepts` | Service | Concept registry is platform-global: active concepts, prerequisites and approved `PYTHON_DOMAIN` aliases |
+| GET | `/internal/learner-state` | Service + acting user | Reads only the acting user's `ConceptMastery`; a `userId` query is ignored; `lessonId`, `conceptId` and `userStepId` (resolved only for a user step the acting user owns) choose the concepts |
+| PATCH | `/internal/chat-messages/{id}` | Service + acting user | Acting user owns the message; body `{ text, status? }`, other fields 400 |
+| POST | `/internal/contents` | Service + acting user | Acting user owns the chat named in the body; unknown fields 400 |
+| POST | `/internal/personality-quizzes` | Service + acting user | Body `userId` is the acting user or absent, otherwise 403 |
+
+## Routes added 2026-10-11 (not yet in the counts above)
+
+| Method | Path | Decision | Detail |
+|---|---|---|---|
+| GET | `/admin/audit-logs` | Role | ADMIN; filters `action`, `entityType`, `entityId`, `actorId` (uuid), `from`, `to` (from not after to), `page`, `limit` (max 100); unknown query keys are dropped, never passed to the database; rows carry no `before` or `after` |
+| GET | `/admin/audit-logs/actions` | Role | ADMIN; distinct action names for the filter |
+| GET | `/admin/audit-logs/{id}` | Role | ADMIN; the only route that returns the `before` and `after` payload |
+| GET | `/marketplace/articles/{id}/preview` | Public | Published article of an active tenant only; returns at most the first 600 characters cut at a paragraph boundary plus word count and reading minutes, never the rest of the body; a paid article never shows more than half of its text, so a short paid article is not readable in full from the preview |
+| GET | `/curriculum/lessons/{id}/prev` | Authenticated | The lesson before this one in the same sub-topic, with `completed` for the caller only |
+| GET | `/curriculum/lessons/{id}/next` | Authenticated | The lesson after this one in the same sub-topic, with `unlocked` true only when the caller finished the current lesson |
+
+Removed 2026-10-11: `/admin/moderation/*` (`pending`, `articles|classes/{id}/approve|reject`). It let an ADMIN or REVIEWER publish or reject any article or class from any state, without the state table, version publishing, tenant checks, audit entry or idempotency. Moderation now goes only through the `admin/articles` and `admin/classes` intent endpoints, which are ADMIN only.

@@ -1,4 +1,6 @@
 import { ScopeToUser } from '@/common/authz/access';
+import { Roles } from '@/v1/auth/auth.decorator';
+import { Role } from '@prisma/client';
 import { RequireOwnership } from '@/v1/common/guards/ownership.decorator';
 import { Controller, Get, Post, Body, Patch, Param, Delete, Query, UseInterceptors } from '@nestjs/common';
 import { UserStepsService } from './user-steps.service';
@@ -20,8 +22,7 @@ export class UserStepsController {
   }
 
   @Post()
-  @ScopeToUser()
-  @UseInterceptors(ActivityDetectorInterceptor)
+  @Roles(Role.ADMIN)
   create(@Body() createUserStepDto: CreateUserStepType) {
     return this.userStepsService.create(createUserStepDto);
   }
@@ -40,7 +41,6 @@ export class UserStepsController {
 
   @Patch(':id')
   @RequireOwnership('user-step')
-  @UseInterceptors(ActivityDetectorInterceptor)
   update(@Param('id') id: string, @Body() updateUserStepDto: UpdateUserStepType) {
     return this.userStepsService.update(id, updateUserStepDto);
   }

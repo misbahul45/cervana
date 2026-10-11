@@ -44,14 +44,14 @@ function onCancel() {
           <div class="rc-confirm-dialog__actions">
             <button
               type="button"
-              class="rc-confirm-dialog__cancel"
+              class="rc-btn rc-btn--outline rc-btn--sm"
               @click="onCancel"
             >
               {{ cancelLabel }}
             </button>
             <button
               type="button"
-              :class="['rc-confirm-dialog__confirm', destructive ? 'rc-confirm-dialog__confirm--destructive' : '']"
+              :class="['rc-btn', 'rc-btn--sm', destructive ? 'rc-btn--danger' : '']"
               @click="onConfirm"
             >
               {{ confirmLabel }}
@@ -67,53 +67,53 @@ function onCancel() {
 .rc-confirm-dialog-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.5);
+  z-index: 1000;
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 1000;
+  padding: 1rem;
+  background-color: rgb(0 0 0 / 0.55);
 }
 .rc-confirm-dialog {
-  background: var(--ui-bg, white);
-  border-radius: 1rem;
-  padding: 1.5rem;
-  max-width: 32rem;
-  width: 90%;
   display: flex;
   flex-direction: column;
   gap: 1rem;
+  width: 100%;
+  max-width: 32rem;
+  padding: 1.5rem;
+  border: 2px solid var(--rc-border);
+  border-radius: var(--rc-radius, 16px);
+  background-color: var(--rc-surface);
+  box-shadow: 0 var(--rc-depth, 4px) 0 0 var(--rc-border);
+  color: var(--rc-fg);
 }
 .rc-confirm-dialog__title {
-  font-size: 1.125rem;
-  font-weight: 600;
+  margin: 0;
+  font-size: 1.1875rem;
+  font-weight: 800;
 }
 .rc-confirm-dialog__message {
-  color: var(--ui-text-muted);
+  margin: 0;
+  color: var(--rc-muted);
 }
 .rc-confirm-dialog__actions {
   display: flex;
-  gap: 0.5rem;
+  flex-wrap: wrap;
   justify-content: flex-end;
+  gap: 0.75rem;
 }
-.rc-confirm-dialog__cancel,
-.rc-confirm-dialog__confirm {
-  padding: 0.5rem 1rem;
-  border-radius: 0.5rem;
-  cursor: pointer;
-  border: 1px solid var(--ui-border, rgba(0, 0, 0, 0.15));
+.rc-dialog-enter-active,
+.rc-dialog-leave-active {
+  transition: opacity 150ms ease-out;
 }
-.rc-confirm-dialog__confirm {
-  background: var(--ui-primary, #2563eb);
-  color: var(--ui-primary-fg, white);
-  border-color: var(--ui-primary, #2563eb);
+.rc-dialog-enter-from,
+.rc-dialog-leave-to {
+  opacity: 0;
 }
-.rc-confirm-dialog__confirm--destructive {
-  background: #dc2626;
-  border-color: #dc2626;
-}
-.rc-confirm-dialog__cancel:focus-visible,
-.rc-confirm-dialog__confirm:focus-visible {
-  outline: 2px solid var(--ui-primary);
-  outline-offset: 2px;
+@media (prefers-reduced-motion: reduce) {
+  .rc-dialog-enter-active,
+  .rc-dialog-leave-active {
+    transition: none;
+  }
 }
 </style>

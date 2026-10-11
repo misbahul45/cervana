@@ -1,56 +1,73 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue';
-import { useRoute, useRouter } from 'vue-router';
-import RenderMarkdown from '~/components/ui/RenderMarkdown.vue';
-import ActionButton from '~/components/ui/ActionButton.vue';
-import QuizTaker from '~/components/learn/QuizTaker.vue';
+import { computed, ref } from 'vue'
+import Chatbot from '~/components/my-learning/Chatbot.vue'
+import EmptyState from '~/components/ui/EmptyState.vue'
+import RenderMarkdown from '~/components/ui/RenderMarkdown.vue'
+import { userStepService } from '~/services/learning/userStep'
 
-const route = useRoute();
-const router = useRouter();
-const stepId = computed(() => String(route.params.userStepId || ''));
+const route = useRoute()
+const router = useRouter()
+const toast = useToast()
 
-const step = ref<{ title: string; body: string; stepId: string; quizId?: string } | null>(null);
-const completed = ref(false);
+const userStepId = computed(() => String(route.params.userStepId || ''))
 
-onMounted(async () => {
+const { data: response, refresh } = await useAsyncData(
+  () => `user-step-${userStepId.value}`,
+  () => userStepService.findOne<true>(userStepId.value, { include: 'chat' }),
+  { watch: [userStepId] },
+)
+
+const step = computed(() => response.value?.data ?? null)
+const completing = ref(false)
+
+useHead({ title: computed(() => `${step.value?.title ?? 'Langkah belajar'} | ReduCera`) })
+
+async function complete() {
+  if (!step.value || completing.value) return
+  completing.value = true
   try {
-    const raw = localStorage.getItem(`step-${stepId.value}`);
-    if (raw) {
-      step.value = JSON.parse(raw);
-    } else {
-      step.value = {
-        stepId: stepId.value,
-        title: `Topik ${stepId.value}`,
-        body: `# Selamat Datang\n\nIni adalah pelajaran interaktif untuk topik **${stepId.value}**.\n\n## Materi Pembelajaran\n\n- Konsep dasar double-entry\n- Persamaan akuntansi\n- Jurnal umum\n\n## Contoh Praktis\n\nBerikut adalah simulasi singkat. Cobalah Anda sendiri di sandbox.`,
-        quizId: 'demo',
-      };
+    const result = await userStepService.complete(step.value.id)
+    if (result.success) {
+      await refresh()
+      toast.add({ title: 'Langkah selesai', color: 'success', icon: 'i-lucide-check-circle' })
+      return
     }
-  } catch {
-    step.value = null;
+    toast.add({ title: 'Langkah belum bisa diselesaikan', description: 'Coba lagi sebentar lagi.', color: 'error' })
+  } finally {
+    completing.value = false
   }
-});
-
-function next() {
-  completed.value = true;
-  setTimeout(() => router.push('/my-learning'), 500);
 }
 </script>
 
 <template>
-  <main class="max-w-3xl mx-auto p-6 space-y-6">
-    <div v-if="!step" class="text-center py-8 text-[var(--rc-fg-muted,#6b7280)]">Pelajaran tidak ditemukan</div>
-    <div v-else>
-      <h1 class="text-3xl font-bold">{{ step.title }}</h1>
-      <p class="text-sm text-[var(--rc-fg-muted,#6b7280)]">Topik: {{ step.stepId }}</p>
+  <div class="rc-stack rc-learning">
+    <EmptyState
+      v-if="!step"
+      icon-name="i-lucide-file-question"
+      title="Langkah tidak ditemukan"
+      message="Langkah ini tidak ada atau bukan milikmu."
+      cta-label="Kembali ke pelajaran"
+      cta-to="/my-learning/steps"
+    />
 
-      <article class="bg-[var(--rc-bg-elevated,#f9fafb)] rounded-lg p-6 border border-[var(--rc-border)] prose dark:prose-invert max-w-full">
-        <RenderMarkdown :text="step.body" />
-      </article>
+    <template v-else>
+      <PageHeader :title="step.title">
+        <template #actions>
+          <PlayButton variant="outline" size="sm" @click="router.back()">Kembali</PlayButton>
+        </template>
+      </PageHeader>
 
-      <div v-if="!completed" class="flex justify-end gap-3">
-        <ActionButton title="Lanjut ke Kuis" primary description="Uji pemahaman Anda" @click="next" />
+      <PlayCard as="article" aria-labelledby="step-content">
+        <h2 id="step-content" class="rc-h2">Materi</h2>
+        <RenderMarkdown v-if="step.description" :text="step.description" />
+        <p v-else class="rc-hint">Materi untuk langkah ini sedang disiapkan.</p>
+      </PlayCard>
+
+      <div class="rc-lessons__nav">
+        <Chatbot v-if="step.chat?.id" :chat-id="step.chat.id" :user-step-id="step.id" />
+        <PlayButton v-if="!step.isDone" :loading="completing" @click="complete">Tandai selesai</PlayButton>
+        <p v-else class="rc-alert rc-alert--success" role="status">Langkah ini sudah selesai.</p>
       </div>
-      <div v-else class="text-center text-green-600 font-semibold">✓ Pelajaran selesai! Mengarahkan ke dashboard...</div>
-    </div>
-  </main>
+    </template>
+  </div>
 </template>

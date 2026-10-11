@@ -7,6 +7,7 @@ import { PersonalityQuizzesRepo } from './personality-quizzes.repo';
 import { CreatePersonalityQuizType, UpdatePersonalityQuizType, PersonalityQuizUserAttemptSchema, PersonalityQuizResultSchema } from './personality-quizzes.dto';
 import z from 'zod';
 import { QueueService } from '@/v1/queue/queue.service';
+import { UserStepsJobSchema } from '@/v1/queue/queue-payloads';
 
 @Injectable()
 export class PersonalityQuizzesService {
@@ -108,13 +109,19 @@ export class PersonalityQuizzesService {
 
   submitAttempt(data:{
     userId: string
-    token: string
     topicId: string
     lessonId: string
     learningStyleId: string
     quizId:string
   }, values: z.infer<typeof PersonalityQuizUserAttemptSchema>) {
     return errorHandler(async () => {
+      const job = UserStepsJobSchema.parse({
+        userId: data.userId,
+        topicId: data.topicId,
+        lessonId: data.lessonId,
+        learningStyleId: data.learningStyleId,
+        quizId: data.quizId,
+      });
       const quiz = await this.personalityQuizzesRepo.findOne("id", data.quizId);
       if (!quiz) {
         throw new AppError(
@@ -165,9 +172,7 @@ export class PersonalityQuizzesService {
         takenAt:new Date()
       });
       
-      await this.queueService.addUserStepsJob({
-        ...data
-      })
+      await this.queueService.addUserStepsJob(job)
 
       if (!submitAnswer) {
         throw new AppError("Personality quiz error", 400);

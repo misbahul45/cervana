@@ -45,37 +45,55 @@ function onRetry() {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  text-align: center;
-  padding: 2.5rem 1.5rem;
   gap: 0.75rem;
-  border: 1px solid rgba(245, 101, 101, 0.3);
-  border-radius: 1rem;
-  background: rgba(254, 226, 226, 0.4);
+  padding: 2.5rem 1.5rem;
+  border: 2px solid var(--rc-danger);
+  border-radius: var(--rc-radius, 16px);
+  background-color: color-mix(in srgb, var(--rc-danger) 8%, var(--rc-surface));
+  text-align: center;
+}
+.rc-error-state :deep(.iconify),
+.rc-error-state :deep(svg) {
+  color: var(--rc-danger);
 }
 .rc-error-state__title {
-  font-size: 1.125rem;
-  font-weight: 600;
+  margin: 0;
+  font-size: 1.1875rem;
+  font-weight: 800;
 }
 .rc-error-state__message {
-  color: var(--ui-text);
   max-width: 32rem;
+  margin: 0;
+  color: var(--rc-fg);
 }
 .rc-error-state__details {
-  color: var(--ui-text-muted);
-  font-size: 0.875rem;
   max-width: 32rem;
+  margin: 0;
+  color: var(--rc-muted);
+  font-size: 0.875rem;
 }
 .rc-error-state__retry {
+  min-height: 3rem;
   margin-top: 0.5rem;
-  padding: 0.5rem 1rem;
-  background: var(--ui-primary, #2563eb);
-  color: var(--ui-primary-fg, white);
-  border-radius: 0.5rem;
-  border: none;
+  padding: 0.75rem 1.5rem;
+  border: 2px solid var(--rc-primary-depth);
+  border-radius: var(--rc-radius, 16px);
+  background-color: var(--rc-primary);
+  box-shadow: 0 var(--rc-depth, 4px) 0 0 var(--rc-primary-depth);
+  color: var(--rc-primary-fg);
+  font-family: inherit;
+  font-size: 0.9375rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
   cursor: pointer;
 }
+.rc-error-state__retry:active {
+  transform: translateY(var(--rc-depth, 4px));
+  box-shadow: none;
+}
 .rc-error-state__retry:focus-visible {
-  outline: 2px solid var(--ui-primary);
-  outline-offset: 2px;
+  outline: 3px solid var(--rc-focus);
+  outline-offset: 3px;
 }
 </style>

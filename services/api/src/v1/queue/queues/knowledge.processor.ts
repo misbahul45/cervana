@@ -1,69 +1,71 @@
-import { ResourcesRepo } from '@/v1/material/resources/resources.repo';
 import { Processor, WorkerHost, OnWorkerEvent } from '@nestjs/bullmq';
-import { ConfigService } from '@nestjs/config';
-import fetch from 'node-fetch';
+import { Logger } from '@nestjs/common';
+import { Job } from 'bullmq';
 import { JOBSTATUSTYPE, ResourceType } from '@prisma/client';
+import { ResourcesRepo } from '@/v1/material/resources/resources.repo';
+import { AiServiceClient, deriveIdempotencyKey } from '@/common/ai-client/ai-service.client';
+import { asJobError } from '../job-failure';
+import { readKnowledgeJob } from '../queue-payloads';
 
 @Processor('knowledge')
 export class KnowledgeProcessor extends WorkerHost {
+  private readonly logger = new Logger(KnowledgeProcessor.name);
+
   constructor(
-    private readonly configService: ConfigService,
-    private readonly resourcesRepo: ResourcesRepo
+    private readonly ai: AiServiceClient,
+    private readonly resourcesRepo: ResourcesRepo,
   ) {
     super();
   }
 
-  async process(job: { data: { resourceId: string; token: string } }) {
-    const { resourceId, token } = job.data;
-    const aiUrl = this.configService.get<string>('AI_URL');
-    if (!aiUrl) throw new Error('❌ AI_URL is not defined');
+  async process(job: Job) {
+    const { resourceId, userId } = readKnowledgeJob(job.data);
 
     const resource = await this.resourcesRepo.update(resourceId, {
       isEmbedded: false,
       jobStatus: JOBSTATUSTYPE.PROCESSING,
     });
 
-    if (!resource) throw new Error(`❌ Resource ${resourceId} not found`);
+    if (!resource) throw new Error(`Resource ${resourceId} not found`);
 
     try {
       if (resource.type === ResourceType.TEXT) {
-        await fetch(`${aiUrl}/resources/embedding/${resourceId}`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`,
-          },
+        const path = `/resources/embedding/${encodeURIComponent(resourceId)}`;
+        await this.ai.post({
+          path,
+          actingUserId: userId,
+          idempotencyKey: deriveIdempotencyKey([job.queueName, String(job.id), path, '']),
+          traceId: `${job.queueName}-${job.id}`,
         });
 
         return { message: 'Embedding triggered directly for TEXT' };
       }
 
-      const extractUrl = `${aiUrl}/resources/extract?type=${resource.type}&resource_id=${resourceId}`;
-
-
-      const res = await fetch(extractUrl, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}` },
+      const query = { type: resource.type, resource_id: resourceId };
+      await this.ai.post({
+        path: '/resources/extract',
+        query,
+        actingUserId: userId,
+        idempotencyKey: deriveIdempotencyKey([job.queueName, String(job.id), '/resources/extract', JSON.stringify(query)]),
+        traceId: `${job.queueName}-${job.id}`,
       });
-
-      if (!res.ok) throw new Error(`Extraction request failed: ${res.statusText}`);
 
       return { message: 'Extraction job triggered' };
     } catch (error) {
       await this.resourcesRepo.update(resourceId, {
         jobStatus: JOBSTATUSTYPE.FAILED,
       });
-      throw error;
+      throw asJobError(error);
     }
   }
 
   @OnWorkerEvent('completed')
-  onCompleted(job: any) {
-    console.log(`✅ [KnowledgeWorker] Job ${job.id} completed successfully.`);
+  onCompleted(job: Job) {
+    this.logger.log(`Job ${job.id} completed`);
   }
 
   @OnWorkerEvent('failed')
-  onFailed(job: any, err: any) {
-    console.error(`❌ [KnowledgeWorker] Job ${job.id} failed:`, err);
+  onFailed(job: Job, error: Error) {
+    this.logger.error(`Job ${job.id} failed: ${error.message}`);
   }
 }

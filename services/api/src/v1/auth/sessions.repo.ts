@@ -30,7 +30,7 @@ export class SessionRepo {
   }
 
   async deleteSession(sessionToken: string): Promise<void> {
-    await this.prisma.session.delete({
+    await this.prisma.session.deleteMany({
       where: { sessionToken },
     });
   }

@@ -3,7 +3,11 @@ from __future__ import annotations
 import json
 from typing import Any, Dict, List, Optional
 
+from config.prompt_segmentation import neutralize_fences
+from v1.domain.adapter import ConceptCatalog
 from v1.tutor.tutor_state import TutorRunState
+
+TITLE_LIMIT = 120
 
 
 def render_system_policy() -> str:
@@ -61,6 +65,56 @@ def render_learner_state(state: TutorRunState) -> str:
     if misconceptions:
         items.append("open_misconceptions=[" + ", ".join(misconceptions) + "]")
     return "<learner_state trust=\"derived\">\n" + "\n".join(items) + "\n</learner_state>"
+
+
+def _clean_title(title: Any) -> str:
+    flat = " ".join(str(title).split())[:TITLE_LIMIT].replace('"', "'")
+    return neutralize_fences(flat).replace("<", "&lt;").replace(">", "&gt;")
+
+
+def _concept_label(concept_id: Any, title: Any, catalog: ConceptCatalog) -> str:
+    label = f'{concept_id} "{_clean_title(title)}"'
+    domain_ids = catalog.python_ids_for(str(concept_id))
+    return f"{label} domain_ids=[{', '.join(domain_ids)}]" if domain_ids else label
+
+
+def render_learner_snapshot(snapshot: Optional[Dict[str, Any]], catalog: ConceptCatalog) -> str:
+    if not snapshot:
+        return ""
+    lines = ["mastery_scale: score 0.50 with evidence=0 means no evidence yet; evidence counts graded attempts"]
+
+    concepts = snapshot.get("concepts") or []
+    if not concepts:
+        lines.append("lesson_concepts=none_linked")
+    for item in concepts:
+        mastery = item.get("mastery") or {}
+        lines.append(
+            f"concept {_concept_label(item.get('conceptId'), item.get('title', ''), catalog)}: "
+            f"score={float(mastery.get('score', 0.5)):.2f} "
+            f"confidence={float(mastery.get('confidence', 0.0)):.2f} "
+            f"evidence={int(mastery.get('evidenceCount', 0))} "
+            f"prerequisites_passed={'true' if item.get('prerequisiteMasteryMet') else 'false'}"
+        )
+        for prerequisite in item.get("prerequisites") or []:
+            lines.append(
+                f"  prerequisite {_concept_label(prerequisite.get('conceptId'), prerequisite.get('title', ''), catalog)}: "
+                f"score={float(prerequisite.get('score', 0.5)):.2f} "
+                f"evidence={int(prerequisite.get('evidenceCount', 0))} "
+                f"passed={'true' if prerequisite.get('passed') else 'false'}"
+            )
+
+    following = snapshot.get("next")
+    if following:
+        reasons = ", ".join(str(code) for code in following.get("reasonCodes") or [])
+        target = following.get("concept")
+        if target:
+            lines.append(
+                f"next_concept={_concept_label(target.get('id'), target.get('title', ''), catalog)} "
+                f"level={target.get('level')} reasons=[{reasons}]"
+            )
+        else:
+            lines.append(f"next_concept=none reasons=[{reasons}]")
+    return "\n".join(lines)
 
 
 def render_adaptive_strategy(state: TutorRunState) -> str:
@@ -178,6 +232,7 @@ __all__ = [
     "render_system_policy",
     "render_educational_policy",
     "render_learner_state",
+    "render_learner_snapshot",
     "render_adaptive_strategy",
     "render_relevant_memory",
     "render_rag_evidence",

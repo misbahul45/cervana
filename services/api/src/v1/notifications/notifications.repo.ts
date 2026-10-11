@@ -141,6 +141,15 @@ export class NotificationsRepo {
     });
   }
 
+  async markRead(id: string, readAt: Date) {
+    return errorHandler(async () => {
+      return await this.prisma.notification.update({
+        where: { id },
+        data: { readAt },
+      });
+    });
+  }
+
   async delete(id: string) {
     return errorHandler(async () => {
       return await this.prisma.notification.delete({

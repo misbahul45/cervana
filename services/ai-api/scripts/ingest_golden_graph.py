@@ -42,6 +42,7 @@ def main() -> int:
     log.info(f"Loaded golden graph: {len(levels)} levels")
 
     from config.embedding_pipeline import get_embedding_pipeline
+    from v1.domain.governance import outline_governance
 
     pipeline = get_embedding_pipeline()
     total_topics = 0
@@ -66,7 +67,12 @@ def main() -> int:
             }
             try:
                 before = _qdrant_count()
-                pipeline.upsert_document(content=content, source_id=source_id, metadata=metadata)
+                pipeline.upsert_document(
+                    content=content,
+                    source_id=source_id,
+                    metadata=metadata,
+                    governance=outline_governance(topic["id"]),
+                )
                 after = _qdrant_count()
                 delta = max(0, after - before)
                 total_chunks += delta

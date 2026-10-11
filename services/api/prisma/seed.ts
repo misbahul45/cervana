@@ -47,6 +47,7 @@ async function main(): Promise<void> {
   await prisma.$disconnect();
   await import("./seed-golden-graph");
   await import("./seed-theme");
+  await import("./seed-gamify");
 }
 
 main().catch(async (error: unknown) => {

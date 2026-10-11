@@ -1,66 +1,49 @@
 <script setup lang="ts">
+import PageHeader from '~/components/play/PageHeader.vue';
+import EmptyState from '~/components/ui/EmptyState.vue';
+import ErrorState from '~/components/ui/ErrorState.vue';
+import LoadingSkeleton from '~/components/ui/LoadingSkeleton.vue';
 import { sandboxApi } from '~/lib/api';
 import { describeApiError } from '~/lib/api-error';
 
 definePageMeta({
-  title: 'Sandbox Akuntansi — ReduCera',
+  title: 'Latihan Jurnal — ReduCera',
   protection: { kind: 'authenticated' },
   layout: 'learner',
 });
 
-const { data: scenarios, status, error, refresh } = useAsyncData('sandbox:scenarios', () => sandboxApi.listScenarios(), {
-  lazy: true,
-});
+useHead({ title: 'Latihan Jurnal — ReduCera' });
+
+const DIFFICULTY: Record<string, string> = { BEGINNER: 'Pemula', INTERMEDIATE: 'Menengah', ADVANCED: 'Mahir' };
+
+const { data: scenarios, status, error, refresh } = useAsyncData('sandbox:scenarios', () => sandboxApi.listScenarios(), { lazy: true });
 </script>
 
 <template>
-  <main id="main" aria-labelledby="sandbox-list-h">
-    <h1 id="sandbox-list-h">Sandbox Akuntansi</h1>
-    <p>Latih pencatatan jurnal Anda di skenario dunia nyata.</p>
-    <p class="rc-sandbox-list__disclaimer">
-      Simulasi untuk belajar; bukan nasihat akuntansi profesional.
-    </p>
+  <div class="rc-stack">
+    <PageHeader title="Latihan jurnal" subtitle="Catat transaksi dari skenario nyata. Sistem memeriksa keseimbangan debit dan kredit." />
 
     <LoadingSkeleton v-if="status === 'pending'" variant="card" :count="3" />
-    <ErrorState
-      v-else-if="error"
-      title="Gagal memuat skenario"
-      :message="describeApiError(error)"
-      @retry="refresh()"
-    />
+    <ErrorState v-else-if="error" title="Skenario gagal dimuat" :message="describeApiError(error)" @retry="refresh()" />
     <EmptyState
       v-else-if="!scenarios || scenarios.length === 0"
-      title="Belum ada skenario untuk levelmu"
-      message="Mulai dari jalur belajar untuk membuka latihan pertama."
-      cta-label="Buka peta keterampilan"
-      cta-to="/learn/path"
+      title="Belum ada skenario"
+      message="Skenario latihan akan muncul setelah kamu mulai belajar."
+      cta-label="Pilih topik"
+      cta-to="/learn/topics"
     />
-    <ul v-else class="rc-sandbox-list__grid">
-      <li v-for="s in scenarios" :key="s.id">
-        <SandboxScenarioCard
-          :title="s.title"
-          :description="s.description"
-          :difficulty="s.difficulty"
-          :prerequisite-label="`Level ${s.level}`"
-          :to="`/sandbox/${s.id}`"
-        />
+    <ul v-else class="rc-mgrid" aria-label="Skenario latihan">
+      <li v-for="scenario in scenarios" :key="scenario.id">
+        <article class="rc-card rc-mcard">
+          <div class="rc-mcard__body">
+            <p class="rc-mcard__meta">{{ DIFFICULTY[scenario.difficulty] ?? scenario.difficulty }} · Level {{ scenario.level }}</p>
+            <h3 class="rc-mcard__title">
+              <NuxtLink :to="`/sandbox/${scenario.id}`" class="rc-mcard__link">{{ scenario.title }}</NuxtLink>
+            </h3>
+            <p v-if="scenario.description" class="rc-mcard__summary">{{ scenario.description }}</p>
+          </div>
+        </article>
       </li>
     </ul>
-  </main>
+  </div>
 </template>
-
-<style scoped>
-.rc-sandbox-list__disclaimer {
-  font-size: 0.75rem;
-  color: var(--ui-text-muted);
-  margin-bottom: 1rem;
-}
-.rc-sandbox-list__grid {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: grid;
-  gap: 0.75rem;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-}
-</style>

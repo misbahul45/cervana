@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
+import EmptyState from '~/components/ui/EmptyState.vue'
 import type { User } from '~/interfaces/auth'
 import { personalityQuizService } from '~/services/learning/personalityQuiz'
 import { lessonProgressService } from '~/services/learning/lessonsProgress'
@@ -104,10 +105,12 @@ async function startGenerate() {
   }
 }
 
+const lessonId = computed(() => (typeof route.query.lessonId === 'string' ? route.query.lessonId : ''))
+
 const { data: resQuiz } = await useAsyncData(
   () => `personality-quiz-${route.query.lessonId}`,
   () =>
-    personalityQuizService.findAll(
+    !lessonId.value ? null : personalityQuizService.findAll(
       {
         page: 1,
         limit: 1,
@@ -120,7 +123,7 @@ const { data: resQuiz } = await useAsyncData(
 const { data: resProgress } = await useAsyncData(
   () => `lesson-progress-${route.query.lessonId}`,
   () =>
-    lessonProgressService.findAll({
+    !lessonId.value ? null : lessonProgressService.findAll({
       page: 1,
       limit: 1,
       userId: user.value?.id,
@@ -132,7 +135,7 @@ const { data: resProgress } = await useAsyncData(
 watch(
   () => resQuiz.value,
   (val) => {
-    if (!generatedOnce.value && val?.data?.data.length === 0 && !resProgress.value?.data?.data[0]?.introduction) {
+    if (lessonId.value && !generatedOnce.value && val?.data?.data.length === 0 && !resProgress.value?.data?.data[0]?.introduction) {
       startGenerate()
     }
   },
@@ -170,17 +173,27 @@ watch(
 </script>
 
 <template>
-  <div class="pt-8 pb-6 px-4 flex flex-col h-full">
-    <h2 class="font-bold mb-4 text-center text-2xl font-orbitron">Introduction</h2>
+  <div class="rc-stack rc-learning">
+    <EmptyState
+      v-if="!lessonId"
+      icon-name="i-lucide-book-open"
+      title="Pilih pelajaran dulu"
+      message="Buka pelajaran dari jalur belajar, lalu tekan Mulai belajar."
+      cta-label="Ke topik saya"
+      cta-to="/learn/profile/my-learning"
+    />
+    <template v-else>
+    <PageHeader title="Pengantar" subtitle="Ringkasan pelajaran ini dibuat khusus untuk gaya belajarmu." />
 
-    <div v-if="displayText.length === 0">
-      <ui-loading size="lg" />
-    </div>
-
-    <div class="flex-1">
-      <ui-render-markdown :text="displayText" />
-    </div>
+    <PlayCard as="section" aria-labelledby="intro-content">
+      <h2 id="intro-content" class="rc-h2">Materi pengantar</h2>
+      <div v-if="displayText.length === 0" class="rc-stepgroup__loading" aria-busy="true">
+        <span v-for="value in 4" :key="value" class="rc-skel rc-skel--line"></span>
+      </div>
+      <UiRenderMarkdown v-else :text="displayText" />
+    </PlayCard>
 
     <my-learning-personality-quiz />
+    </template>
   </div>
 </template>

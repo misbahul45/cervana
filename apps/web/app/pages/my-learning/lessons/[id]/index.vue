@@ -10,6 +10,7 @@ import type {
   NextLessonResponse
 } from '~/interfaces/curriculum/lessons'
 import { lessonsService } from '~/services/curriculum/lessons'
+import { plainText } from '~/lib/topics'
 import { lessonProgressService } from '~/services/learning/lessonsProgress'
 
 const route = useRoute()
@@ -23,7 +24,7 @@ const lessonId = route.params.id as string
 const { data: resCurrentLesson } = await useAsyncData<ApiResponse<LessonDetailResponse<true>>>(
   `lesson-current-${lessonId}`,
   () => lessonsService.findOne<true>(lessonId,{
-    include:'steps'
+    include:'steps,quiz'
   })
 )
 
@@ -52,32 +53,14 @@ const currentLesson = computed(() => resCurrentLesson.value?.data ?? null)
 const prevLesson = computed(() => resPrevLesson.value?.data?.previous ?? null)
 const nextLesson = computed(() => resNextLesson.value?.data?.next ?? null)
 
-const completedLessonIds = computed(() => {
-  const items = resLessonProgress.value?.data?.data || []
-  return items.map((p: any) => (typeof p === 'string' ? p : p.id))
-})
 
-const hasLearning = (id: string) => completedLessonIds.value.includes(id)
-
-
-const goToLesson = (id: string, unlocked: boolean): void => {
-  if (unlocked) router.push(`/my-learning/lessons/${id}`)
+const goToLesson = (id: string | undefined, allowed: boolean): void => {
+  if (id && allowed) router.push(`/my-learning/lessons/${id}`)
 }
 
 const startLesson = () => {
   router.push(`/my-learning/steps?lessonId=${currentLesson.value?.id}`)
 }
-
-const auroraBg = computed(() => '');
-
-const themeStyle = computed(() => {
-  const value = currentLesson.value?.theme;
-  if (!value) return '';
-  const lines: string[] = [];
-  if (value.primary) lines.push(`--rc-page-primary: ${value.primary}`);
-  if (value.secondary) lines.push(`--rc-page-secondary: ${value.secondary}`);
-  return lines.join('; ');
-});
 
 watch(currentLesson, async (newVal) => {
   if (!newVal) return
@@ -92,114 +75,50 @@ watch(currentLesson, async (newVal) => {
   }
 }, { immediate: true })
 
+const description = computed(() => plainText(currentLesson.value?.description, 260))
+const lessonQuiz = computed(() => (currentLesson.value as { quiz?: { id: string } | null } | null)?.quiz ?? null)
+const quizId = computed(() => lessonQuiz.value?.id ?? resLessonProgress.value?.data?.data?.[0]?.quizId ?? null)
+const stepsCount = computed(() => currentLesson.value?.steps?.length ?? 0)
+const resourcesCount = computed(() => currentLesson.value?.resources?.length ?? 0)
 
+useHead({ title: computed(() => `${currentLesson.value?.title ?? 'Pelajaran'} | ReduCera`) })
 </script>
 
 <template>
-  <div
-    class="relative w-full flex pt-20 pb-8 min-h-screen items-center justify-center"
-    :style="themeStyle"
-  >
-    <div class="aurora-bg absolute inset-0" aria-hidden="true"></div>
-    <div class="stars"></div>
-    <div class="stars-layer-2"></div>
-    <div class="absolute inset-0 backdrop-blur-[1px]"></div>
+  <div class="rc-stack rc-learning">
+    <PageHeader :title="currentLesson?.title ?? 'Pelajaran'" :subtitle="description || undefined">
+      <template #actions>
+        <PlayButton variant="outline" size="sm" @click="router.back()">Kembali</PlayButton>
+      </template>
+    </PageHeader>
 
-    <div class="relative z-20 flex flex-col items-center justify-center px-4 md:px-6 mx-auto max-w-5xl w-full animate-fade-down">
-      <div class="text-center mb-8 animate-fade-down" style="animation-delay: 0.1s">
-        <h1 class="text-white text-2xl md:text-3xl xl:text-4xl 2xl:text-5xl font-bold font-orbitron mb-4 drop-shadow-lg]">
-          {{ currentLesson?.title }}
-        </h1>
-        
-        <div v-if="currentLesson?.description" 
-             class="text-gray-300 text-xs md:text-base xl:text-lg 2xl:text-xl max-w-2xl mx-auto leading-relaxed"
-             v-html="currentLesson?.description" 
-        />
-      </div>
-
-      <div class="flex gap-6 mb-10 animate-fade-down" style="animation-delay: 0.2s">
-        <div class="bg-white/10 border-2 border-secondary/20 backdrop-blur-lg px-6 py-4 rounded-2xl text-center min-w-[140px]">
-          <div class="text-4xl font-bold text-white mb-1 font-orbitron">
-            {{ currentLesson?.steps?.length || 0 }}
-          </div>
-          <div class="text-sm text-gray-300 uppercase tracking-wider">Mission Steps</div>
-        </div>
-
-        <div class="bg-white/10 border-2 border-secondary/20 backdrop-blur-lg px-6 py-4 rounded-2xl text-center min-w-[140px]">
-          <div class="text-4xl font-bold text-white mb-1 font-orbitron">
-            {{ currentLesson?.resources?.length || 0 }}
-          </div>
-          <div class="text-sm text-gray-300 uppercase tracking-wider">Space Resources</div>
-        </div>
-      </div>
-
-      <div class="flex gap-4 mb-12 animate-fade-down" style="animation-delay: 0.3s">
-        <UButton
-          size="lg"
-          class="px-8 py-3 text-lg active:scale-95 cursor-pointer font-semibold rounded-xl shadow-xl hover:scale-105 transition-transform"
-          :style="{ 
-            background: 'linear-gradient(135deg, var(--rc-page-primary, var(--rc-primary)) 0%, var(--rc-page-secondary, var(--rc-secondary)) 100%)',
-            border: 'none'
-          }"
-          variant="subtle"
-          icon="i-lucide-rocket"
-          @click="startLesson"
-        >
-          Launch Our Steps
-        </UButton>
-      </div>
-
-      <div class="flex gap-4 animate-fade-down" style="animation-delay: 0.4s">
-        <UButton
-          variant="outline"
-          :disabled="!prevLesson || !hasLearning(prevLesson.id)"
-          @click="goToLesson(prevLesson?.id!, !!prevLesson)"
-          class="glass-card border-gray-600 hover:border-gray-400 transition-all flex items-center gap-2"
-          icon="i-lucide-chevron-left"
-        >
-          Previous Mission
-        </UButton>
-
-        <UButton
-          variant="outline"
-          :disabled="!nextLesson"
-          @click="goToLesson(nextLesson?.id!, !!nextLesson)"
-          class="glass-card border-gray-600 hover:border-gray-400 transition-all flex items-center gap-2"
-          trailing-icon="i-lucide-chevron-right"
-        >
-          Next Mission
-        </UButton>
-      </div>
-
+    <div class="rc-grid">
+      <PlayCard as="section" aria-labelledby="lesson-steps">
+        <h2 id="lesson-steps" class="rc-h2">Langkah belajar</h2>
+        <p class="rc-bignum">{{ stepsCount }}</p>
+      </PlayCard>
+      <PlayCard as="section" aria-labelledby="lesson-resources">
+        <h2 id="lesson-resources" class="rc-h2">Sumber belajar</h2>
+        <p class="rc-bignum">{{ resourcesCount }}</p>
+      </PlayCard>
     </div>
 
-    <UiDownStarAnimation />
+    <div class="rc-lessons__nav">
+      <PlayButton size="lg" @click="startLesson">Mulai belajar</PlayButton>
+      <PlayButton v-if="quizId" size="lg" variant="secondary" :to="`/my-learning/quizzes/${quizId}`">Kerjakan kuis</PlayButton>
+    </div>
+
+    <nav class="rc-lessons__nav" aria-label="Pelajaran lain">
+      <PlayButton
+        variant="outline"
+        :disabled="!prevLesson"
+        @click="goToLesson(prevLesson?.id, !!prevLesson)"
+      >
+        Pelajaran sebelumnya
+      </PlayButton>
+      <PlayButton variant="outline" :disabled="!nextLesson?.unlocked" @click="goToLesson(nextLesson?.id, Boolean(nextLesson?.unlocked))">
+        Pelajaran berikutnya
+      </PlayButton>
+    </nav>
   </div>
 </template>
-
-<style scoped>
-.aurora-bg {
-  background:
-    radial-gradient(ellipse 120% 80% at 50% -20%, color-mix(in srgb, var(--rc-page-primary, var(--rc-primary)) 35%, transparent) 0%, transparent 50%),
-    radial-gradient(ellipse 100% 100% at 15% 30%, color-mix(in srgb, var(--rc-page-secondary, var(--rc-secondary)) 25%, transparent) 0%, transparent 60%),
-    radial-gradient(ellipse 100% 100% at 85% 40%, color-mix(in srgb, var(--rc-page-secondary, var(--rc-secondary)) 20%, transparent) 0%, transparent 65%),
-    radial-gradient(ellipse 80% 60% at 50% 80%, color-mix(in srgb, var(--rc-page-primary, var(--rc-primary)) 18%, transparent) 0%, transparent 70%),
-    linear-gradient(180deg, var(--rc-bg) 0%, color-mix(in srgb, var(--rc-fg) 6%, var(--rc-bg)) 50%, var(--rc-bg) 100%);
-}
-
-@keyframes fade-down {
-  from {
-    opacity: 0;
-    transform: translateY(-30px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-.animate-fade-down {
-  animation: fade-down 0.6s ease-out forwards;
-  opacity: 0;
-}
-</style>

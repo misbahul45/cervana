@@ -1,6 +1,6 @@
 import type { Tokens } from "~/interfaces/api";
 import type { CheckResponse, LoginResponse, ProfileResponse, refreshTokenResponse, RegisterResponse } from "~/interfaces/auth";
-import { request } from "~/lib/api";
+import { request, type SsrContext } from "~/lib/api";
 import type { 
   LoginSchemaType, 
   RegisterSchemaType, 
@@ -13,7 +13,7 @@ export const authService = {
     return request<RegisterResponse>("/auth/register", "POST", data);
   },
 
-  async login(data: Omit<LoginSchemaType, 'rememberMe'>) {
+  async login(data: LoginSchemaType) {
     return request<LoginResponse>("/auth/login", "POST", data);
   },
 
@@ -41,8 +41,8 @@ export const authService = {
     return request<null>(`/auth/reset-password`, "POST", { ...data });
   },
 
-  async refreshToken(tokens?:Tokens) {
-    return request<refreshTokenResponse>("/auth/refresh-token", "POST", null, {}, false, tokens);
+  async refreshToken(tokens?: Tokens, ssrContext?: SsrContext) {
+    return request<refreshTokenResponse>("/auth/refresh-token", "POST", null, {}, false, tokens, ssrContext);
   },
 
   async resendOtp(email: string,  type:string) {

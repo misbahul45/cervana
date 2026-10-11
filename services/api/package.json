@@ -23,7 +23,9 @@
     "prisma:migrate:deploy": "prisma migrate deploy",
     "deploy": "pnpm prisma:generate && pnpm prisma:migrate:deploy && pnpm build && pnpm start:prod",
     "seed:theme": "tsx prisma/seed-theme.ts",
-    "seed:golden-graph": "tsx prisma/seed-golden-graph.ts"
+    "seed:gamify": "tsx prisma/seed-gamify.ts",
+    "seed:golden-graph": "tsx prisma/seed-golden-graph.ts",
+    "seed:concepts": "tsx prisma/seed-concepts.ts"
   },
   "dependencies": {
     "@anatine/zod-openapi": "^2.2.8",
@@ -55,7 +57,6 @@
     "nest-winston": "^1.10.2",
     "node-fetch": "^3.3.2",
     "passport": "^0.7.0",
-    "passport-google-oauth20": "^2.0.0",
     "passport-jwt": "^4.0.1",
     "pdf-parse": "^1.1.1",
     "pg": "^8.16.3",
@@ -87,7 +88,6 @@
     "@types/jest": "^29.5.14",
     "@types/multer": "^2.0.0",
     "@types/node": "^22.10.7",
-    "@types/passport-google-oauth20": "^2.0.16",
     "@types/passport-jwt": "^4.0.1",
     "@types/pdf-parse": "^1.1.5",
     "@types/pg": "^8.15.6",

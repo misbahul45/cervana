@@ -1,5 +1,5 @@
 import { PersonalPolicyService } from '../personal-policy.service';
-import type { TeachingStrategy } from '../adaptive-policy.service';
+import type { TeachingStrategy } from '@/v1/learner-model/policy/policy.types';
 
 describe('PersonalPolicyService — reflection loop', () => {
   const service = new PersonalPolicyService();

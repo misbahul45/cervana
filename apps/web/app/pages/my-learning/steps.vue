@@ -21,12 +21,10 @@ import { useLearning } from '~/stores/learning';
 
   watch(data, (newVal)=>{
     if(newVal?.data?.data.length==0){
-      navigateTo('/app//topics')
+      navigateTo('/learn/topics')
     }
   })
 </script>
 <template>
-  <NuxtLayout name="steps">
-    <NuxtPage />
-  </NuxtLayout>
+  <NuxtPage />
 </template>

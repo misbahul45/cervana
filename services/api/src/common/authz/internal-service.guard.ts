@@ -81,6 +81,7 @@ export class InternalServiceGuard implements CanActivate {
       method: req.method,
       target: req.originalUrl,
       body,
+      actingUserId: header(ACTING_USER_HEADER),
     });
     if (!signaturesMatch(expected, provided)) {
       throw new UnauthorizedException('Invalid service signature');

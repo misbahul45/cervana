@@ -1,49 +1,97 @@
 <script setup lang="ts">
-import StatCard from '~/components/charts/StatCard.vue';
+import PageHeader from '~/components/play/PageHeader.vue';
+import PlayCard from '~/components/play/PlayCard.vue';
 import { analyticsApi } from '~/lib/api';
-import { describeApiError } from '~/lib/api-error';
+import { adminService } from '~/services/admin';
 
 definePageMeta({
-  title: 'Dashboard Admin — ReduCera',
+  title: 'Beranda admin — ReduCera',
   protection: { kind: 'role', role: 'ADMIN' },
+  layout: 'admin',
 });
 
-const { data: overview, status, error, refresh } = useAsyncData('admin:overview', () => analyticsApi.adminOverview(), {
-  lazy: true,
+useHead({ title: 'Beranda admin — ReduCera' });
+
+const { data: counts, status: countsStatus, error: countsError, refresh: refreshCounts } = useAsyncData(
+  'admin:queue-counts',
+  () => adminService.queueCounts(),
+  { lazy: true },
+);
+
+const { data: overview, status: overviewStatus, error: overviewError, refresh: refreshOverview } = useAsyncData(
+  'admin:overview',
+  () => analyticsApi.adminOverview(),
+  { lazy: true },
+);
+
+const queues = computed(() => {
+  const value = counts.value;
+  if (!value) return [];
+  return [
+    { label: 'Pembayaran menunggu', value: value.payments, to: '/admin/payments' },
+    { label: 'Pencairan diajukan', value: value.payouts, to: '/admin/payouts?status=REQUESTED' },
+    { label: 'Pengembalian dana diajukan', value: value.refunds, to: '/admin/refunds?status=REQUESTED' },
+    { label: 'Artikel menunggu tinjauan', value: value.articles, to: '/admin/moderation?type=article' },
+    { label: 'Kelas menunggu tinjauan', value: value.classes, to: '/admin/moderation?type=class' },
+    { label: 'Pendaftar kreator menunggu', value: value.applications, to: '/admin/applications' },
+  ];
+});
+
+const platform = computed(() => {
+  const value = overview.value;
+  if (!value) return [];
+  return [
+    { label: 'Pengguna', value: value.totalUsers },
+    { label: 'Kreator', value: value.totalCreators },
+    { label: 'Konten terbit', value: value.totalContent },
+    { label: 'Keputusan agen', value: value.totalAgentDecisions },
+  ];
 });
 </script>
 
 <template>
-  <main class="max-w-6xl mx-auto p-6 space-y-6">
-    <h1 class="text-3xl font-bold">Dashboard Admin</h1>
-    <p class="text-[var(--rc-fg-muted,#6b7280)]">Ringkasan operasional sistem dan kendali utama.</p>
+  <div class="rc-stack">
+    <PageHeader title="Beranda admin" subtitle="Antrean yang menunggu keputusanmu dan ringkasan platform." />
 
-    <LoadingSkeleton v-if="status === 'pending'" variant="card" :count="4" />
-    <ErrorState
-      v-else-if="error || !overview"
-      title="Gagal memuat ringkasan"
-      :message="describeApiError(error)"
-      @retry="refresh()"
-    />
-    <div v-else class="grid grid-cols-1 md:grid-cols-4 gap-4">
-      <StatCard title="Pengguna" :value="overview.totalUsers" />
-      <StatCard title="Kreator" :value="overview.totalCreators" />
-      <StatCard title="Konten" :value="overview.totalContent" />
-      <StatCard title="Keputusan Agent" :value="overview.totalAgentDecisions" />
-    </div>
-
-    <section>
-      <h2 class="text-xl font-semibold mb-3">Kelola Sistem</h2>
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <NuxtLink to="/admin/moderation" class="bg-[var(--rc-bg,#fff)] rounded-lg p-6 border border-[var(--rc-border)]">
-          <h3 class="font-semibold">Antrian Moderasi</h3>
-          <p class="text-sm text-[var(--rc-fg-muted,#6b7280)] mt-1">Tinjau konten menunggu</p>
-        </NuxtLink>
-        <NuxtLink to="/admin/analytics" class="bg-[var(--rc-bg,#fff)] rounded-lg p-6 border border-[var(--rc-border)]">
-          <h3 class="font-semibold">Analytics Sistem</h3>
-          <p class="text-sm text-[var(--rc-fg-muted,#6b7280)] mt-1">Metrik agregat & kesehatan</p>
-        </NuxtLink>
-      </div>
+    <section class="rc-stack" aria-labelledby="queue-h">
+      <h2 id="queue-h" class="rc-h2">Perlu ditindaklanjuti</h2>
+      <AdminState
+        :status="countsStatus"
+        :error="countsError"
+        error-title="Antrean gagal dimuat"
+        :skeleton="2"
+        @retry="refreshCounts()"
+      >
+        <div class="rc-statgrid">
+          <PlayCard v-for="queue in queues" :key="queue.label" as="div" interactive :tone="queue.value > 0 ? 'gold' : 'default'">
+            <NuxtLink :to="queue.to" class="rc-statcard">
+              <span class="rc-statcard__value">{{ queue.value }}</span>
+              <span class="rc-statcard__label">{{ queue.label }}</span>
+            </NuxtLink>
+          </PlayCard>
+        </div>
+      </AdminState>
     </section>
-  </main>
+
+    <section class="rc-stack" aria-labelledby="platform-h">
+      <h2 id="platform-h" class="rc-h2">Platform</h2>
+      <AdminState
+        :status="overviewStatus"
+        :error="overviewError"
+        error-title="Ringkasan gagal dimuat"
+        :skeleton="2"
+        @retry="refreshOverview()"
+      >
+        <div class="rc-statgrid">
+          <PlayCard v-for="item in platform" :key="item.label">
+            <div class="rc-statcard">
+              <span class="rc-statcard__value">{{ item.value }}</span>
+              <span class="rc-statcard__label">{{ item.label }}</span>
+            </div>
+          </PlayCard>
+        </div>
+        <p class="rc-hint">Rincian ada di <NuxtLink to="/admin/analytics">Analitik</NuxtLink>.</p>
+      </AdminState>
+    </section>
+  </div>
 </template>

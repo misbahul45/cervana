@@ -24,7 +24,7 @@ The **Application API** (`api` service, NestJS, port 3002) is the source of trut
 | Capability | API | AI | Worker | Frontend | Owner | Source of truth | Allowed mutations |
 |---|---|---|---|---|---|---|---|
 | Identity (`User`) | ✅ | ❌ | ❌ | ✅ | api | Postgres `User` | api only |
-| Authentication (JWT, Google OAuth) | ✅ | ❌ | ❌ | ✅ | api | Postgres `Session` | api only |
+| Authentication (JWT, email and password) | ✅ | ❌ | ❌ | ✅ | api | Postgres `Session` | api only |
 | Authorization (RBAC + ownership) | ✅ | ❌ | ❌ | ❌ | api | Postgres `User.role` + per-row checks | api only |
 | Curriculum (Topic, SubTopic, Lesson, Step) | ✅ | R | ❌ | ✅ | api | Postgres | api only |
 | Material / Resource | ✅ | R (for embedding) | ❌ | ✅ | api | Postgres `Resource` | api only |

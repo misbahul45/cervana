@@ -5,10 +5,11 @@ import { QuestionsModule } from '../questions/questions.module';
 import { QuizzesController } from './quizzes.controller';
 import { QuizzesRepo } from './quizzes.repo';
 import { QuizzesService } from './quizzes.service';
+import { QuizAccessService } from '../quiz-access.service';
 
 @Module({
   controllers: [QuizzesController],
-  providers: [QuizzesRepo, QuizzesService],
+  providers: [QuizzesRepo, QuizzesService, QuizAccessService],
   imports:[PrismaModule, QuizAttemptsModule, QuestionsModule],
   exports: [QuizzesRepo, QuizzesService],
 })

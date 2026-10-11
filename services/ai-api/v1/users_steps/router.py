@@ -10,6 +10,7 @@ from config.embedding_pipeline import get_embedding_pipeline
 from config.logging_config import configure_logging
 from config.rate_limit import rate_limit
 from config.trace_context import current_trace_id
+from config.service_identity import service_actor
 from config.user_auth import authenticated_user, bind_acting_user
 from errors.envelope import error_envelope
 from errors.types import AuthError
@@ -37,7 +38,7 @@ def _resolve_session(request: Request, body: dict, idempotency_key: str, user: d
 
 @router.get("/generate-question")
 @rate_limit(capacity_per_minute=30, burst=5)
-@require_idempotency_key(mint_if_missing=False)
+@require_idempotency_key(mint_if_missing=False, deduplicate=False)
 async def generate_question_sse(
     request: Request,
     lessonId: str,
@@ -127,7 +128,7 @@ async def generate_question_sse(
 async def generate_user_steps(
     request: Request,
     payload: dict = Body(...),
-    user: dict = Depends(authenticated_user),
+    user: dict = Depends(service_actor),
 ):
     idempotency_key = getattr(request.state, "idempotency_key", None)
     if not idempotency_key:

@@ -13,6 +13,7 @@ export interface SignatureInput {
   method: string;
   target: string;
   body: Buffer | string;
+  actingUserId?: string;
 }
 
 export const canonicalString = (input: Omit<SignatureInput, 'secret'>): string =>
@@ -21,6 +22,7 @@ export const canonicalString = (input: Omit<SignatureInput, 'secret'>): string =
     input.method.toUpperCase(),
     input.target,
     createHash('sha256').update(input.body).digest('hex'),
+    input.actingUserId ?? '',
   ].join('\n');
 
 export const computeSignature = (input: SignatureInput): string =>

@@ -1,23 +1,22 @@
 import { Module } from '@nestjs/common';
 import { TutorController } from './tutor.controller';
 import { TutorService } from './tutor.service';
-import { MasteryService } from '../learner-model/services/mastery.service';
+import { LearnerModelModule } from '../learner-model/learner-model.module';
+import { PrismaModule } from '@/common/config/prisma/prisma.module';
 import { MisconceptionLifecycleService } from '../misconception/misconception-lifecycle.service';
 import { QuestionUnderstandingService } from '../question-intelligence/question-understanding.service';
 import { QuestionBlueprintService, ThreeValuedValidatorService } from '../question-intelligence/question-blueprint.service';
-import { AdaptivePolicyService } from '../policy/adaptive-policy.service';
 import { PersonalPolicyService } from '../policy/personal-policy.service';
 
 @Module({
+  imports: [PrismaModule, LearnerModelModule],
   controllers: [TutorController],
   providers: [
     TutorService,
-    MasteryService,
     MisconceptionLifecycleService,
     QuestionUnderstandingService,
     QuestionBlueprintService,
     ThreeValuedValidatorService,
-    AdaptivePolicyService,
     PersonalPolicyService,
   ],
   exports: [TutorService],

@@ -2,6 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { NotFoundException } from '@nestjs/common';
 import { ContentsController } from '../contents.controller';
 import { ContentsService } from '../contents.service';
+import { ContentSimilarityService } from '../content-similarity.service';
 import { ContentSseService } from '@/v1/sse/content-sse/content-sse.service';
 import { PrismaService } from '@/common/config/prisma/prisma.service';
 import { AppError } from '@/common/lib/error';
@@ -55,6 +56,7 @@ describe('ContentsController - similarity', () => {
       providers: [
         { provide: ContentsService, useValue: contentsService },
         { provide: ContentSseService, useValue: contentsSse },
+        ContentSimilarityService,
         { provide: PrismaService, useValue: prisma },
       ],
     }).compile();

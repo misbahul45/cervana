@@ -1,30 +1,56 @@
 <script setup lang="ts">
+import PageHeader from '~/components/play/PageHeader.vue';
+import PlayButton from '~/components/play/PlayButton.vue';
+import EmptyState from '~/components/ui/EmptyState.vue';
+import ErrorState from '~/components/ui/ErrorState.vue';
+import LoadingSkeleton from '~/components/ui/LoadingSkeleton.vue';
 import { simulatorApi } from '~/lib/api';
+import { describeApiError } from '~/lib/api-error';
 
-const scenarios = ref<{ slug: string; name: string; days: number }[]>([]);
-try {
-  scenarios.value = (await simulatorApi.listScenarios()) ?? [];
-} catch {
-  scenarios.value = [];
-}
+definePageMeta({
+  title: 'Simulator Perusahaan — ReduCera',
+  protection: { kind: 'authenticated' },
+  layout: 'learner',
+});
+
+useHead({ title: 'Simulator Perusahaan — ReduCera' });
+
+const { data: scenarios, status, error, refresh } = useAsyncData('simulator:scenarios', () => simulatorApi.listScenarios(), { lazy: true });
+
+const starting = ref<string | null>(null);
+const problem = ref<string | null>(null);
 
 async function pick(slug: string) {
-  const company = await simulatorApi.create({ scenarioSlug: slug });
-  if (company?.id) await navigateTo(`/simulator/${company.id}`);
+  if (starting.value) return;
+  starting.value = slug;
+  problem.value = null;
+  try {
+    const company = await simulatorApi.create({ scenarioSlug: slug });
+    if (company?.id) await navigateTo(`/simulator/${company.id}`);
+  } catch (err) {
+    problem.value = describeApiError(err, 'Simulasi gagal dimulai. Coba lagi.');
+  } finally {
+    starting.value = null;
+  }
 }
-
-useHead({ title: 'Pilih Skenario Simulator — ReduCera' });
 </script>
 
 <template>
-  <main>
-    <h1>Pilih Skenario Simulator</h1>
-    <ul>
-      <li v-for="s in scenarios" :key="s.slug">
-        <h2>{{ s.name }}</h2>
-        <p>{{ s.days }} hari</p>
-        <button @click="pick(s.slug)">Mulai simulasi</button>
+  <div class="rc-stack">
+    <PageHeader title="Simulator perusahaan" subtitle="Kelola pembukuan perusahaan simulasi, lalu tutup periode dan baca laporannya." />
+
+    <p v-if="problem" class="rc-alert rc-alert--error" role="alert">{{ problem }}</p>
+    <LoadingSkeleton v-if="status === 'pending'" variant="card" :count="2" />
+    <ErrorState v-else-if="error" title="Skenario gagal dimuat" :message="describeApiError(error)" @retry="refresh()" />
+    <EmptyState v-else-if="!scenarios || scenarios.length === 0" title="Belum ada skenario" message="Skenario simulator akan muncul di sini." />
+    <ul v-else class="rc-studio-list" aria-label="Skenario simulator">
+      <li v-for="scenario in scenarios" :key="scenario.slug" class="rc-card">
+        <div class="rc-studio-list__main">
+          <p class="rc-studio-list__title">{{ scenario.name }}</p>
+          <p class="rc-hint">{{ scenario.days }} hari</p>
+        </div>
+        <PlayButton size="sm" :loading="starting === scenario.slug" @click="pick(scenario.slug)">Mulai simulasi</PlayButton>
       </li>
     </ul>
-  </main>
+  </div>
 </template>

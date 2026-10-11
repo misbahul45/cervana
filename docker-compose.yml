@@ -6,13 +6,52 @@ x-logging: &default_logging
     max-size: "20m"
     max-file: "5"
 
+x-ai-runtime-environment: &ai_runtime_environment
+  PORT: 3003
+  APP_VERSION: ${APP_VERSION:-v1}
+  NODE_ENV: ${NODE_ENV:-production}
+  LOG_LEVEL: ${LOG_LEVEL:-info}
+  NEST_API: ${NEST_API:-http://api:3002/api/v1}
+  INTERNAL_AI_API_SECRET: ${INTERNAL_AI_API_SECRET}
+  REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
+  CELERY_BROKER_URL: ${CELERY_BROKER_URL:-redis://redis:6379/0}
+  CELERY_RESULT_BACKEND: ${CELERY_RESULT_BACKEND:-redis://redis:6379/0}
+  QDRANT_URL: ${QDRANT_URL:-http://qdrant:6333}
+  QDRANT_API_KEY: ${QDRANT_API_KEY}
+  QDRANT_COLLECTION: ${QDRANT_COLLECTION:-reducera-embedding}
+  QDRANT_MEMORY_COLLECTION: ${QDRANT_MEMORY_COLLECTION:-reducera-memory}
+  OPENAI_API_KEY: ${OPENAI_API_KEY}
+  OPENAI_BASE_URL: ${OPENAI_BASE_URL:-https://api.openai.com/v1}
+  OPENAI_MODEL_FLASH: ${OPENAI_MODEL_FLASH:-gpt-4.1-mini}
+  OPENAI_MODEL_THINKING: ${OPENAI_MODEL_THINKING:-gpt-5-mini}
+  OPENAI_MAX_TOKENS: ${OPENAI_MAX_TOKENS:-8192}
+  OPENAI_THINKING_MAX_TOKENS: ${OPENAI_THINKING_MAX_TOKENS:-16000}
+  OPENAI_FLASH_TEMPERATURE: ${OPENAI_FLASH_TEMPERATURE:-}
+  LLM_PROVIDER: ${LLM_PROVIDER:-openai}
+  LLM_ROUTES: ${LLM_ROUTES:-}
+  MISTRAL_API_KEY: ${MISTRAL_API_KEY:-}
+  MISTRAL_BASE_URL: ${MISTRAL_BASE_URL:-}
+  MISTRAL_MODEL_FLASH: ${MISTRAL_MODEL_FLASH:-}
+  MISTRAL_MODEL_THINKING: ${MISTRAL_MODEL_THINKING:-}
+  MISTRAL_MAX_TOKENS: ${MISTRAL_MAX_TOKENS:-}
+  MISTRAL_THINKING_MAX_TOKENS: ${MISTRAL_THINKING_MAX_TOKENS:-}
+  MISTRAL_FLASH_TEMPERATURE: ${MISTRAL_FLASH_TEMPERATURE:-}
+  MISTRAL_THINKING_TEMPERATURE: ${MISTRAL_THINKING_TEMPERATURE:-}
+  EMBEDDING_PROVIDER: ${EMBEDDING_PROVIDER:-huggingface}
+  MISTRAL_EMBEDDING_MODEL: ${MISTRAL_EMBEDDING_MODEL:-}
+  HF_TOKEN: ${HF_TOKEN}
+  HF_EMBEDDING_MODEL: ${HF_EMBEDDING_MODEL:-BAAI/bge-m3}
+  HF_EMBEDDING_URL: ${HF_EMBEDDING_URL:-}
+  EMBEDDING_DIM: ${EMBEDDING_DIM:-1024}
+  TAVILY_API_KEY: ${TAVILY_API_KEY}
+  WEB_URL: ${WEB_URL:-http://web:3000}
+  ADMIN_URL: ${ADMIN_URL}
+
 services:
   postgres:
     image: postgres:15-alpine
     container_name: reducera_postgres
     restart: unless-stopped
-    env_file:
-      - .env
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
@@ -41,8 +80,6 @@ services:
     image: redis:7-alpine
     container_name: reducera_redis
     restart: unless-stopped
-    env_file:
-      - .env
     command: ["redis-server", "--appendonly", "yes", "--maxmemory", "512mb", "--maxmemory-policy", "allkeys-lru"]
     ports:
       - "${REDIS_PORT:-6380}:6379"
@@ -67,8 +104,6 @@ services:
     image: qdrant/qdrant:v1.12.4
     container_name: reducera_qdrant
     restart: unless-stopped
-    env_file:
-      - .env
     volumes:
       - qdrant_data:/qdrant/storage
     ports:
@@ -94,8 +129,6 @@ services:
       dockerfile: Dockerfile
     container_name: reducera_api
     restart: unless-stopped
-    env_file:
-      - .env
     environment:
       DATABASE_URL: ${DATABASE_URL:-postgresql://reducera_prod:change_me_strong_random_password_min_24_chars@postgres:5432/reducera}
       REDIS_HOST: ${REDIS_HOST:-redis}
@@ -103,12 +136,14 @@ services:
       PORT: 3002
       NODE_ENV: ${NODE_ENV:-development}
       API_INTERNAL_URL: ${API_INTERNAL_URL:-http://api:3002}
+      AI_URL: ${AI_URL:-http://ai-api:3003/ai/v1}
       FRONTEND_URL: ${FRONTEND_URL}
       ADMIN_URL: ${ADMIN_URL}
       CORS_EXTRA_ORIGINS: ${CORS_EXTRA_ORIGINS:-}
       COOKIE_SECRET: ${COOKIE_SECRET}
       JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET}
       INTERNAL_AI_API_SECRET: ${INTERNAL_AI_API_SECRET}
+      INTERNAL_API_SECRET: ${INTERNAL_API_SECRET}
       JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET}
       JWT_ACCESS_EXPIRES_IN: ${JWT_ACCESS_EXPIRES_IN}
       JWT_REFRESH_EXPIRES_IN: ${JWT_REFRESH_EXPIRES_IN}
@@ -122,13 +157,12 @@ services:
       PLATFORM_FEE_PERCENT: ${PLATFORM_FEE_PERCENT:-10}
       MANUAL_PAYMENT_MAX_SUBMISSIONS: ${MANUAL_PAYMENT_MAX_SUBMISSIONS:-5}
       MANUAL_PAYMENT_ACCOUNTS: ${MANUAL_PAYMENT_ACCOUNTS}
-      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
-      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET}
-      GOOGLE_CALLBACK_URL: ${GOOGLE_CALLBACK_URL}
       CLOUDINARY_CLOUD_NAME: ${CLOUDINARY_CLOUD_NAME}
       CLOUDINARY_API_KEY: ${CLOUDINARY_API_KEY}
       CLOUDINARY_API_SECRET: ${CLOUDINARY_API_SECRET}
       RESEND_API_KEY: ${RESEND_API_KEY}
+      EMAIL_FROM: ${EMAIL_FROM:-ReduCera <onboarding@resend.dev>}
+      OTP_DEV_MODE: ${OTP_DEV_MODE:-false}
       ARCJET_KEY: ${ARCJET_KEY}
       LOG_LEVEL: ${LOG_LEVEL:-info}
     ports:
@@ -158,8 +192,6 @@ services:
     container_name: reducera_api_migrate
     profiles: ["migrate"]
     restart: "no"
-    env_file:
-      - .env
     environment:
       PGPASSWORD: ${POSTGRES_PASSWORD}
       PGUSER: ${POSTGRES_USER:-reducera_prod}
@@ -195,40 +227,14 @@ services:
       dockerfile: Dockerfile
     container_name: reducera_ai_api
     restart: unless-stopped
-    env_file:
-      - .env
     environment:
-      PORT: 3003
-      APP_VERSION: ${APP_VERSION:-v1}
-      NEST_API: ${NEST_API:-http://api:3002/api/v1}
-      INTERNAL_AI_API_SECRET: ${INTERNAL_AI_API_SECRET}
-      REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
-      CELERY_BROKER_URL: ${CELERY_BROKER_URL:-redis://redis:6379/0}
-      CELERY_RESULT_BACKEND: ${CELERY_RESULT_BACKEND:-redis://redis:6379/0}
-      QDRANT_URL: ${QDRANT_URL:-http://qdrant:6333}
-      QDRANT_API_KEY: ${QDRANT_API_KEY}
-      QDRANT_COLLECTION: ${QDRANT_COLLECTION:-reducera-embedding}
-      QDRANT_MEMORY_COLLECTION: ${QDRANT_MEMORY_COLLECTION:-reducera-memory}
-      OPENAI_API_KEY: ${OPENAI_API_KEY}
-      OPENAI_BASE_URL: ${OPENAI_BASE_URL:-https://api.openai.com/v1}
-      OPENAI_MODEL_FLASH: ${OPENAI_MODEL_FLASH:-gpt-4.1-mini}
-      OPENAI_MODEL_THINKING: ${OPENAI_MODEL_THINKING:-gpt-5-mini}
-      OPENAI_MAX_TOKENS: ${OPENAI_MAX_TOKENS:-8192}
-      OPENAI_THINKING_MAX_TOKENS: ${OPENAI_THINKING_MAX_TOKENS:-16000}
-      OPENAI_FLASH_TEMPERATURE: ${OPENAI_FLASH_TEMPERATURE:-}
-      HF_EMBEDDING_MODEL: ${HF_EMBEDDING_MODEL:-BAAI/bge-m3}
-      HF_EMBEDDING_URL: ${HF_EMBEDDING_URL:-}
-      EMBEDDING_DIM: ${EMBEDDING_DIM:-1024}
-      TAVILY_API_KEY: ${TAVILY_API_KEY}
+      <<: *ai_runtime_environment
+      INTERNAL_API_SECRET: ${INTERNAL_API_SECRET}
       RESOURCE_ALLOWLIST_HOSTS: ${RESOURCE_ALLOWLIST_HOSTS:-}
       RESOURCE_ALLOWLIST_SCHEMES: ${RESOURCE_ALLOWLIST_SCHEMES:-https}
       RESOURCE_ALLOWLIST_LOCAL: ${RESOURCE_ALLOWLIST_LOCAL:-false}
       AI_API_RATE_LIMIT: ${AI_API_RATE_LIMIT:-60}
       AI_API_RATE_BURST: ${AI_API_RATE_BURST:-10}
-      WEB_URL: ${WEB_URL:-http://web:3000}
-      ADMIN_URL: ${ADMIN_URL}
-      HF_TOKEN: ${HF_TOKEN}
-      NODE_ENV: ${NODE_ENV:-production}
     ports:
       - "${AI_API_PORT:-3003}:3003"
     depends_on:
@@ -259,8 +265,6 @@ services:
       dockerfile: Dockerfile
     container_name: reducera_web
     restart: unless-stopped
-    env_file:
-      - .env
     environment:
       NUXT_PUBLIC_API_URL: ${NUXT_PUBLIC_API_URL:-http://localhost/api/v1}
       NUXT_PUBLIC_AI_URL: ${NUXT_PUBLIC_AI_URL:-http://localhost/ai/v1}
@@ -296,27 +300,10 @@ services:
       dockerfile: Dockerfile
     container_name: reducera_celery_worker
     restart: unless-stopped
-    env_file:
-      - .env
     environment:
-      PORT: 3003
-      REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
-      CELERY_BROKER_URL: ${CELERY_BROKER_URL:-redis://redis:6379/0}
-      CELERY_RESULT_BACKEND: ${CELERY_RESULT_BACKEND:-redis://redis:6379/0}
+      <<: *ai_runtime_environment
       CELERY_WORKER_CONCURRENCY: ${CELERY_WORKER_CONCURRENCY:-2}
       CELERY_WORKER_PREFETCH_MULTIPLIER: ${CELERY_WORKER_PREFETCH_MULTIPLIER:-1}
-      HF_TOKEN: ${HF_TOKEN}
-      INTERNAL_AI_API_SECRET: ${INTERNAL_AI_API_SECRET}
-      OPENAI_API_KEY: ${OPENAI_API_KEY}
-      OPENAI_BASE_URL: ${OPENAI_BASE_URL:-https://api.openai.com/v1}
-      HF_EMBEDDING_MODEL: ${HF_EMBEDDING_MODEL:-BAAI/bge-m3}
-      HF_EMBEDDING_URL: ${HF_EMBEDDING_URL:-}
-      EMBEDDING_DIM: ${EMBEDDING_DIM:-1024}
-      QDRANT_URL: ${QDRANT_URL:-http://qdrant:6333}
-      QDRANT_COLLECTION: ${QDRANT_COLLECTION:-reducera-embedding}
-      QDRANT_MEMORY_COLLECTION: ${QDRANT_MEMORY_COLLECTION:-reducera-memory}
-      NEST_API: ${NEST_API:-http://api:3002/api/v1}
-      NODE_ENV: ${NODE_ENV:-production}
     command: ["celery", "-A", "config.celery:celery_app", "worker", "--loglevel=info", "--concurrency=2"]
     healthcheck:
       test: ["CMD-SHELL", "celery -A config.celery:celery_app inspect ping -t 10 2>&1 | grep -q pong"]
@@ -338,8 +325,6 @@ services:
     image: nginx:1.27-alpine
     container_name: reducera_nginx
     restart: unless-stopped
-    env_file:
-      - .env
     ports:
       - "${NGINX_HTTP_PORT:-80}:80"
       - "${NGINX_HTTPS_PORT:-443}:443"

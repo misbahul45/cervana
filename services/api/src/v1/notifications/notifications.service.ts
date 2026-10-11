@@ -71,6 +71,23 @@ export class NotificationsService {
     });
   }
 
+  markRead(id: string, readAt: Date) {
+    return errorHandler(async () => {
+      const existingNotification = await this.notificationsRepo.findOne('id', id);
+
+      if (!existingNotification) {
+        throw new AppError('Notification not found', 404, AppErrorCode.NOT_FOUND);
+      }
+
+      await this.notificationsRepo.markRead(id, readAt);
+
+      return {
+        message: 'Successfully marked notification as read',
+        data: null,
+      };
+    });
+  }
+
   remove(id: string) {
     return errorHandler(async () => {
       const existingNotification = await this.notificationsRepo.findOne('id', id);

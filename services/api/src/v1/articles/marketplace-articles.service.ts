@@ -6,6 +6,7 @@ import { Actor } from '@/common/authz/policy.service';
 import { EntitlementsService } from '../entitlements/entitlements.service';
 import { READABLE_BY_BUYERS } from '../marketplace/content-state';
 import { MarketplaceArticleQueryDtoType } from './articles.dto';
+import { buildPreview, previewLimit } from './article-preview';
 
 const publicSelect = {
   id: true,
@@ -75,6 +76,19 @@ export class MarketplaceArticlesService {
       throw new AppError('Article not found', 404, AppErrorCode.CONTENT_NOT_PUBLISHED);
     }
     return { message: 'Successfully retrieved article', data: article };
+  }
+
+  async preview(id: string) {
+    const article = await this.prisma.article.findFirst({
+      where: { id, status: ContentStatus.PUBLISHED, tenant: { status: TenantStatus.ACTIVE } },
+      select: { accessType: true, publishedVersion: { select: { content: true } } },
+    });
+    if (!article?.publishedVersion) {
+      throw new AppError('Article not found', 404, AppErrorCode.CONTENT_NOT_PUBLISHED);
+    }
+    const { content } = article.publishedVersion;
+    const limit = previewLimit(article.accessType, content.trim().length);
+    return { message: 'Successfully retrieved article preview', data: { id, ...buildPreview(content, limit) } };
   }
 
   async access(actor: Actor, id: string) {

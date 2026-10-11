@@ -1,15 +1,28 @@
 import { Injectable } from '@nestjs/common';
-import { MasteryRepo } from '@/v1/personalization/mastery/mastery.repo';
+import { LearnerStateService } from '@/v1/learner-model/learner-state.service';
+import { isCreatorEligible } from '@/v1/learner-model/mastery/topic-aggregate';
 
-const ELIGIBILITY_THRESHOLD = 0.85;
+export interface EligibilityResult {
+  eligible: boolean;
+  score: number | null;
+  passedConcepts: number;
+  totalConcepts: number;
+}
+
+const NOT_ELIGIBLE: EligibilityResult = { eligible: false, score: null, passedConcepts: 0, totalConcepts: 0 };
 
 @Injectable()
 export class CreatorEligibilityService {
-  constructor(private readonly masteryRepo: MasteryRepo) {}
+  constructor(private readonly state: LearnerStateService) {}
 
-  async check(input: { userId: string; topicId: string }): Promise<{ eligible: boolean; score: number | null }> {
-    const m = await this.masteryRepo.findByUserAndTopic(input.userId, input.topicId);
-    const score = m?.score ?? null;
-    return { eligible: score !== null && score >= ELIGIBILITY_THRESHOLD, score };
+  async check(input: { userId: string; topicId: string }): Promise<EligibilityResult> {
+    if (!input.topicId) return { ...NOT_ELIGIBLE };
+    const aggregate = await this.state.topicMastery(input.userId, input.topicId);
+    return {
+      eligible: isCreatorEligible(aggregate),
+      score: aggregate.score,
+      passedConcepts: aggregate.passedConcepts,
+      totalConcepts: aggregate.totalConcepts,
+    };
   }
 }

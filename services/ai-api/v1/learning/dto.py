@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any, Dict, List, Optional, Union
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from v1.users_steps.dto import (
     LearningStyleProfileBase,
@@ -24,12 +24,20 @@ class CitationDto(BaseModel):
         from_attributes=True,
     )
 
-    lesson_id: str
+    lesson_id: Optional[str] = None
+    concept_id: Optional[str] = None
+    resource_id: Optional[str] = None
     chunk_id: Optional[str] = None
     score: Optional[float] = Field(default=None, ge=0.0, le=1.0)
     label: Optional[str] = None
     source: Optional[str] = None
     snippet: Optional[str] = None
+
+    @model_validator(mode="after")
+    def _needs_a_locator(self):
+        if not (self.lesson_id or self.concept_id or self.resource_id):
+            raise ValueError("a citation needs a lesson, concept or resource id")
+        return self
 
 
 class GenerateContentMaterialResponseDto(BaseModel):

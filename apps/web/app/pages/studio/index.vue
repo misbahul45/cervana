@@ -1,6 +1,13 @@
 <script setup lang="ts">
-import { useQuery } from '@tanstack/vue-query';
-import { QK } from '~/lib/query-keys';
+import PageHeader from '~/components/play/PageHeader.vue';
+import PlayButton from '~/components/play/PlayButton.vue';
+import PlayCard from '~/components/play/PlayCard.vue';
+import ErrorState from '~/components/ui/ErrorState.vue';
+import LoadingSkeleton from '~/components/ui/LoadingSkeleton.vue';
+import { earningsApi, studioArticlesApi, studioClassesApi } from '~/lib/api';
+import { describeApiError } from '~/lib/api-error';
+import { formatAmount } from '~/lib/format';
+import { contentCounts, nextStep, sumCounts } from '~/lib/studio';
 
 definePageMeta({
   title: 'Studio — ReduCera',
@@ -8,81 +15,54 @@ definePageMeta({
   layout: 'studio',
 });
 
-const { data: studio } = useQuery({
-  queryKey: QK.creator.studio(),
-  queryFn: async () => ({
-    draftCount: 3,
-    publishedCount: 5,
-    pendingReviewCount: 2,
-    earnings: { monthToDate: 1_250_000, currency: 'IDR' },
-    nextAction: 'Selesaikan tinjauan untuk "Normal Balance" agar dapat dipublikasikan.',
-  }),
-  staleTime: 60_000,
-});
+useHead({ title: 'Studio — ReduCera' });
+
+const { data, status, error, refresh } = useAsyncData(
+  'studio:home',
+  async () => {
+    const [articles, classes, earnings] = await Promise.all([
+      studioArticlesApi.list(),
+      studioClassesApi.list(),
+      earningsApi.me().catch(() => null),
+    ]);
+    const counts = sumCounts(contentCounts(articles), contentCounts(classes));
+    return { counts, earnings, step: nextStep(counts) };
+  },
+  { lazy: true },
+);
 </script>
 
 <template>
-  <main id="main" aria-labelledby="studio-h">
-    <PreviewNotice />
-    <h1 id="studio-h">Studio</h1>
+  <div class="rc-stack">
+    <PageHeader title="Studio" subtitle="Tulis, kirim untuk ditinjau, lalu pantau hasilnya.">
+      <template #actions>
+        <PlayButton to="/studio/articles/new" size="sm">Artikel baru</PlayButton>
+        <PlayButton to="/studio/classes/new" variant="secondary" size="sm">Kelas baru</PlayButton>
+      </template>
+    </PageHeader>
 
-    <LoadingSkeleton v-if="!studio" variant="panel" :count="2" />
-    <template v-else>
-      <section class="rc-studio__metrics">
-        <article>
-          <h2>Draf</h2>
-          <p>{{ studio.draftCount }}</p>
-        </article>
-        <article>
-          <h2>Terbit</h2>
-          <p>{{ studio.publishedCount }}</p>
-        </article>
-        <article>
-          <h2>Menunggu tinjauan</h2>
-          <p>{{ studio.pendingReviewCount }}</p>
-        </article>
-        <article>
-          <h2>Pendapatan bulan ini</h2>
-          <p>Rp {{ studio.earnings.monthToDate.toLocaleString('id-ID') }}</p>
-        </article>
-      </section>
+    <LoadingSkeleton v-if="status === 'pending' && !data" variant="panel" :count="2" />
+    <ErrorState v-else-if="error && !data" title="Studio gagal dimuat" :message="describeApiError(error)" @retry="refresh()" />
 
-      <section class="rc-studio__next" aria-label="Aksi berikutnya">
-        <h2>Aksi berikutnya</h2>
-        <p>{{ studio.nextAction }}</p>
-        <div class="rc-studio__quick">
-          <NuxtLink to="/studio/articles">Buka daftar artikel</NuxtLink>
-          <NuxtLink to="/studio/earnings">Lihat pendapatan</NuxtLink>
+    <template v-else-if="data">
+      <ul class="rc-studio-stats" aria-label="Ringkasan karya">
+        <li class="rc-card"><span class="rc-hint">Draf</span><strong>{{ data.counts.draft }}</strong></li>
+        <li class="rc-card"><span class="rc-hint">Menunggu tinjauan</span><strong>{{ data.counts.pending }}</strong></li>
+        <li class="rc-card"><span class="rc-hint">Terbit</span><strong>{{ data.counts.published }}</strong></li>
+        <li class="rc-card"><span class="rc-hint">Ditolak</span><strong>{{ data.counts.rejected }}</strong></li>
+        <li v-if="data.earnings" class="rc-card">
+          <span class="rc-hint">Pendapatan dirilis</span>
+          <strong>{{ formatAmount(data.earnings.available, data.earnings.currency) }}</strong>
+        </li>
+      </ul>
+
+      <PlayCard tone="soft" as="section" aria-labelledby="studio-next">
+        <h2 id="studio-next" class="rc-h2">Langkah berikutnya</h2>
+        <p>{{ data.step.message }}</p>
+        <div class="rc-actions">
+          <PlayButton :to="data.step.to">{{ data.step.label }}</PlayButton>
         </div>
-      </section>
+      </PlayCard>
     </template>
-  </main>
+  </div>
 </template>
-
-<style scoped>
-.rc-studio__metrics {
-  display: grid;
-  gap: 0.75rem;
-  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-  margin-bottom: 1.5rem;
-}
-.rc-studio__metrics article {
-  padding: 1rem;
-  border-radius: 0.75rem;
-  background: var(--ui-bg, white);
-  border: 1px solid var(--ui-border, rgba(0, 0, 0, 0.08));
-}
-.rc-studio__metrics h2 {
-  font-size: 0.75rem;
-  color: var(--ui-text-muted);
-  text-transform: uppercase;
-}
-.rc-studio__metrics p { font-size: 1.5rem; font-weight: 700; }
-.rc-studio__next {
-  padding: 1rem;
-  border-radius: 0.75rem;
-  background: var(--ui-bg-elevated, transparent);
-  border: 1px solid var(--ui-border, rgba(0, 0, 0, 0.08));
-}
-.rc-studio__quick { display: flex; gap: 0.75rem; margin-top: 0.5rem; }
-</style>

@@ -14,8 +14,8 @@
     "scope": "CURRICULUM",
     "description": "Recommend next activity based on mastery + memory",
     "tools": [
-      { "name": "next_activity", "endpoint": "/v1/personalization/policy/next", "method": "GET", "description": "Next activity recommendation" },
-      { "name": "list_mastery", "endpoint": "/v1/personalization/mastery/me", "method": "GET", "description": "User mastery scores" }
+      { "name": "next_activity", "endpoint": "/v1/learner-model/me/next", "method": "GET", "description": "Next activity recommendation" },
+      { "name": "list_mastery", "endpoint": "/v1/learner-model/me/mastery", "method": "GET", "description": "User mastery scores" }
     ]
   },
   {
@@ -42,7 +42,7 @@
     "scope": "CAREER",
     "description": "Career-aware recommendations grounded in mastery",
     "tools": [
-      { "name": "list_mastery", "endpoint": "/v1/personalization/mastery/me", "method": "GET", "description": "User mastery scores" },
+      { "name": "list_mastery", "endpoint": "/v1/learner-model/me/mastery", "method": "GET", "description": "User mastery scores" },
       { "name": "list_marketplace_classes", "endpoint": "/v1/marketplace/classes", "method": "GET", "description": "Marketplace classes" }
     ]
   }

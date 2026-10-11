@@ -11,26 +11,28 @@ import { useLearning } from '~/stores/learning'
 
 const user = useState<User | null>('user')
 const learning = useLearning()
+const lessonId = useLessonId()
 
 const { call }=useApi(personalityQuizService.submitQuiz)
 const toast=useToast()
 
 const { data: resPersonalityQuizFindAll, refresh: refreshFindAll } = useAsyncData(
-  `personality-quiz-${learning.lessonId}`,
+  `personality-quiz-${lessonId.value}`,
   () =>
     personalityQuizService.findAll({
       page: 1,
       limit: 1,
       userId: user.value?.id,
-      lessonId: learning.lessonId
+      lessonId: lessonId.value
     })
 )
 
 const { data: resCurrentLesson } = await useAsyncData<ApiResponse<LessonDetailResponse<true>>>(
-  `lesson-current-${learning.lessonId}`,
-  () => lessonsService.findOne<true>(learning.lessonId,{
-    include:'steps'
-  })
+  `personality-lesson-${lessonId.value}`,
+  async () =>
+    lessonId.value
+      ? lessonsService.findOne<true>(lessonId.value, { include: 'steps' })
+      : (null as unknown as ApiResponse<LessonDetailResponse<true>>)
 )
 
 const showModal = ref(false)
@@ -109,7 +111,7 @@ const submit = async () => {
     quiz.value.id,
     {
       topicId: learning.topicId,
-      lessonId: learning.lessonId,
+      lessonId: lessonId.value,
       learningStyleId: learning.learningStyleId
     },
     answers.value
@@ -128,22 +130,31 @@ const submit = async () => {
 <template>
   <UModal v-model:open="showModal" fullscreen>
     <template #content>
-      <div class="overflow-y-auto max-h-screen h-full p-6 flex justify-center items-center flex-col gap-4">
-        <h2 class="text-xl font-semibold z-20">Learning Path Quiz</h2>
-        <p class="text-base font-medium z-20">{{ resCurrentLesson?.data?.title }}</p>
+      <div class="rc-quiz">
+        <header class="rc-quiz__head">
+          <h2 class="rc-quiz__title">Kuis jalur belajar</h2>
+          <p class="rc-hint">{{ resCurrentLesson?.data?.title }}</p>
+        </header>
 
-        <div v-if="questions.length > 0" class="w-full max-w-2xl min-h-[280px] relative pb-10 z-20">
+        <div v-if="questions.length > 0" class="rc-quiz__body">
+          <PlayProgress
+            :value="((showQuiz + 1) / questions.length) * 100"
+            :label="`Soal ${showQuiz + 1} dari ${questions.length}`"
+            tone="success"
+          />
+
           <Transition name="fade" mode="out-in">
-            <div :key="showQuiz">
+            <div :key="showQuiz" class="rc-quiz__question">
               <UiRenderMarkdown :text="questions[showQuiz]?.question ?? ''" />
 
-              <div class="mt-6 flex flex-col gap-4">
+              <div class="rc-quiz__answers">
                 <template v-if="questions[showQuiz]?.type === 'multiple_choice'">
-                  <UButton
+                  <button
                     v-for="value in questions[showQuiz]?.options"
                     :key="value"
-                    class="text-white text-start"
-                    :variant="answers[showQuiz]?.userAnswer === value ? 'solid' : 'outline'"
+                    type="button"
+                    class="rc-quiz__option"
+                    :aria-pressed="answers[showQuiz]?.userAnswer === value"
                     @click="setAnswer({
                       question: questions[showQuiz]?.question ?? '',
                       userAnswer: value,
@@ -151,70 +162,117 @@ const submit = async () => {
                     })"
                   >
                     {{ value }}
-                  </UButton>
+                  </button>
                 </template>
 
                 <template v-else>
-                  <UTextarea
-                    :model-value="answers[showQuiz]?.userAnswer || ''"
-                    placeholder="Type your answer here..."
+                  <label class="rc-label" for="quiz-answer">Jawabanmu</label>
+                  <textarea
+                    id="quiz-answer"
+                    class="rc-field"
+                    rows="4"
+                    :value="answers[showQuiz]?.userAnswer || ''"
+                    placeholder="Tulis jawabanmu di sini"
                     @input="onInputChange($event, questions[showQuiz]?.question ?? '', questions[showQuiz]?.answer ?? '')"
-                  />
+                  ></textarea>
                 </template>
               </div>
             </div>
           </Transition>
 
-          <div class="flex justify-between items-center mt-6">
-            <UButton @click="back" color="warning" :disabled="showQuiz === 0">Back</UButton>
+          <div class="rc-quiz__nav">
+            <PlayButton variant="outline" :disabled="showQuiz === 0" @click="back">Sebelumnya</PlayButton>
 
-            <UButton
+            <PlayButton
               v-if="showQuiz === questions.length - 1"
-              color="success"
-              class="text-white"
               :disabled="answers.length !== questions.length"
               @click="submit"
             >
-              Submit
-            </UButton>
+              Kirim jawaban
+            </PlayButton>
 
-            <UButton
-              v-else
-              color="warning"
-              :disabled="!answers[showQuiz]"
-              @click="next"
-            >
-              Next
-            </UButton>
-          </div>
-
-          <div class="flex gap-2 items-center mt-6">
-            <div
-              v-for="(_, i) in questions.length"
-              :key="i"
-              @click="showQuiz=i"
-              :class="[
-                'flex-1 h-1.5 rounded-full cursor-pointer transition-all',
-                showQuiz === i || answers[i] ? 'bg-secondary' : 'border border-white'
-              ]"
-            />
+            <PlayButton v-else :disabled="!answers[showQuiz]" @click="next">Berikutnya</PlayButton>
           </div>
         </div>
-        <UiBlackhole />
-        <UiSunset />
-        <UiDownStarAnimation />
       </div>
     </template>
   </UModal>
 </template>
 
-<style scoped>
+<style>
+.rc-quiz {
+  display: grid;
+  gap: 1.5rem;
+  align-content: start;
+  width: 100%;
+  max-width: 42rem;
+  min-height: 100dvh;
+  margin: 0 auto;
+  padding: 1.5rem 1rem 3rem;
+  background-color: var(--rc-surface);
+  color: var(--rc-fg);
+}
+.rc-quiz__head {
+  display: grid;
+  gap: 0.25rem;
+}
+.rc-quiz__title {
+  margin: 0;
+  font-size: 1.5rem;
+}
+.rc-quiz__body,
+.rc-quiz__question {
+  display: grid;
+  gap: 1.25rem;
+}
+.rc-quiz__answers {
+  display: grid;
+  gap: 0.75rem;
+}
+.rc-quiz__option {
+  width: 100%;
+  min-height: 3rem;
+  padding: 0.75rem 1rem;
+  border: 2px solid var(--rc-border);
+  border-radius: calc(var(--rc-radius, 16px) - 2px);
+  background-color: var(--rc-surface);
+  box-shadow: 0 var(--rc-depth, 4px) 0 0 var(--rc-border);
+  color: var(--rc-fg);
+  font: inherit;
+  font-weight: 700;
+  text-align: left;
+  cursor: pointer;
+}
+.rc-quiz__option:hover {
+  background-color: var(--rc-foam);
+}
+.rc-quiz__option[aria-pressed="true"] {
+  border-color: var(--rc-secondary);
+  background-color: color-mix(in srgb, var(--rc-secondary) 12%, var(--rc-surface));
+  box-shadow: 0 var(--rc-depth, 4px) 0 0 var(--rc-secondary-depth);
+}
+.rc-quiz__option:focus-visible {
+  outline: 3px solid var(--rc-focus);
+  outline-offset: 3px;
+}
+.rc-quiz__nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  justify-content: space-between;
+}
 .fade-enter-active,
 .fade-leave-active {
-  transition: opacity 0.25s ease;
+  transition: opacity 0.2s ease;
 }
 .fade-enter-from,
 .fade-leave-to {
   opacity: 0;
+}
+@media (prefers-reduced-motion: reduce) {
+  .fade-enter-active,
+  .fade-leave-active {
+    transition: none;
+  }
 }
 </style>

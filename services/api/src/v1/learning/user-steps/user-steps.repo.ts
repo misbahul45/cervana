@@ -9,7 +9,7 @@ import {
   UpdateUserStepType,
 } from "./user-steps.dto";
 import { ChatRole, Prisma, UserStep } from "@prisma/client";
-import { LeaderboardsRepo } from "@/v1/gamify/leaderboards/leaderboards.repo";
+import { AppError, AppErrorCode } from "@/common/lib/error";
 
 
   type UserStepWithChat = Prisma.UserStepGetPayload<{
@@ -24,7 +24,7 @@ import { LeaderboardsRepo } from "@/v1/gamify/leaderboards/leaderboards.repo";
 
 @Injectable()
 export class UserStepsRepo {
-  constructor(private readonly prisma: PrismaService, private readonly leaderboardRepo:LeaderboardsRepo) {}
+  constructor(private readonly prisma: PrismaService) {}
 
   async findAll(q: Query) {
     return errorHandler(async () => {
@@ -171,92 +171,35 @@ async create(
 
 async complete(id: string) {
   return errorHandler(async () => {
-    const res = await this.prisma.userStep.update({
-      where: { id },
-      data: { isDone: true }
-    })
+    return this.prisma.$transaction(async (tx) => {
+      const claimed = await tx.userStep.updateMany({
+        where: { id, isDone: false },
+        data: { isDone: true },
+      });
 
-    await this.prisma.userStep.updateMany({
-      where: {
-        order: res.order + 1,
-        stepTemplateId: res.stepTemplateId,
-        userId: res.userId
-      },
-      data: { isUnlocked:true }
-    })
-
-    const step = await this.prisma.step.findUnique({
-      where: { id: res.stepTemplateId! },
-      include: {
-        lesson: {
-          include: {
-            subTopic: {
-              include: { topic: true }
-            }
-          }
+      if (claimed.count === 0) {
+        const existing = await tx.userStep.findUnique({ where: { id } });
+        if (!existing) {
+          throw new AppError('User step not found', 404, AppErrorCode.NOT_FOUND);
         }
+        throw new AppError('User step already completed', 409, AppErrorCode.INVALID_STATE_TRANSITION);
       }
-    })
 
-    const topicId = step?.lesson?.subTopic?.topic?.id ?? undefined
-    const subTopicId = step?.lesson?.subTopic?.id ?? undefined
+      const res = await tx.userStep.findUniqueOrThrow({ where: { id } });
 
-    const pointValue = 10
-    // synthetic ids
-    const globalKey = `g-${res.userId}`
-    const topicKey = `t-${res.userId}-${topicId ?? 'none'}`
-    const subTopicKey = `st-${res.userId}-${subTopicId ?? 'none'}`
+      await tx.userStep.updateMany({
+        where: {
+          order: res.order + 1,
+          stepTemplateId: res.stepTemplateId,
+          userId: res.userId,
+        },
+        data: { isUnlocked: true },
+      });
 
-    // 1. GLOBAL
-    await this.prisma.leaderboardScore.upsert({
-      where: { id: globalKey },
-      create: {
-        id: globalKey,
-        userId: res.userId,
-        scope: 'GLOBAL',
-        categoryId: null,
-        topicId: null,
-        subTopicId: null,
-        score: pointValue
-      },
-      update: { score: { increment: pointValue } }
-    })
-
-    // 2. TOPIC
-    await this.prisma.leaderboardScore.upsert({
-      where: { id: topicKey },
-      create: {
-        id: topicKey,
-        userId: res.userId,
-        scope: 'TOPIC',
-        categoryId: null,
-        topicId: topicId ?? null,
-        subTopicId: null,
-        score: pointValue
-      },
-      update: { score: { increment: pointValue } }
-    })
-
-    // 3. SUBTOPIC
-    await this.prisma.leaderboardScore.upsert({
-      where: { id: subTopicKey },
-      create: {
-        id: subTopicKey,
-        userId: res.userId,
-        scope: 'SUBTOPIC',
-        categoryId: null,
-        topicId: null,
-        subTopicId: subTopicId ?? null,
-        score: pointValue
-      },
-      update: { score: { increment: pointValue } }
-    })
-
-    return res
-  })
+      return res;
+    });
+  });
 }
-
-
 
 async update(id: string, values: UpdateUserStepType) {
   return errorHandler(async () => {
@@ -264,7 +207,7 @@ async update(id: string, values: UpdateUserStepType) {
 
     const sanitize = {
       ...data,
-      updatedAt: data.updatedAt ?? new Date(),
+      updatedAt: new Date(),
     };
 
     return await this.prisma.userStep.update({

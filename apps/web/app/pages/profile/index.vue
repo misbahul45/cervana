@@ -1,41 +1,36 @@
 <script setup lang="ts">
+import PageHeader from '~/components/play/PageHeader.vue';
+import PlayCard from '~/components/play/PlayCard.vue';
+
 definePageMeta({
-  title: 'Profil Learner — ReduCera',
+  title: 'Profil — ReduCera',
   protection: { kind: 'authenticated' },
   layout: 'learner',
 });
+
+useHead({ title: 'Profil — ReduCera' });
+
+const MENU = [
+  { to: '/learn/profile/dashboard', label: 'Beranda belajar', hint: 'Ringkasan XP, streak, dan topik aktif' },
+  { to: '/learn/profile/me', label: 'Akun', hint: 'Data diri dan pencapaian' },
+  { to: '/learn/profile/settings', label: 'Pengaturan', hint: 'Preferensi akun' },
+  { to: '/learn/profile/my-learning', label: 'Topik saya', hint: 'Topik yang sedang kamu pelajari' },
+  { to: '/learn/orders', label: 'Pesanan', hint: 'Pembayaran dan pembelian' },
+  { to: '/wallet', label: 'Dompet', hint: 'Saldo dan paket kredit' },
+  { to: '/become-creator', label: 'Jadi kreator', hint: 'Ajukan diri untuk menulis dan mengajar' },
+];
 </script>
 
 <template>
-  <main id="main" aria-labelledby="profile-h">
-    <h1 id="profile-h">Profil</h1>
-    <ul class="rc-profile__menu">
-      <li><NuxtLink to="/learn/profile/dashboard">Dashboard</NuxtLink></li>
-      <li><NuxtLink to="/learn/profile/me">Akun</NuxtLink></li>
-      <li><NuxtLink to="/learn/profile/settings">Pengaturan</NuxtLink></li>
-      <li><NuxtLink to="/learn/profile/my-learning">Aktivitas saya</NuxtLink></li>
-      <li><NuxtLink to="/credits">Kredit AI</NuxtLink></li>
-      <li><NuxtLink to="/become-creator">Jadi Kreator</NuxtLink></li>
+  <div class="rc-stack">
+    <PageHeader title="Profil" subtitle="Semua yang berkaitan dengan akunmu." />
+    <ul class="rc-studio-list" aria-label="Menu profil">
+      <li v-for="item in MENU" :key="item.to" class="rc-card rc-card--interactive">
+        <NuxtLink :to="item.to" class="rc-studio-list__main rc-profile__link">
+          <p class="rc-studio-list__title">{{ item.label }}</p>
+          <p class="rc-hint">{{ item.hint }}</p>
+        </NuxtLink>
+      </li>
     </ul>
-  </main>
+  </div>
 </template>
-
-<style scoped>
-.rc-profile__menu {
-  list-style: none;
-  margin: 1rem 0;
-  padding: 0;
-  display: grid;
-  gap: 0.5rem;
-}
-.rc-profile__menu a {
-  display: block;
-  padding: 0.75rem 1rem;
-  border-radius: 0.5rem;
-  border: 1px solid var(--ui-border, rgba(0, 0, 0, 0.08));
-  background: var(--ui-bg, white);
-  color: var(--ui-text);
-  text-decoration: none;
-}
-.rc-profile__menu a:hover { background: var(--ui-bg-muted, #f3f4f6); }
-</style>

@@ -53,11 +53,16 @@ export interface PlacementResult {
   confidence: number;
 }
 
-export interface MasteryScore {
-  topicId: string;
+export interface ConceptMasteryEntry {
+  conceptId: string;
+  title: string;
+  level: number;
   score: number;
-  attempts: number;
-  evidenceCount?: number;
+  confidence: number;
+  evidenceCount: number;
+  lastEventAt: string | null;
+  passed: boolean;
+  mastered: boolean;
 }
 
 export interface MisconceptionPattern {
@@ -74,26 +79,3 @@ export interface NextActivityDecision {
   rationaleKind: 'no_exploration' | 'remediation' | 'progression';
 }
 
-export interface UserAchievement {
-  id: string;
-  achievementId: string;
-  awardedAt: string;
-  achievement: {
-    id: string;
-    title: string;
-    description?: string;
-    icon?: string;
-  };
-}
-
-export interface SkillNodeRecord {
-  id: string;
-  topicId: string;
-  state: 'LOCKED' | 'AVAILABLE' | 'IN_PROGRESS' | 'MASTERED';
-  progress: number;
-}
-
-export interface LevelInfo {
-  level: number;
-  xp: number;
-}

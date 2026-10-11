@@ -1,5 +1,5 @@
 import { Role } from '@prisma/client';
-import { ScopeToUser } from '@/common/authz/access';
+import { AuthenticatedOnly, ScopeToUser } from '@/common/authz/access';
 import { RequireOwnership } from '@/v1/common/guards/ownership.decorator';
 import { Controller, Get, Body, Param, Delete, Post, Query, UseInterceptors } from '@nestjs/common';
 import { QuizAttemptsService } from './quiz-attempts.service';
@@ -29,7 +29,7 @@ export class QuizAttemptsController {
   }
 
   @Post('start')
-  @ScopeToUser()
+  @AuthenticatedOnly()
   start(
     @Body(new ZodPipe(StartQuizAttemptDto)) dto: StartQuizAttemptDtoType,
     @GetUser() user: AuthUser,

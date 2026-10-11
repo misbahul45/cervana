@@ -1,5 +1,6 @@
 import { AuthenticatedOnly } from '@/common/authz/access';
-import { Roles } from '@/v1/auth/auth.decorator';
+import { GetUser, Roles } from '@/v1/auth/auth.decorator';
+import { AuthUser } from '@/common/interfaces/auth.interface';
 import { Role } from '@prisma/client';
 import { Controller, Get, Post, Body, Patch, Param, Delete, Query } from '@nestjs/common';
 import { LessonsService } from './lessons.service';
@@ -31,6 +32,18 @@ export class LessonsController {
     @Query() query: QueryInterface  
   ) {
     return this.lessonsService.findOne(id, query);
+  }
+
+  @Get(':id/prev')
+  @AuthenticatedOnly()
+  previous(@Param('id') id: string, @GetUser() user: AuthUser) {
+    return this.lessonsService.neighbours(user.id, id);
+  }
+
+  @Get(':id/next')
+  @AuthenticatedOnly()
+  next(@Param('id') id: string, @GetUser() user: AuthUser) {
+    return this.lessonsService.neighbours(user.id, id);
   }
 
   @Patch(':id')

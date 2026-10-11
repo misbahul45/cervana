@@ -31,6 +31,7 @@ import { PayoutsModule } from './payouts/payouts.module';
 import { RefundsModule } from './refunds/refunds.module';
 import { EventsModule } from '@/common/events/events.module';
 import { AiCreditsModule } from './ai-credits/ai-credits.module';
+import { AuditLogsModule } from './audit-logs/audit-logs.module';
 
 @Module({
   imports:[
@@ -66,7 +67,8 @@ import { AiCreditsModule } from './ai-credits/ai-credits.module';
     PayoutsModule,
     RefundsModule,
     CommerceModule,
-    AiCreditsModule
+    AiCreditsModule,
+    AuditLogsModule
   ],
   exports:[
     AuthModule, 

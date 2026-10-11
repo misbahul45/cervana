@@ -1,11 +1,23 @@
 import { randomUUID } from 'crypto';
-import { Pool, PoolClient } from 'pg';
+import { Client, Pool, PoolClient } from 'pg';
 
 export const databaseUrl = process.env.TEST_DATABASE_URL;
 
 export const describeDb: typeof describe = (databaseUrl ? describe : describe.skip) as typeof describe;
 
 export const createPool = () => new Pool({ connectionString: databaseUrl, max: 8 });
+
+export const REGISTRY_SUITE_LOCK = 7_461_001;
+
+export const holdSuiteLock = async (key: number): Promise<() => Promise<void>> => {
+  const client = new Client({ connectionString: databaseUrl });
+  await client.connect();
+  await client.query('SELECT pg_advisory_lock($1)', [key]);
+  return async () => {
+    await client.query('SELECT pg_advisory_unlock($1)', [key]);
+    await client.end();
+  };
+};
 
 export const withRollback = async <T>(pool: Pool, work: (client: PoolClient) => Promise<T>): Promise<T> => {
   const client = await pool.connect();

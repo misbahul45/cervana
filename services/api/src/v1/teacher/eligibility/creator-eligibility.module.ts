@@ -1,10 +1,10 @@
 import { Module } from '@nestjs/common';
 import { CreatorEligibilityController } from './creator-eligibility.controller';
 import { CreatorEligibilityService } from './creator-eligibility.service';
-import { MasteryModule } from '@/v1/personalization/mastery/mastery.module';
+import { LearnerModelModule } from '@/v1/learner-model/learner-model.module';
 
 @Module({
-  imports: [MasteryModule],
+  imports: [LearnerModelModule],
   controllers: [CreatorEligibilityController],
   providers: [CreatorEligibilityService],
   exports: [CreatorEligibilityService],

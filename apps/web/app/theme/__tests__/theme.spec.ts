@@ -87,8 +87,9 @@ describe('web theme library', () => {
     });
 
     it('4) PRACTICE variant reduces density and disables waves', () => {
+      const ocean = normalizeTheme(oceanThemeJson)!;
       const result = resolveTheme({
-        chain: [DEFAULT_THEME],
+        chain: [ocean],
         variant: 'PRACTICE',
         scheme: 'light',
         reducedMotion: false,
@@ -138,7 +139,7 @@ describe('web theme library', () => {
       const vars = toCssVars(result);
       expect(vars['--rc-bg']).toBe(DEFAULT_THEME.tokens.light.bg);
       expect(vars['--rc-primary']).toBe(DEFAULT_THEME.tokens.light.primary);
-      expect(vars['--rc-motion-intensity']).toBe('0.25');
+      expect(vars['--rc-motion-intensity']).toBe(String(DEFAULT_THEME.atmosphere?.motion?.intensity));
     });
   });
 
@@ -171,10 +172,15 @@ describe('web theme library', () => {
   });
 
   describe('default theme sanity', () => {
-    it('parses the bundled ocean JSON', () => {
-      expect(DEFAULT_THEME.slug).toBe('reducera-ocean');
-      expect(DEFAULT_THEME.tokens.light.bg).toBe('#F2FAFB');
-      expect(DEFAULT_THEME.variants?.EXAM?.atmosphere?.motion?.intensity).toBe(0);
+    it('parses the bundled ocean JSON as a published, non-default theme', () => {
+      const ocean = normalizeTheme(oceanThemeJson);
+      expect(ocean?.slug).toBe('reducera-ocean');
+      expect(ocean?.tokens.light.bg).toBe('#F2FAFB');
+      expect(ocean?.variants?.EXAM?.atmosphere?.motion?.intensity).toBe(0);
+    });
+
+    it('uses the Play theme as the bundled default', () => {
+      expect(DEFAULT_THEME.slug).toBe('reducera-play');
     });
   });
 });

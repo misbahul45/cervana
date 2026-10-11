@@ -1,4 +1,11 @@
 <script setup lang="ts">
+import PageHeader from '~/components/play/PageHeader.vue';
+import PlayButton from '~/components/play/PlayButton.vue';
+import PlayCard from '~/components/play/PlayCard.vue';
+import EmptyState from '~/components/ui/EmptyState.vue';
+import ErrorState from '~/components/ui/ErrorState.vue';
+import LoadingSkeleton from '~/components/ui/LoadingSkeleton.vue';
+import StatusBadge from '~/components/ui/StatusBadge.vue';
 import { ordersApi } from '~/lib/api';
 import { describeApiError } from '~/lib/api-error';
 import { formatDate, formatMoney } from '~/lib/format';
@@ -10,78 +17,48 @@ definePageMeta({
   layout: 'learner',
 });
 
+useHead({ title: 'Pesanan Saya — ReduCera' });
+
 const { data: orders, status, error, refresh } = useAsyncData('orders:list', () => ordersApi.list(), { lazy: true });
 </script>
 
 <template>
-  <main id="main" aria-labelledby="orders-h">
-    <h1 id="orders-h">Pesanan Saya</h1>
+  <div class="rc-stack">
+    <PageHeader title="Pesanan saya" subtitle="Pantau pembayaran dan buka lagi artikel atau kelas yang sudah kamu beli.">
+      <template #actions>
+        <PlayButton to="/marketplace" variant="secondary" size="sm">Ke marketplace</PlayButton>
+      </template>
+    </PageHeader>
 
     <LoadingSkeleton v-if="status === 'pending'" variant="row" :count="3" />
-    <ErrorState
-      v-else-if="error"
-      title="Gagal memuat pesanan"
-      :message="describeApiError(error)"
-      @retry="refresh()"
-    />
+    <ErrorState v-else-if="error" title="Gagal memuat pesanan" :message="describeApiError(error)" @retry="refresh()" />
     <EmptyState
       v-else-if="!orders || orders.length === 0"
       title="Belum ada pesanan"
-      message="Mulai belanja di marketplace untuk melihat pesanan Anda di sini."
+      message="Pesanan dari marketplace akan muncul di sini."
       cta-label="Buka marketplace"
       cta-to="/marketplace"
     />
-    <ul v-else class="rc-orders__list">
-      <li v-for="o in orders" :key="o.id" class="rc-orders__item">
-        <header class="rc-orders__item-head">
-          <div>
-            <p class="rc-orders__item-date">{{ formatDate(o.createdAt) }}</p>
-            <h2>{{ orderTitle(o.items) }}</h2>
+    <ul v-else class="rc-orders" aria-label="Daftar pesanan">
+      <li v-for="order in orders" :key="order.id">
+        <PlayCard class="rc-orders__item">
+          <div class="rc-orders__main">
+            <p class="rc-hint">{{ formatDate(order.createdAt) }}</p>
+            <h2 class="rc-orders__title">{{ orderTitle(order.items) }}</h2>
+            <p class="rc-orders__amount">{{ formatMoney(order.total, order.currency) }}</p>
           </div>
-          <StatusBadge :tone="orderStatusMeta(o.status).tone" :label="orderStatusMeta(o.status).label" />
-        </header>
-        <footer class="rc-orders__item-foot">
-          <span class="rc-orders__item-amount">{{ formatMoney(o.total, o.currency) }}</span>
-          <NuxtLink :to="o.status === 'PENDING' && o.payment ? `/learn/orders/${o.id}/pay` : `/learn/orders/${o.id}`">
-            {{ o.status === 'PENDING' && o.payment ? 'Bayar' : 'Detail' }}
-          </NuxtLink>
-        </footer>
+          <div class="rc-orders__side">
+            <StatusBadge :tone="orderStatusMeta(order.status).tone" :label="orderStatusMeta(order.status).label" />
+            <PlayButton
+              :to="order.status === 'PENDING' ? `/learn/orders/${order.id}/pay` : `/learn/orders/${order.id}`"
+              :variant="order.status === 'PENDING' ? 'primary' : 'secondary'"
+              size="sm"
+            >
+              {{ order.status === 'PENDING' ? 'Bayar sekarang' : 'Lihat detail' }}
+            </PlayButton>
+          </div>
+        </PlayCard>
       </li>
     </ul>
-  </main>
+  </div>
 </template>
-
-<style scoped>
-.rc-orders__list {
-  list-style: none;
-  margin: 1rem 0;
-  padding: 0;
-  display: grid;
-  gap: 0.75rem;
-}
-.rc-orders__item {
-  padding: 1rem;
-  border-radius: 0.75rem;
-  border: 1px solid var(--ui-border, rgba(0, 0, 0, 0.08));
-  background: var(--ui-bg, white);
-}
-.rc-orders__item-head {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 0.75rem;
-}
-.rc-orders__item-date {
-  font-size: 0.75rem;
-  color: var(--ui-text-muted);
-}
-.rc-orders__item-foot {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-top: 0.5rem;
-}
-.rc-orders__item-amount {
-  font-weight: 600;
-}
-</style>

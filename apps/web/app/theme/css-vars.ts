@@ -21,6 +21,16 @@ const TOKEN_TO_CSS: Readonly<Record<string, string>> = {
   focus: '--rc-focus',
   foam: '--rc-foam',
   sand: '--rc-sand',
+  success: '--rc-success',
+  danger: '--rc-danger',
+  warning: '--rc-warning',
+  info: '--rc-info',
+  gold: '--rc-gold',
+  flame: '--rc-flame',
+  primaryDepth: '--rc-primary-depth',
+  secondaryDepth: '--rc-secondary-depth',
+  dangerDepth: '--rc-danger-depth',
+  goldDepth: '--rc-gold-depth',
 };
 
 export function toCssVars(resolved: ResolvedTheme): Record<string, string> {
@@ -29,6 +39,8 @@ export function toCssVars(resolved: ResolvedTheme): Record<string, string> {
     const value = (resolved.tokens as Record<string, string | undefined>)[token];
     if (typeof value === 'string') out[cssVar] = value;
   }
+  out['--rc-radius'] = `${resolved.shape.radius}px`;
+  out['--rc-depth'] = `${resolved.shape.depth}px`;
   if (resolved.atmosphere.particles?.enabled === false) {
     out['--rc-particles'] = '0';
   }

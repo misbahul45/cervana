@@ -2,6 +2,7 @@ import { forwardRef, Module } from '@nestjs/common';
 import { BullModule } from '@nestjs/bullmq';
 import { bullConfig } from './queue.config';
 import { QueueService } from './queue.service';
+import { LegacyJobScrubber } from './legacy-job-scrubber';
 import { QUEUES } from './queues';
 import { KnowledgeProcessor } from './queues/knowledge.processor';
 import { ContentProcessor } from './queues/content.processor';
@@ -13,6 +14,7 @@ import { StepsRepo } from '../curriculum/steps/steps.repo';
 import { UserStepsModule } from '../learning/user-steps/user-steps.module';
 import { StepsModule } from '../curriculum/steps/steps.module';
 import { UserStepsSseModule } from '../sse/user-steps-sse/user-steps-sse.module';
+import { AiClientModule } from '@/common/ai-client/ai-client.module';
 
 @Module({
   imports: [
@@ -22,10 +24,12 @@ import { UserStepsSseModule } from '../sse/user-steps-sse/user-steps-sse.module'
     forwardRef(() => ChatModule),
     PrismaModule,
     forwardRef(() => UserStepsModule),
-    UserStepsSseModule
+    UserStepsSseModule,
+    AiClientModule,
   ],
   providers: [
     QueueService,
+    LegacyJobScrubber,
     KnowledgeProcessor,
     ContentProcessor,
     UserStepsProcessor,

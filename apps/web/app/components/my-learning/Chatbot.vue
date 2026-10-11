@@ -63,81 +63,108 @@ const newMessage = ref('');
 </script>
 
 <template>
-  <UDrawer v-model:open="showAiBot" direction="right" :dismissible="false" :modal="false" :handle="false" class="no-scrollbar h-screen overflow-hidden">
-    <UButton
-      @click="showAiBot = true"
-      icon="i-lucide-bot"
-      size="lg"
-      variant="solid"
-      class="cursor-pointer  w-fit h-fit text-white"
-    />
+  <UDrawer v-model:open="showAiBot" direction="right" :dismissible="false" :modal="false" :handle="false" :ui="{ content: 'rc-chat' }">
+    <PlayButton variant="secondary" @click="showAiBot = true">
+      <UIcon name="i-lucide-bot" aria-hidden="true" />
+      Tanya CORE
+    </PlayButton>
 
     <template #body>
-      <div class="h-screen flex flex-col justify-between">
-        <div class="flex items-start justify-between mb-3 pb-3 border-b border-gray-300 dark:border-gray-600">
-            <div>
-              <h2 class="text-lg font-semibold flex items-center gap-2 bg-linear-to-r from-primary via-secondary to-primary bg-clip-text text-transparent animate-gradient">
-                <UIcon name="i-lucide-bot" class="text-primary" />
-                CORE AI
-              </h2>
-              <p class="text-sm opacity-70 mt-1 leading-snug max-w-sm">
-                Halo, aku CORE. Aku akan membantu semua misimu.
-              </p>
-            </div>
-            <UButton
-              color="error"
-              variant="ghost"
-              icon="i-lucide-x"
-              @click="showAiBot = false"
-            />
+      <div class="rc-chat__panel">
+        <header class="rc-chat__header">
+          <div>
+            <h2 class="rc-chat__title">CORE</h2>
+            <p class="rc-hint">Tanyakan apa pun tentang langkah ini.</p>
           </div>
+          <PlayButton variant="ghost" size="sm" aria-label="Tutup percakapan" @click="showAiBot = false">Tutup</PlayButton>
+        </header>
 
-          <div class="w-full flex flex-col flex-1 justify-between pb-28">
-            <div class="flex flex-1 flex-col overflow-auto gap-2">
-              <div v-for="value in messages" :class="['flex w-full max-w-[90%] rounded-md shadow-md', value.role==='ASSISTANT'?'justify-start ':'justify-end ']">
-                <div :class="['flex flex-col gap-1 w-64 p-2 rounded-lg shadow-xl shadow-white/5',  value.role==='ASSISTANT'?'bg-secondary/20':'bg-primary/20']">
-                  <div v-if="value.role==='ASSISTANT'" class="flex items-center gap-2">
-                    <UIcon name="i-lucide-bot" class="text-primary" />
-                    <p class="text-xs">CORE AI</p>
-                  </div>
-                  <div v-else class="flex items-center gap-2 justify-start">
-                    <UIcon name="i-lucide-user" class="text-primary" />
-                    <p class="truncate text-xs">{{ user?.name }}</p>
-                  </div>
-                  <UiBotLoading v-if="value.status !== 'COMPLETED'" :text="value.text!" />
-                  <p v-else :class="['text-xs', value.role === 'ASSISTANT'?'line-clamp-2':'']">{{ value.text }}</p>
-                </div>
-              </div>
-            </div>
-            <div class="fixed bg-[#030014] bottom-0 left-0 w-full p-2">
-              <UTextarea
-                v-model="newMessage"
-                placeholder="Ketik pesanmu di sini..."
-                class="w-full"
-              />
-              <UButton
-                color="success"
-                variant="outline"
-                class="absolute top-1/2 -translate-y-1/2 right-6 z-20"
-                @click="sendMessage"
-              >
-              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                <defs>
-                  <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
-                    <feDropShadow dx="0" dy="0" stdDeviation="4" flood-color="#22c55e" />
-                    <feDropShadow dx="0" dy="0" stdDeviation="8" flood-color="#22c55e" />
-                  </filter>
-                </defs>
-                <path filter="url(#glow)" d="M2.5 19.5l19-7l-19-7v6l10 1l-10 1v6z"/>
-              </svg>
+        <ul class="rc-chat__list" aria-live="polite">
+          <li
+            v-for="value in messages"
+            :key="value.id"
+            class="rc-chat__msg"
+            :class="value.role === 'ASSISTANT' ? 'rc-chat__msg--bot' : 'rc-chat__msg--me'"
+          >
+            <p class="rc-chat__who">{{ value.role === 'ASSISTANT' ? 'CORE' : (user?.name ?? 'Kamu') }}</p>
+            <UiBotLoading v-if="value.status !== 'COMPLETED'" :text="value.text!" />
+            <p v-else class="rc-chat__text">{{ value.text }}</p>
+          </li>
+        </ul>
 
-            </UButton>
-            <p class="text-xs mt-1">
-              Tanyakan pada Core untuk bantu pembelajaranmu....
-            </p>
-            </div>
-          </div>
+        <form class="rc-chat__form" @submit.prevent="sendMessage">
+          <label class="rc-label" for="chat-input">Pesan</label>
+          <textarea id="chat-input" v-model="newMessage" class="rc-field" rows="2" placeholder="Ketik pertanyaanmu"></textarea>
+          <PlayButton type="submit" :disabled="!newMessage.trim()">Kirim</PlayButton>
+        </form>
       </div>
     </template>
   </UDrawer>
 </template>
+
+<style>
+.rc-chat {
+  width: min(26rem, 100vw);
+  border-left: 2px solid var(--rc-border);
+  background-color: var(--rc-surface);
+  color: var(--rc-fg);
+}
+.rc-chat__panel {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  height: 100dvh;
+  padding: 1rem;
+}
+.rc-chat__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 2px solid var(--rc-border);
+}
+.rc-chat__title {
+  margin: 0;
+  font-size: 1.125rem;
+}
+.rc-chat__list {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  list-style: none;
+}
+.rc-chat__msg {
+  max-width: 90%;
+  padding: 0.625rem 0.875rem;
+  border: 2px solid var(--rc-border);
+  border-radius: var(--rc-radius, 16px);
+}
+.rc-chat__msg--bot {
+  align-self: flex-start;
+  background-color: color-mix(in srgb, var(--rc-secondary) 10%, var(--rc-surface));
+}
+.rc-chat__msg--me {
+  align-self: flex-end;
+  background-color: color-mix(in srgb, var(--rc-primary) 12%, var(--rc-surface));
+}
+.rc-chat__who {
+  margin: 0 0 0.25rem;
+  color: var(--rc-muted);
+  font-size: 0.75rem;
+  font-weight: 800;
+}
+.rc-chat__text {
+  margin: 0;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+.rc-chat__form {
+  display: grid;
+  gap: 0.5rem;
+}
+</style>

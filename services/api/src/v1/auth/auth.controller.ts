@@ -6,18 +6,14 @@ import {
   Res,
   Req,
   BadRequestException,
-  UseGuards,
   Get,
-  Request as NestRequest,
-  Inject,
   HttpException,
   HttpStatus,
   Delete,
+  Inject,
   Query
 } from '@nestjs/common';
-import {
-  ApiTags,
-} from '@nestjs/swagger';
+import { ApiTags } from '@nestjs/swagger';
 import { Request, Response } from 'express';
 import { ConfigService } from '@nestjs/config';
 
@@ -29,6 +25,8 @@ import {
   ForgotPasswordDtoType,
   LoginDto,
   LoginDtoType,
+  OtpTypeQueryDto,
+  OtpTypeQueryDtoType,
   RegisterDto,
   RegisterDtoType,
   ResetPasswordDto,
@@ -39,10 +37,16 @@ import {
 import { TokenPair } from '@/common/interfaces/auth.interface';
 import { SessionClaims } from './session-claims';
 import { GetUser, Public } from './auth.decorator';
-import { GoogleOAuthGuard } from './guards/google.guard';
 import { ApiAuthDocs, ApiProtectedDocs } from '@/common/lib/docs';
 import { AuthCheckResponseSchema, LoginResponseSchema, RegisterResponseSchema, UserProfileSchema } from '@/common/docs/auth.doc';
 import { User } from '@prisma/client'
+import {
+  ACCESS_COOKIE_MAX_AGE_MS,
+  REFRESH_COOKIE_MAX_AGE_MS,
+  tokenCookieOptions,
+} from './auth-cookies';
+
+const RECOVERY_MESSAGE = 'If the email is registered, a code has been sent';
 
 @ApiTags('Auth')
 @Controller('auth')
@@ -65,23 +69,7 @@ export class AuthController {
     @Body(new ZodPipe(RegisterDto)) dto: RegisterDtoType,
     @Req() req: Request,
   ) {
-    const decision = await this.arcjet
-      .withRule(
-        fixedWindow({
-          mode: 'LIVE',
-          window: '5m',
-          max: 3,
-        }),
-      )
-      .protect(req);
-
-    if (decision.isDenied()) {
-      throw new HttpException(
-        'Too many registration attempts. Please try again later.',
-        HttpStatus.TOO_MANY_REQUESTS,
-      );
-    }
-     
+    await this.limit(req, '5m', 3, 'Too many registration attempts. Please try again later.');
     return this.authService.register(dto);
   }
 
@@ -98,22 +86,7 @@ export class AuthController {
     @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
   ) {
-    const decision = await this.arcjet
-      .withRule(
-        fixedWindow({
-          mode: 'LIVE',
-          window: '1m',
-          max: 5,
-        }),
-      )
-      .protect(req);
-
-    if (decision.isDenied()) {
-      throw new HttpException(
-        'Too many login attempts. Please try again later.',
-        HttpStatus.TOO_MANY_REQUESTS,
-      );
-    }
+    await this.limit(req, '1m', 5, 'Too many login attempts. Please try again later.');
 
     const user = await this.authService.login(dto);
     const tokens = await this.authService.generateTokens({
@@ -130,147 +103,58 @@ export class AuthController {
         id: user.sub,
         email: user.email,
         role: user.role,
-        access_token:tokens.accessToken,
-        refresh_token:tokens.refreshToken
+        access_token: tokens.accessToken,
+        refresh_token: tokens.refreshToken
       },
     };
-  }
-
-  @Public()
-  @Get('google')
-  @UseGuards(GoogleOAuthGuard)
-  async googleAuth(@NestRequest() req) {}
-
-  @Public()
-  @Get('google/callback')
-  @UseGuards(GoogleOAuthGuard)
-  async googleAuthRedirect(
-    @NestRequest() req,
-    @Res() res: Response,
-  ) {
-    const { tokens, ...data } = await this.authService.googleLogin(req);
-
-    this.setTokenCookies(res, tokens);
-
-    const frontendUrl = this.configService.get<string>('FRONTEND_URL') 
-      || "http://localhost:3000";
-
-    return res.redirect(`${frontendUrl}/learn/topics`);
   }
 
   @Public()
   @Post("verify-email")
   @ApiAuthDocs({
     summary: 'Verify email address',
-    description: 'Verify user email address using OTP sent to email',
+    description: 'Verify user email address using the 6-digit code sent to email',
     body: VerificationDto,
   })
   async verifyEmail(
     @Body(new ZodPipe(VerificationDto)) dto: VerificationDtoType,
     @Req() req: Request,
   ) {
-    const decision = await this.arcjet
-      .withRule(
-        fixedWindow({
-          mode: 'LIVE',
-          window: '10m',
-          max: 10,
-        }),
-      )
-      .protect(req);
-
-    if (decision.isDenied()) {
-      throw new HttpException(
-        'Too many verification attempts. Please try again later.',
-        HttpStatus.TOO_MANY_REQUESTS,
-      );
-    }
-
-    return this.authService.verifyOTP({
-      ...dto
-    });
+    await this.limit(req, '10m', 10, 'Too many verification attempts. Please try again later.');
+    return this.authService.verifyOTP(dto);
   }
 
   @Public()
   @Post('forgot-password')
   @ApiAuthDocs({
     summary: 'Request password reset',
-    description: 'Send password reset OTP to user email address',
+    description: 'Send a password reset code to the email address when it is registered. The answer is the same either way.',
     body: ForgotPasswordDto,
   })
   async forgotPassword(
     @Body(new ZodPipe(ForgotPasswordDto)) dto: ForgotPasswordDtoType,
     @Req() req: Request,
-    @Query('type') type:string
   ) {
-    const decision = await this.arcjet
-      .withRule(
-        fixedWindow({
-          mode: 'LIVE',
-          window: '15m',
-          max: 3,
-        }),
-      )
-      .protect(req);
-
-    if (decision.isDenied()) {
-      throw new HttpException(
-        'Too many password reset requests. Please try again later.',
-        HttpStatus.TOO_MANY_REQUESTS,
-      );
-    }
-
-    const res_data = await this.authService.sendOtp({
-      email: dto.email
-    }, type);
-
-    if (res_data.success) {
-      return {
-        message: 'Successfully sent OTP',
-        data: null
-      };
-    }
+    await this.limit(req, '15m', 3, 'Too many password reset requests. Please try again later.');
+    await this.authService.requestPasswordReset(dto.email);
+    return { message: RECOVERY_MESSAGE, data: null };
   }
 
   @Public()
   @Post('resend-token')
   @ApiAuthDocs({
-    summary: 'Resend OTP token',
-    description: 'Resend OTP token to user email address',
+    summary: 'Resend code',
+    description: 'Resend a verification or password reset code. The answer is the same whether or not the email is registered.',
     body: ForgotPasswordDto,
   })
   async resendToken(
     @Body(new ZodPipe(ForgotPasswordDto)) dto: ForgotPasswordDtoType,
     @Req() req: Request,
-    @Query('type') type:string
+    @Query(new ZodPipe(OtpTypeQueryDto)) query: OtpTypeQueryDtoType,
   ) {
-    const decision = await this.arcjet
-      .withRule(
-        fixedWindow({
-          mode: 'LIVE',
-          window: '5m',
-          max: 5,
-        }),
-      )
-      .protect(req);
-
-    if (decision.isDenied()) {
-      throw new HttpException(
-        'Too many resend attempts. Please try again later.',
-        HttpStatus.TOO_MANY_REQUESTS,
-      );
-    }
-
-    const res_data = await this.authService.sendOtp({
-      email: dto.email,
-    }, type);
-
-    if (res_data.success) {
-      return {
-        message: 'Successfully resent OTP',
-        data: null
-      };
-    }
+    await this.limit(req, '5m', 5, 'Too many resend attempts. Please try again later.');
+    await this.authService.resendOtp(dto.email, query.type);
+    return { message: RECOVERY_MESSAGE, data: null };
   }
 
   @Public()
@@ -282,44 +166,26 @@ export class AuthController {
   async refresh(
     @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
-  ): Promise<{ message: string, data: { access_token:string, refresh_token:string } }> {
-    const decision = await this.arcjet
-      .withRule(
-        fixedWindow({
-          mode: 'LIVE',
-          window: '5m',
-          max: 10,
-        }),
-      )
-      .protect(req);
-
-    if (decision.isDenied()) {
-      throw new HttpException(
-        'Too many refresh attempts. Please try again later.',
-        HttpStatus.TOO_MANY_REQUESTS,
-      );
-    }
+  ): Promise<{ message: string, data: { access_token: string, refresh_token: string } }> {
+    await this.limit(req, '5m', 10, 'Too many refresh attempts. Please try again later.');
 
     const refreshToken =
       req.cookies?.['refresh_token'] ||
-        (req.headers['x-refresh-token'] as string);
+      (req.headers['x-refresh-token'] as string);
 
     if (!refreshToken) {
       throw new BadRequestException('Refresh token not found');
     }
 
-    const payload = await this.authService.verifyRefreshToken(refreshToken);
-    const tokens = await this.authService.generateTokens({
-      id: payload.sub,
-      email: payload.email,
-      role: payload.role,
-    });
+    const tokens = await this.authService.refreshTokens(refreshToken);
 
     this.setTokenCookies(res, tokens);
 
-    return { message: 'Tokens refreshed successfully', data:{
-        access_token:tokens.accessToken,
-        refresh_token:tokens.refreshToken
+    return {
+      message: 'Tokens refreshed successfully',
+      data: {
+        access_token: tokens.accessToken,
+        refresh_token: tokens.refreshToken
       }
     };
   }
@@ -328,30 +194,14 @@ export class AuthController {
   @Post('reset-password')
   @ApiAuthDocs({
     summary: 'Reset user password',
-    description: 'Reset user password using OTP sent to email',
+    description: 'Reset user password using the 6-digit code sent to email. Every signed-in device is signed out.',
     body: ResetPasswordDto
   })
   async resetPassword(
     @Body(new ZodPipe(ResetPasswordDto)) dto: ResetPasswordDtoType,
     @Req() req: Request,
   ) {
-    const decision = await this.arcjet
-      .withRule(
-        fixedWindow({
-          mode: 'LIVE',
-          window: '15m',
-          max: 5,
-        }),
-      )
-      .protect(req);
-
-    if (decision.isDenied()) {
-      throw new HttpException(
-        'Too many password reset attempts. Please try again later.',
-        HttpStatus.TOO_MANY_REQUESTS,
-      );
-    }
-
+    await this.limit(req, '15m', 5, 'Too many password reset attempts. Please try again later.');
     return this.authService.resetPassword(dto);
   }
 
@@ -362,8 +212,10 @@ export class AuthController {
   })
   @AuthenticatedOnly()
   async logout(
+    @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
   ): Promise<{ message: string }> {
+    await this.authService.revokeSessionOf(this.accessTokenOf(req));
     this.clearTokenCookies(res);
     return { message: 'Logged out successfully' };
   }
@@ -378,11 +230,10 @@ export class AuthController {
   async getProfile(
     @GetUser() user: User,
   ): Promise<{ message: string; data: any }> {
-
-    const { password, ...res }=user
+    const { password, ...res } = user
     return {
       message: 'Profile retrieved successfully',
-      data:res
+      data: res
     };
   }
 
@@ -400,7 +251,7 @@ export class AuthController {
       authenticated: boolean; user: Omit<User, 'password'> & SessionClaims
     }
   }> {
-    const { password, ...res }=user
+    const { password, ...res } = user
     const claims = await this.authService.getSessionClaims(user.id, user.role);
     return {
       data: {
@@ -410,43 +261,41 @@ export class AuthController {
     };
   }
 
+  private async limit(req: Request, window: '1m' | '5m' | '10m' | '15m', max: number, message: string): Promise<void> {
+    const decision = await this.arcjet
+      .withRule(fixedWindow({ mode: 'LIVE', window, max }))
+      .protect(req);
+
+    if (decision.isDenied()) {
+      throw new HttpException(message, HttpStatus.TOO_MANY_REQUESTS);
+    }
+  }
+
+  private accessTokenOf(req: Request): string | undefined {
+    const fromCookie = req.cookies?.['access_token'];
+    if (fromCookie) return fromCookie;
+    const header = req.headers?.authorization;
+    return header?.startsWith('Bearer ') ? header.slice(7) : undefined;
+  }
+
+  private cookieOptions() {
+    return tokenCookieOptions({
+      production: this.configService.get<string>('NODE_ENV') === 'production',
+      domain: this.configService.get<string>('COOKIE_DOMAIN'),
+    });
+  }
+
   private setTokenCookies(res: Response, tokens: TokenPair): void {
-    const isProduction = this.configService.get('NODE_ENV') === 'production';
-    const domain = this.configService.get<string>('COOKIE_DOMAIN');
+    const options = this.cookieOptions();
 
-    const cookieOptions = {
-      httpOnly: true,
-      secure: true,             // wajib kalau sameSite='none'
-      sameSite: 'none' as const, // wajib untuk cross-site cookie
-      domain: domain || undefined,
-      path: '/',
-    };
-
-    res.cookie('access_token', tokens.accessToken, {
-      ...cookieOptions,
-      maxAge: 24 * 60 * 60 * 1000,
-    });
-
-    res.cookie('refresh_token', tokens.refreshToken, {
-      ...cookieOptions,
-      maxAge: 30 * 24 * 60 * 60 * 1000,
-    });
+    res.cookie('access_token', tokens.accessToken, { ...options, maxAge: ACCESS_COOKIE_MAX_AGE_MS });
+    res.cookie('refresh_token', tokens.refreshToken, { ...options, maxAge: REFRESH_COOKIE_MAX_AGE_MS });
   }
 
+  private clearTokenCookies(res: Response): void {
+    const options = this.cookieOptions();
 
-private clearTokenCookies(res: Response): void {
-  const domain = this.configService.get<string>('COOKIE_DOMAIN');
-
-    const cookieOptions = {
-      httpOnly: true,
-      secure: true,
-      sameSite: 'none' as const,
-      domain: domain || undefined,
-      path: '/',
-    };
-
-    res.clearCookie('access_token', cookieOptions);
-    res.clearCookie('refresh_token', cookieOptions);
+    res.clearCookie('access_token', options);
+    res.clearCookie('refresh_token', options);
   }
-
 }

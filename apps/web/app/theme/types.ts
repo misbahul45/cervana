@@ -18,7 +18,24 @@ export type ThemeTokenKey =
   | 'foam'
   | 'sand';
 
-export type ThemeTokens = Readonly<Record<ThemeTokenKey, string>>;
+export type OptionalThemeTokenKey =
+  | 'success'
+  | 'danger'
+  | 'warning'
+  | 'info'
+  | 'gold'
+  | 'flame'
+  | 'primaryDepth'
+  | 'secondaryDepth'
+  | 'dangerDepth'
+  | 'goldDepth';
+
+export type ThemeTokens = Readonly<Record<ThemeTokenKey | OptionalThemeTokenKey, string>>;
+
+export interface ThemeShape {
+  radius: number;
+  depth: number;
+}
 
 export interface ThemeAtmosphere {
   particles?: { enabled?: boolean; density?: number };
@@ -44,6 +61,7 @@ export interface NormalizedTheme {
   mood: ReadonlyArray<string>;
   tokens: { light: ThemeTokens; dark: ThemeTokens };
   atmosphere?: ThemeAtmosphere;
+  shape?: ThemeShape;
   variants?: {
     PRACTICE?: ThemeVariant;
     CHALLENGE?: ThemeVariant;

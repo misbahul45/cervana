@@ -3,254 +3,38 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-import requests
-from urllib.parse import urlencode
-
 from config.agent_session import AgentSession
-from config.envs import ENVS
-from config.service_auth import send_signed
-from errors.types import CrossServiceError, TimeoutError_
+from config.internal_client import InternalApiClient
+from errors.types import CrossServiceError, RetrievalError
+from v1.domain.governance import retrieval_scope
+from v1.tutor.learner_block import read_learner_snapshot, render_snapshot_block
 
 
 logger = logging.getLogger(__name__)
 
-API_TIMEOUT_SECONDS = 15
-
-
-def _signed_get(path: str, *, session: AgentSession) -> requests.Response:
-    base = ENVS["NEST_API"]
-    url = f"{base}{path}"
-    logger.info("[SIGNED][GET] %s acting=%s trace=%s", url, session.acting_user_id, session.trace_id)
-    try:
-        response = send_signed(
-            "GET",
-            url,
-            trace_id=session.trace_id,
-            idempotency_key=session.idempotency_key,
-            acting_user_id=session.acting_user_id,
-            timeout=API_TIMEOUT_SECONDS,
-        )
-    except requests.RequestException as exc:
-        raise CrossServiceError(
-            "failed to reach internal api",
-            details={"url": url, "error": str(exc)},
-        ) from exc
-    if response.status_code >= 500:
-        raise CrossServiceError(
-            "internal api error",
-            details={"url": url, "status": response.status_code},
-        )
-    return response
-
-
-def _signed_post(
-    path: str,
-    *,
-    session: AgentSession,
-    json_body: dict | None = None,
-    params: dict | None = None,
-) -> requests.Response:
-    base = ENVS["NEST_API"]
-    url = f"{base}{path}"
-    logger.info("[SIGNED][POST] %s acting=%s trace=%s", url, session.acting_user_id, session.trace_id)
-    try:
-        response = send_signed(
-            "POST",
-            url,
-            json_body=json_body,
-            params=params,
-            trace_id=session.trace_id,
-            idempotency_key=session.idempotency_key,
-            acting_user_id=session.acting_user_id,
-            timeout=API_TIMEOUT_SECONDS,
-        )
-    except requests.RequestException as exc:
-        raise CrossServiceError(
-            "failed to reach internal api",
-            details={"url": url, "error": str(exc)},
-        ) from exc
-    if response.status_code >= 500:
-        raise CrossServiceError(
-            "internal api error",
-            details={"url": url, "status": response.status_code},
-        )
-    return response
-
-
-def _signed_patch(
-    path: str,
-    *,
-    session: AgentSession,
-    json_body: dict | None = None,
-) -> requests.Response:
-    base = ENVS["NEST_API"]
-    url = f"{base}{path}"
-    logger.info("[SIGNED][PATCH] %s acting=%s trace=%s", url, session.acting_user_id, session.trace_id)
-    try:
-        prepared = requests.Request("PATCH", url, json=json_body).prepare()
-        body = prepared.body or b""
-        if isinstance(body, str):
-            body = body.encode("utf-8")
-        headers = {
-            "x-acting-user-id": session.acting_user_id,
-            "x-trace-id": session.trace_id,
-            "x-idempotency-key": session.idempotency_key,
-            "x-service-id": "ai-api",
-            "x-service-timestamp": str(prepared.headers.get("x-service-timestamp", "")),
-            "x-service-signature": str(prepared.headers.get("x-service-signature", "")),
-            "Content-Type": "application/json",
-        }
-        response = requests.patch(
-            url,
-            data=json_body,
-            headers=headers,
-            timeout=API_TIMEOUT_SECONDS,
-        )
-    except requests.RequestException as exc:
-        raise CrossServiceError(
-            "failed to reach internal api",
-            details={"url": url, "error": str(exc)},
-        ) from exc
-    if response.status_code >= 500:
-        raise CrossServiceError(
-            "internal api error",
-            details={"url": url, "status": response.status_code},
-        )
-    return response
-
 
 def update_message_chat(message_id: str, session: AgentSession, payload: dict) -> Any:
-    url = f"{ENVS['NEST_API']}/chat/chat-messages/{message_id}"
-    logger.info("[ChatMessage][PATCH] %s acting=%s trace=%s", url, session.acting_user_id, session.trace_id)
-    response = requests.patch(
-        url,
-        json=payload,
-        headers={
-            "x-acting-user-id": session.acting_user_id,
-            "x-trace-id": session.trace_id,
-            "x-idempotency-key": session.idempotency_key,
-            "Content-Type": "application/json",
-        },
-        timeout=API_TIMEOUT_SECONDS,
+    return InternalApiClient(session).patch(f"/internal/chat-messages/{message_id}", json_body=payload)
+
+
+def query_content_history(chat_id: str, query: str, session: AgentSession) -> list[dict]:
+    data = InternalApiClient(session).get(
+        "/internal/contents/similarity",
+        params={"chatId": chat_id, "query": query},
     )
-    if response.status_code >= 500:
-        raise CrossServiceError(
-            "internal api error",
-            details={"url": url, "status": response.status_code},
-        )
-    response.raise_for_status()
-    return response.json().get("data")
-
-
-def create_message_chat(payload: dict, session: AgentSession) -> Any:
-    url = f"{ENVS['NEST_API']}/chat/chat-messages"
-    logger.info("[ChatMessage][CREATE] %s acting=%s trace=%s", url, session.acting_user_id, session.trace_id)
-    response = requests.post(
-        url,
-        json=payload,
-        headers={
-            "x-acting-user-id": session.acting_user_id,
-            "x-trace-id": session.trace_id,
-            "x-idempotency-key": session.idempotency_key,
-            "Content-Type": "application/json",
-        },
-        timeout=API_TIMEOUT_SECONDS,
-    )
-    if response.status_code >= 500:
-        raise CrossServiceError(
-            "internal api error",
-            details={"url": url, "status": response.status_code},
-        )
-    response.raise_for_status()
-    return response.json().get("data")
-
-
-def query_content_history(chat_id: str, query: str, session: AgentSession) -> Any:
-    base = f"{ENVS['NEST_API']}/chat/contents/similarity"
-    params = {"chatId": chat_id, "query": query}
-    url = f"{base}?{urlencode(params)}"
-    logger.info("[ContentHistory][QUERY] %s acting=%s trace=%s", url, session.acting_user_id, session.trace_id)
-    response = requests.get(
-        url,
-        headers={
-            "x-acting-user-id": session.acting_user_id,
-            "x-trace-id": session.trace_id,
-            "x-idempotency-key": session.idempotency_key,
-        },
-        timeout=API_TIMEOUT_SECONDS,
-    )
-    if response.status_code >= 500:
-        raise CrossServiceError(
-            "internal api error",
-            details={"url": url, "status": response.status_code},
-        )
-    response.raise_for_status()
-    return response.json().get("data", {}).get("data", [])
+    return data or []
 
 
 def get_lesson(lesson_id: str, session: AgentSession) -> dict:
-    url = f"{ENVS['NEST_API']}/curriculum/lessons/{lesson_id}"
-    logger.info("[LESSON][GET ONE] %s acting=%s trace=%s", url, session.acting_user_id, session.trace_id)
-    response = requests.get(
-        url,
-        headers={
-            "x-acting-user-id": session.acting_user_id,
-            "x-trace-id": session.trace_id,
-            "x-idempotency-key": session.idempotency_key,
-        },
-        timeout=API_TIMEOUT_SECONDS,
-    )
-    if response.status_code >= 500:
-        raise CrossServiceError(
-            "internal api error",
-            details={"url": url, "status": response.status_code},
-        )
-    response.raise_for_status()
-    return response.json().get("data")
+    return InternalApiClient(session).get(f"/internal/lessons/{lesson_id}")
 
 
 def get_user_step(user_step_id: str, session: AgentSession) -> dict:
-    url = f"{ENVS['NEST_API']}/learning/user-steps/{user_step_id}"
-    logger.info("[USER_STEP][GET ONE] %s acting=%s trace=%s", url, session.acting_user_id, session.trace_id)
-    response = requests.get(
-        url,
-        headers={
-            "x-acting-user-id": session.acting_user_id,
-            "x-trace-id": session.trace_id,
-            "x-idempotency-key": session.idempotency_key,
-        },
-        timeout=API_TIMEOUT_SECONDS,
-    )
-    if response.status_code >= 500:
-        raise CrossServiceError(
-            "internal api error",
-            details={"url": url, "status": response.status_code},
-        )
-    response.raise_for_status()
-    return response.json().get("data")
+    return InternalApiClient(session).get(f"/internal/user-steps/{user_step_id}")
 
 
 def create_content_material(payload: dict, session: AgentSession) -> Any:
-    url = f"{ENVS['NEST_API']}/chat/contents"
-    logger.info("[CONTENT_MATERIAL][CREATE] %s acting=%s trace=%s", url, session.acting_user_id, session.trace_id)
-    response = requests.post(
-        url,
-        json=payload,
-        headers={
-            "x-acting-user-id": session.acting_user_id,
-            "x-trace-id": session.trace_id,
-            "x-idempotency-key": session.idempotency_key,
-            "Content-Type": "application/json",
-        },
-        timeout=API_TIMEOUT_SECONDS,
-    )
-    if response.status_code >= 500:
-        raise CrossServiceError(
-            "internal api error",
-            details={"url": url, "status": response.status_code},
-        )
-    response.raise_for_status()
-    return response.json().get("data")
+    return InternalApiClient(session).post("/internal/contents", json_body=payload)
 
 
 def get_propmpt_material(
@@ -272,13 +56,18 @@ def get_propmpt_material(
     from v1.domain.context import render_domain_context
 
     pipeline = get_embedding_pipeline()
+    snapshot = read_learner_snapshot(session, user_step_id=user_step_id)
 
     update_message_chat(
         message_id,
         session,
         {"text": f"Retrieved RAG materials for query: {query}", "status": "PROCESSING"},
     )
-    rag_results = pipeline.retrieve(query=query, metadata_filter={"source": "material"}, top_k=10)
+    try:
+        rag_results = pipeline.retrieve(query=query, scope=retrieval_scope(session.acting_user_id, snapshot), top_k=10)
+    except RetrievalError as exc:
+        logger.warning("[PROMPT] retrieval failed, the answer is built without materials: %s", exc.message)
+        rag_results = []
     rag = segment_retrieved(
         [{"id": f"rag-{i}", "text": r["text"]} for i, r in enumerate(rag_results or [])],
         source="reducera-embedding",
@@ -321,6 +110,10 @@ def get_propmpt_material(
     )
 
     domain_block = render_domain_context(load_default_taxonomy())
+    learner_block = render_snapshot_block(session, snapshot)
+    learner_section = (
+        f'<learner_state trust="derived">\n{learner_block}\n</learner_state>\n\n' if learner_block else ""
+    )
 
     prompt = f"""
 You are an expert AI Learning Assistant. The user has a learning goal: "{user_step_title}".
@@ -329,7 +122,7 @@ You are an expert AI Learning Assistant. The user has a learning goal: "{user_st
 {domain_block}
 </domain_taxonomy>
 
-{segment_user_input(query)}
+{learner_section}{segment_user_input(query)}
 
 Your task is to **continue and deepen the educational material** based on the user's question above. Every concept, rule, and misconception you reference MUST come from the domain taxonomy above. If something is not in the taxonomy, say so explicitly rather than inventing.
 
@@ -340,7 +133,7 @@ If the user's question is outside the scope of the learning goal or unrelated to
 **Guidelines for Generating the Material:**
 1. **Continuation & Deepening:** Extend the existing material by elaborating concepts, adding examples, or clarifying details based on the user's query.
 2. **Integrate Multiple Sources:** Use RAG materials and web search results to provide comprehensive and accurate explanations. Combine them smoothly into the content.
-3. **Leverage User Memory:** Take into account what the user already knows or has asked before. Start with quick reminders if needed, then progress to deeper insights.
+3. **Leverage User Memory:** Take into account what the user already knows or has asked before. Start with quick reminders if needed, then progress to deeper insights. When a learner_state block is present, treat it as system derived data: revisit a prerequisite that is not passed before building on it, do not re-teach what is passed, and never mention the numbers or the block itself.
 4. **Structure of Output Material:**
    - Begin with a brief review of relevant concepts (if memory indicates prior knowledge).
    - Explain key points and concepts related to the query.
@@ -361,9 +154,7 @@ User Memory:
 
 
 __all__ = [
-    "API_TIMEOUT_SECONDS",
     "update_message_chat",
-    "create_message_chat",
     "query_content_history",
     "get_lesson",
     "get_user_step",

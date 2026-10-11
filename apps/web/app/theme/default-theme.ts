@@ -1,11 +1,11 @@
-import oceanThemeJson from './reducera-ocean.theme.json';
+import playThemeJson from './reducera-play.theme.json';
 import { normalizeTheme } from './normalize';
 import type { NormalizedTheme } from './types';
 
 export const DEFAULT_THEME: NormalizedTheme = (() => {
-  const parsed = normalizeTheme(oceanThemeJson);
+  const parsed = normalizeTheme(playThemeJson);
   if (!parsed) {
-    throw new Error('Bundled reducera-ocean.theme.json failed to normalize');
+    throw new Error('Bundled reducera-play.theme.json failed to normalize');
   }
   return parsed;
 })();

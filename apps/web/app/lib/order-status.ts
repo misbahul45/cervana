@@ -28,3 +28,45 @@ export function orderTitle(items: OrderItemView[]): string {
   const title = orderItemTitle(first!);
   return rest.length === 0 ? title : `${title} +${rest.length} lainnya`;
 }
+
+export function orderItemLink(item: OrderItemView): string | null {
+  if (item.articleId) return `/marketplace/articles/${item.articleId}`;
+  if (item.classId) return `/marketplace/classes/${item.classId}`;
+  return null;
+}
+
+export type OrderNext =
+  | { kind: 'pay'; to: string; label: string }
+  | { kind: 'verifying'; message: string }
+  | { kind: 'open'; message: string }
+  | { kind: 'closed'; message: string };
+
+export function orderNext(order: { id: string; status: string; payment: unknown | null }): OrderNext {
+  if (order.status === 'PENDING' && order.payment) {
+    return { kind: 'pay', to: `/learn/orders/${order.id}/pay`, label: 'Lanjutkan pembayaran' };
+  }
+  if (order.status === 'PAYMENT_SUBMITTED') {
+    return { kind: 'verifying', message: 'Bukti pembayaranmu sedang diverifikasi admin.' };
+  }
+  if (order.status === 'PAID' || order.status === 'FULFILLED') {
+    return { kind: 'open', message: 'Pembayaran terverifikasi. Akses sudah terbuka.' };
+  }
+  return { kind: 'closed', message: 'Pesanan ini sudah tidak aktif.' };
+}
+
+export type TopicOrderState =
+  | { kind: 'owned'; orderId: string }
+  | { kind: 'open'; orderId: string; next: 'pay' | 'verify' }
+  | { kind: 'new' };
+
+export function topicOrderState(
+  orders: ReadonlyArray<{ id: string; status: string; payment: unknown | null; items: ReadonlyArray<{ topicId: string | null }> }>,
+  topicId: string,
+): TopicOrderState {
+  const forTopic = orders.filter((order) => order.items.some((item) => item.topicId === topicId));
+  const owned = forTopic.find((order) => order.status === 'PAID' || order.status === 'FULFILLED');
+  if (owned) return { kind: 'owned', orderId: owned.id };
+  const open = forTopic.find((order) => (order.status === 'PENDING' && order.payment) || order.status === 'PAYMENT_SUBMITTED');
+  if (open) return { kind: 'open', orderId: open.id, next: open.status === 'PENDING' ? 'pay' : 'verify' };
+  return { kind: 'new' };
+}

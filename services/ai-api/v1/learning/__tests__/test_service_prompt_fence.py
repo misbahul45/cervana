@@ -29,7 +29,9 @@ def collaborators():
     }
     with patch.dict(sys.modules, fakes), patch(
         "v1.learning.service.get_user_step", return_value={"title": "Topik"}
-    ), patch("v1.learning.service.update_message_chat"):
+    ), patch("v1.learning.service.update_message_chat"), patch(
+        "v1.learning.service.read_learner_snapshot", return_value=None
+    ):
         yield pipeline, memory, web
 
 

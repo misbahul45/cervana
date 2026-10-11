@@ -1,8 +1,10 @@
 import { ordersApi } from '~/lib/api';
 import { describeApiError, isApiError } from '~/lib/api-error';
+import { loginHref } from '~/lib/next-path';
 
 export function usePurchase(type: 'ARTICLE' | 'CLASS', productId: () => string) {
   const user = useState<{ id: string } | null>('user', () => null);
+  const route = useRoute();
   const idempotency = useIdempotencyKey();
   const buying = ref(false);
   const error = ref<string | null>(null);
@@ -10,7 +12,7 @@ export function usePurchase(type: 'ARTICLE' | 'CLASS', productId: () => string) 
   async function buy() {
     if (buying.value) return;
     if (!user.value) {
-      await navigateTo('/login');
+      await navigateTo(loginHref(route.fullPath));
       return;
     }
     buying.value = true;
@@ -21,7 +23,7 @@ export function usePurchase(type: 'ARTICLE' | 'CLASS', productId: () => string) 
       await navigateTo(order.status === 'PENDING' && order.payment ? `/learn/orders/${order.id}/pay` : `/learn/orders/${order.id}`);
     } catch (err) {
       if (isApiError(err) && err.kind === 'unauthorized') {
-        await navigateTo('/login');
+        await navigateTo(loginHref(route.fullPath));
         return;
       }
       error.value = describeApiError(err, 'Tidak bisa membuat pesanan. Coba lagi.');

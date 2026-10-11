@@ -1,46 +1,49 @@
-<template>
-  <section class="w-full min-h-screen overflow-hidden relative flex flex-col items-center justify-center px-4">
-    <div class="universe-bg absolute inset-0 -z-10"></div>
-
-    <ForgotPasswordForm v-if="!successReset" @success="successReset = true" />
-    <ResetPasswordForm v-else />
-
-    <DownStarAnimation />
-  </section>
-</template>
-
 <script setup lang="ts">
-const siteUrl = useRuntimeConfig().public.SITE_URL
+import { ref } from 'vue';
+import ForgotPasswordForm from '~/components/auth/ForgotPasswordForm.vue';
+import ResetPasswordForm from '~/components/auth/ResetPasswordForm.vue';
+
+definePageMeta({
+  title: 'Lupa kata sandi | ReduCera',
+  protection: { kind: 'guest-only' },
+  layout: 'auth',
+});
 
 useHead({
-  title: 'Forgot Password | ReduCera',
-  meta: [
-    {
-      name: 'description',
-      content:
-        'Reset your ReduCera account password securely. Reconnect to the cosmic learning universe.',
-    },
-    { name: 'keywords', content: 'ReduCera, forgot password, reset, AI learning, cosmic' },
-    { property: 'og:title', content: 'Forgot Password | ReduCera' },
-    { property: 'og:description', content: 'Recover your ReduCera account and continue your cosmic journey.' },
-    { property: 'og:type', content: 'website' },
-    { property: 'og:url', content: `${siteUrl}/forgot-password` },
-    { property: 'og:image', content: '/meta/og-forgot-password.png' },
-    { name: 'twitter:card', content: 'summary_large_image' },
-    { name: 'twitter:title', content: 'Forgot Password | ReduCera' },
-    { name: 'twitter:description', content: 'Recover your ReduCera account and continue your cosmic journey.' },
-    { name: 'twitter:image', content: '/meta/og-forgot-password.png' },
-  ],
-  link: [
-    { rel: 'icon', type: 'image/png', href: '/favicon-32x32.png' },
-  ],
-})
+  title: 'Lupa kata sandi | ReduCera',
+  meta: [{ name: 'description', content: 'Atur ulang kata sandi akun ReduCera-mu dengan kode yang dikirim ke email.' }],
+  link: [{ rel: 'icon', type: 'image/png', href: '/favicon-32x32.png' }],
+});
 
-import { ref } from "vue"
-import DownStarAnimation from "~/components/ui/DownStarAnimation.vue"
-import ForgotPasswordForm from "~/components/auth/ForgotPasswordForm.vue"
-import ResetPasswordForm from "~/components/auth/ResetPasswordForm.vue"
+const route = useRoute();
+const email = ref(typeof route.query.email === 'string' ? route.query.email : '');
+const sent = ref(false);
 
-const successReset = ref(false)
-
+function onSent(address: string) {
+  email.value = address;
+  sent.value = true;
+}
 </script>
+
+<template>
+  <div class="rc-auth__panel">
+    <template v-if="!sent">
+      <div class="rc-auth__head">
+        <h1 class="rc-auth__title">Lupa kata sandi</h1>
+        <p class="rc-auth__switch">
+          Ingat kata sandi?
+          <NuxtLink to="/login">Masuk</NuxtLink>
+        </p>
+      </div>
+      <p class="rc-auth__lead">Masukkan email akunmu. Jika terdaftar, kami kirim kode 6 angka yang berlaku 15 menit.</p>
+      <ForgotPasswordForm @sent="onSent" />
+    </template>
+    <template v-else>
+      <div class="rc-auth__head">
+        <h1 class="rc-auth__title">Kata sandi baru</h1>
+      </div>
+      <p class="rc-auth__lead">Masukkan kode dari emailmu, lalu pilih kata sandi baru. Semua perangkat akan keluar otomatis.</p>
+      <ResetPasswordForm :email="email" />
+    </template>
+  </div>
+</template>

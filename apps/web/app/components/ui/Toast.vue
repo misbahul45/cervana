@@ -51,34 +51,40 @@ function dismiss() {
   display: flex;
   align-items: flex-start;
   gap: 0.75rem;
-  padding: 0.75rem 1rem;
-  border-radius: 0.75rem;
-  border: 1px solid var(--ui-border, rgba(0, 0, 0, 0.15));
-  background: var(--ui-bg, white);
-  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.08);
   max-width: 24rem;
+  padding: 0.875rem 1rem;
+  border: 2px solid var(--rc-border);
+  border-radius: var(--rc-radius, 16px);
+  background-color: var(--rc-surface);
+  box-shadow: 0 var(--rc-depth, 4px) 0 0 var(--rc-border);
+  color: var(--rc-fg);
 }
-.rc-toast__icon { font-size: 1.25rem; }
-.rc-toast__icon--success { color: #16a34a; }
-.rc-toast__icon--error   { color: #dc2626; }
-.rc-toast__icon--warning { color: #d97706; }
-.rc-toast__icon--info    { color: #2563eb; }
+.rc-toast--success { border-color: var(--rc-success); box-shadow: 0 var(--rc-depth, 4px) 0 0 var(--rc-success); }
+.rc-toast--error { border-color: var(--rc-danger); box-shadow: 0 var(--rc-depth, 4px) 0 0 var(--rc-danger); }
+.rc-toast--warning { border-color: var(--rc-warning); box-shadow: 0 var(--rc-depth, 4px) 0 0 var(--rc-warning); }
+.rc-toast--info { border-color: var(--rc-info); box-shadow: 0 var(--rc-depth, 4px) 0 0 var(--rc-info); }
+.rc-toast__icon { font-size: 1.375rem; }
+.rc-toast__icon--success { color: var(--rc-primary); }
+.rc-toast__icon--error { color: var(--rc-danger); }
+.rc-toast__icon--warning { color: var(--rc-accent); }
+.rc-toast__icon--info { color: var(--rc-secondary); }
 .rc-toast__body {
   display: flex;
-  flex-direction: column;
   flex: 1;
+  flex-direction: column;
 }
-.rc-toast__title { font-weight: 600; }
-.rc-toast__message { font-size: 0.875rem; color: var(--ui-text-muted); }
+.rc-toast__title { font-weight: 800; }
+.rc-toast__message { margin: 0.125rem 0 0; color: var(--rc-muted); font-size: 0.875rem; }
 .rc-toast__dismiss {
-  background: transparent;
   border: 0;
-  font-size: 1.25rem;
+  background: transparent;
+  color: var(--rc-muted);
+  font-size: 1.375rem;
+  line-height: 1;
   cursor: pointer;
-  color: var(--ui-text-muted);
 }
 .rc-toast__dismiss:focus-visible {
-  outline: 2px solid var(--ui-primary);
+  outline: 3px solid var(--rc-focus);
   outline-offset: 2px;
 }
 </style>

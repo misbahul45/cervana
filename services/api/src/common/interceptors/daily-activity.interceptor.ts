@@ -1,20 +1,19 @@
 import {
   Injectable,
+  Logger,
   NestInterceptor,
   ExecutionContext,
   CallHandler,
 } from '@nestjs/common';
 import { Observable, tap } from 'rxjs';
 import { DailylogsRepo } from '@/v1/gamify/daily-logs/daily-logs.repo';
-import { StreaksRepo } from '@/v1/gamify/streaks/streaks.repo';
 import { StreakActivity } from '@prisma/client';
 
 @Injectable()
 export class ActivityDetectorInterceptor implements NestInterceptor {
-  constructor(
-    private readonly dailyLogRepo: DailylogsRepo,
-    private readonly streaksRepo: StreaksRepo,
-  ) {}
+  private readonly logger = new Logger(ActivityDetectorInterceptor.name);
+
+  constructor(private readonly dailyLogRepo: DailylogsRepo) {}
 
   private getDayRange(date: Date) {
     const start = new Date(date);
@@ -35,8 +34,6 @@ export class ActivityDetectorInterceptor implements NestInterceptor {
         date: today,
         activityType: StreakActivity.DAILY_LOGIN,
       });
-
-      await this.streaksRepo.incrementOrReset(userId, StreakActivity.DAILY_LOGIN);
     }
   }
 
@@ -46,9 +43,11 @@ export class ActivityDetectorInterceptor implements NestInterceptor {
 
     return next.handle().pipe(
       tap({
-        next: async () => {
+        next: () => {
           if (!userId) return;
-          await this.detect(userId);
+          this.detect(userId).catch((error: unknown) => {
+            this.logger.warn(`Daily activity was not recorded for user ${userId}: ${error instanceof Error ? error.message : String(error)}`);
+          });
         },
         error: () => undefined,
       }),

@@ -43,6 +43,6 @@ export default defineNuxtRouteMiddleware(async (to) => {
     }
   }
 
-  const outcome = resolveNavigation(protection, user.value as unknown as CurrentUser | null);
+  const outcome = resolveNavigation(protection, user.value as unknown as CurrentUser | null, to.fullPath);
   if (outcome) return navigateTo(outcome.redirect);
 });

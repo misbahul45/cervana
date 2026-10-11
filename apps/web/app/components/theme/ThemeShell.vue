@@ -1,5 +1,8 @@
 <script setup lang="ts">
-import { shellBindings } from '~/theme/shell';
+import { usePreferredReducedMotion } from '@vueuse/core';
+import { computed, onMounted, ref } from 'vue';
+import { shellRender } from '~/theme/shell';
+import type { DefaultThemePayload } from '~/theme/default-payload';
 import type { NormalizedTheme, ThemeVariantKey } from '~/theme/types';
 
 const props = defineProps<{
@@ -10,20 +13,31 @@ const props = defineProps<{
   variant?: ThemeVariantKey;
 }>();
 
-const colorMode = useColorMode();
+const defaultTheme = useState<DefaultThemePayload | null>('rc-default-theme', () => null);
+const motionPreference = usePreferredReducedMotion();
+const mounted = ref(false);
 
-const bindings = computed(() =>
-  shellBindings({
-    chain: [props.step, props.lesson, props.subTopic, props.topic],
+onMounted(() => {
+  mounted.value = true;
+});
+
+const render = computed(() =>
+  shellRender({
+    chain: [props.step, props.lesson, props.subTopic, props.topic, defaultTheme.value?.theme],
     variant: props.variant ?? 'LEARN',
-    scheme: colorMode.value === 'dark' ? 'dark' : 'light',
-    reducedMotion: false,
+    reducedMotion: mounted.value && motionPreference.value === 'reduce',
   }),
+);
+
+useHead(
+  computed(() => ({
+    style: render.value.darkCss ? [{ key: 'rc-dark-theme', innerHTML: render.value.darkCss }] : [],
+  })),
 );
 </script>
 
 <template>
-  <div v-bind="bindings.attrs" :style="bindings.style || undefined">
+  <div v-bind="render.attrs" :style="render.style || undefined">
     <slot />
   </div>
 </template>

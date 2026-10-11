@@ -1,25 +1,35 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-API_THEME="${API_THEME:-services/api/prisma/seed-data/reducera-ocean.theme.json}"
-WEB_THEME="${WEB_THEME:-apps/web/app/theme/reducera-ocean.theme.json}"
+API_DIR="${API_THEME_DIR:-services/api/prisma/seed-data}"
+WEB_DIR="${WEB_THEME_DIR:-apps/web/app/theme}"
+THEMES="${THEME_SLUGS:-reducera-ocean reducera-play}"
 
-if [[ ! -f "${API_THEME}" ]]; then
-  echo "check-theme-sync: missing ${API_THEME}" >&2
-  exit 2
-fi
+status=0
+for slug in ${THEMES}; do
+  api_file="${API_DIR}/${slug}.theme.json"
+  web_file="${WEB_DIR}/${slug}.theme.json"
 
-if [[ ! -f "${WEB_THEME}" ]]; then
-  echo "check-theme-sync: missing ${WEB_THEME}" >&2
-  exit 2
-fi
+  if [[ ! -f "${api_file}" ]]; then
+    echo "check-theme-sync: missing ${api_file}" >&2
+    exit 2
+  fi
 
-if ! cmp -s "${API_THEME}" "${WEB_THEME}"; then
-  echo "check-theme-sync: theme JSON files differ" >&2
-  echo "  ${API_THEME}" >&2
-  echo "  ${WEB_THEME}" >&2
-  diff -u "${API_THEME}" "${WEB_THEME}" >&2 || true
-  exit 1
-fi
+  if [[ ! -f "${web_file}" ]]; then
+    echo "check-theme-sync: missing ${web_file}" >&2
+    exit 2
+  fi
 
-echo "check-theme-sync: OK (${API_THEME} == ${WEB_THEME})"
+  if ! cmp -s "${api_file}" "${web_file}"; then
+    echo "check-theme-sync: theme JSON files differ" >&2
+    echo "  ${api_file}" >&2
+    echo "  ${web_file}" >&2
+    diff -u "${api_file}" "${web_file}" >&2 || true
+    status=1
+    continue
+  fi
+
+  echo "check-theme-sync: OK (${api_file} == ${web_file})"
+done
+
+exit "${status}"

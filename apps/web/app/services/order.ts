@@ -2,6 +2,7 @@
 import type { Query, Tokens } from "~/interfaces/api"
 import type { BaseOrder, OrderDetailResponse, OrdersListResponse } from "~/interfaces/order"
 import { request, toQueryString } from "~/lib/api"
+import { createIdempotencyKey } from "~/composables/useIdempotencyKey"
 
 export const ordersService = {
   async findAll<IncludeRelations extends boolean = false>(
@@ -23,12 +24,23 @@ export const ordersService = {
     return request<OrderDetailResponse<IncludeRelations>>(url, "GET", undefined, {}, true, tokens)
   },
 
-  async create(values: Partial<BaseOrder>, tokens?:Tokens) {
+  async create(values: Partial<BaseOrder>, tokens?: Tokens, idempotencyKey: string = createIdempotencyKey().current()) {
     return request<BaseOrder>(
       "/orders",
       "POST",
       values,
-      {},
+      { "Idempotency-Key": idempotencyKey },
+      true,
+      tokens
+    )
+  },
+
+  async cancel(id: string, tokens?: Tokens, idempotencyKey: string = createIdempotencyKey().current()) {
+    return request<BaseOrder>(
+      `/orders/${id}/cancel`,
+      "POST",
+      undefined,
+      { "Idempotency-Key": idempotencyKey },
       true,
       tokens
     )
