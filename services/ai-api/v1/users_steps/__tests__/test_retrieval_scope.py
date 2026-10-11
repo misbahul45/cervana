@@ -11,6 +11,7 @@ from config.retrieval_governance import Governance, GovernanceError, RetrievalSc
 from v1.users_steps import generate_quiz_pipeline
 from v1.users_steps.__tests__.test_pipelines_routing import QUIZ
 from v1.users_steps.service import build_learning_introduction_llm
+from v1.users_steps.streaming import StageEvent
 
 
 class FakeLLM:
@@ -111,7 +112,10 @@ def test_a_failed_retrieval_does_not_stop_the_introduction():
 
     pipeline = SimpleNamespace(llm=FakeLLM(), retrieve=failing)
 
-    assert run_introduction(pipeline, mint_session(acting_user_id="u-7")) == []
+    chunks = run_introduction(pipeline, mint_session(acting_user_id="u-7"))
+
+    assert [chunk for chunk in chunks if not isinstance(chunk, StageEvent)] == []
+    assert [stage.state for stage in chunks if isinstance(stage, StageEvent) and stage.key == "retrieval"] == ["failed"]
 
 
 def test_a_failed_retrieval_does_not_stop_the_quiz(scripted_llm):

@@ -5,12 +5,11 @@ import type { User } from '~/interfaces/auth'
 import { personalityQuizService } from '~/services/learning/personalityQuiz'
 import { lessonProgressService } from '~/services/learning/lessonsProgress'
 import { useApi } from '~/composable/useApi'
-import { useLearning } from '~/stores/learning'
 import { userStepService } from '~/services/learning/userStep'
 
 const route = useRoute()
 const user = useState<User | null>('user')
-const learning = useLearning()
+const { ensure: ensureLearningIds } = useLearningIds()
 const { call } = useApi(lessonProgressService.update)
 const isgenerating = ref(true)
 
@@ -55,11 +54,13 @@ async function startGenerate() {
   displayText.value = ""
   isgenerating.value = true
 
+  const ids = await ensureLearningIds(route.query.lessonId as string)
+
   const eventSource = await personalityQuizService.generateStream(
     {
       lessonId: route.query.lessonId as string,
-      topicId: learning.topicId,
-      learningStyleId: learning.learningStyleId,
+      topicId: ids.topicId,
+      learningStyleId: ids.learningStyleId,
       userId: user.value?.id as string
     }
   )

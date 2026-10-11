@@ -1,9 +1,23 @@
 from __future__ import annotations
 
+import json
+from dataclasses import dataclass, field
 from typing import Any, Optional
 
 
+@dataclass(frozen=True)
+class StageEvent:
+    key: str
+    state: str
+    data: dict[str, Any] = field(default_factory=dict)
+
+    def to_json(self) -> str:
+        return json.dumps({"key": self.key, "state": self.state, "data": self.data}, ensure_ascii=False)
+
+
 def chunk_text(chunk: Any) -> Optional[str]:
+    if isinstance(chunk, StageEvent):
+        return None
     if hasattr(chunk, "delta") and chunk.delta:
         text = chunk.delta
     elif hasattr(chunk, "text") and chunk.text:

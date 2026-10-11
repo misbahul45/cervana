@@ -8,6 +8,7 @@ from config.agent_session import AgentSession
 from config.internal_client import InternalApiClient
 from errors.types import CrossServiceError, RetrievalError
 from v1.domain.governance import retrieval_scope
+from v1.users_steps.streaming import StageEvent
 from v1.users_steps.dto import (
     LearningStyleProfileBase,
     StepBase,
@@ -132,19 +133,31 @@ async def build_learning_introduction_llm(
         for s in steps
     ]
 
+    yield StageEvent("context", "done", {"steps": len(steps), "titles": [s.title for s in steps[:3]]})
+    yield StageEvent("profile", "done" if style else "skipped", {"style": style})
+
     retrieval_info = []
     scope = retrieval_scope(session.acting_user_id) if session else None
+    queries = 0
+    sources = 0
+    failed = 0
     for s in steps if scope else []:
+        queries += 1
         try:
             results = pipeline.retrieve(query=s.title, scope=scope, top_k=5)
         except RetrievalError as exc:
             logger.warning("[INTRODUCTION] retrieval failed for a step: %s", exc.message)
+            failed += 1
             results = []
+        sources += len(results)
         texts = [r["text"] for r in results]
         if texts:
             retrieval_info.append(f"- {s.title}: {' '.join(texts)}")
 
     retrieval_text = "\n".join(retrieval_info) if retrieval_info else ""
+    retrieval_state = "skipped" if not queries else "failed" if failed == queries else "done"
+    yield StageEvent("retrieval", retrieval_state, {"queries": queries, "sources": sources, "failed": failed})
+    yield StageEvent("writing", "active", {})
 
     full_prompt = f"""
 Kamu adalah AI Educator profesional. Tugasmu adalah membuat pengantar pembelajaran

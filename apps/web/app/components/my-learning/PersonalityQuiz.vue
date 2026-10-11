@@ -7,10 +7,9 @@ import type { LessonDetailResponse } from '~/interfaces/curriculum/lessons'
 import type { PersonalityQuizUserAttemptItem } from '~/interfaces/learning/personalityQuiz'
 import { lessonsService } from '~/services/curriculum/lessons'
 import { personalityQuizService } from '~/services/learning/personalityQuiz'
-import { useLearning } from '~/stores/learning'
 
 const user = useState<User | null>('user')
-const learning = useLearning()
+const { ensure: ensureLearningIds } = useLearningIds()
 const lessonId = useLessonId()
 
 const { call }=useApi(personalityQuizService.submitQuiz)
@@ -107,12 +106,14 @@ const submit = async () => {
   if (!quiz.value) return
   if (answers.value.length !== questions.value.length) return
 
+  const ids = await ensureLearningIds(lessonId.value)
+
   await call(
     quiz.value.id,
     {
-      topicId: learning.topicId,
+      topicId: ids.topicId,
       lessonId: lessonId.value,
-      learningStyleId: learning.learningStyleId
+      learningStyleId: ids.learningStyleId
     },
     answers.value
   )

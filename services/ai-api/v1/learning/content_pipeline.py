@@ -20,6 +20,7 @@ from v1.learning.dto import (
     CitationDto,
     GenerateContentMaterialPipeline,
     GenerateContentMaterialResponseDto,
+    LessonBase,
 )
 from v1.learning.service import (
     create_content_material,
@@ -74,7 +75,7 @@ def _session(state: GenerateContentMaterialPipeline) -> AgentSession:
 def parallel_fetch(state: GenerateContentMaterialPipeline) -> GenerateContentMaterialPipeline:
     session = _session(state)
     try:
-        state.lesson = get_lesson(state.lesson_id, session)
+        state.lesson = LessonBase.model_validate(get_lesson(state.lesson_id, session))
     except CrossServiceError as exc:
         raise exc
 

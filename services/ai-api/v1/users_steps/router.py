@@ -18,7 +18,7 @@ from middleware.idempotency import require_idempotency_key
 from v1.users_steps.dto import LPState
 from v1.users_steps.generate_user_steps_pipeline import generate_user_steps_pipeline
 from v1.users_steps.service import get_learning_style, get_steps
-from v1.users_steps.streaming import chunk_text
+from v1.users_steps.streaming import StageEvent, chunk_text
 from v1.users_steps.workers import generate_personality_quiz
 
 
@@ -91,6 +91,9 @@ async def generate_question_sse(
                 learning_style=learning_style,
                 session=session,
             ):
+                if isinstance(chunk, StageEvent):
+                    yield {"event": "stage", "data": chunk.to_json()}
+                    continue
                 text = chunk_text(chunk)
                 if text is None:
                     continue
