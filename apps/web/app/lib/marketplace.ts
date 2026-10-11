@@ -86,14 +86,16 @@ export const SORT_OPTIONS = [
   { value: 'title', label: 'Judul A–Z' },
 ] as const;
 
-export type ClassActionKind = 'enrolled' | 'full' | 'login' | 'enroll' | 'buy';
+export type ClassActionKind = 'owner' | 'enrolled' | 'full' | 'login' | 'enroll' | 'buy';
 
 export function classAction(input: {
   accessType: 'FREE' | 'PAID';
   signedIn: boolean;
   accessible: boolean;
   seatsLeft: number | null;
+  isInstructor?: boolean;
 }): { kind: ClassActionKind; label: string } {
+  if (input.isInstructor) return { kind: 'owner', label: 'Kamu pengajar kelas ini' };
   if (input.accessible) return { kind: 'enrolled', label: 'Kamu sudah terdaftar' };
   if (input.seatsLeft !== null && input.seatsLeft <= 0) return { kind: 'full', label: 'Kelas penuh' };
   const free = input.accessType === 'FREE';

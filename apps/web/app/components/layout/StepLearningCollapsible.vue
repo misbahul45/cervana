@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onBeforeUnmount, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, watch } from 'vue'
 import { useApi } from '~/composable/useApi';
 import type { ApiResponse } from '~/interfaces/api'
 import type { StepProgressListResponse } from '~/interfaces/learning/stepProgress';
@@ -17,10 +17,9 @@ const { stepId, stepTitle, userId, isCollapsible } = defineProps<{
 
 const router=useRouter()
 const learning=useLearning()
-const isGenerating = ref(true)
 let eventSource: EventSource | null = null
 
-const { data: resUserSteps, refresh } = await useAsyncData<
+const { data: resUserSteps, refresh, status } = await useAsyncData<
   ApiResponse<UserStepListResponse<true>>
 >(
   `${stepId}-${userId}`,
@@ -97,17 +96,15 @@ const goTo=(id:string)=>{
   learning.setUserStep(id)
 }
 
+const userSteps = computed(() => resUserSteps.value?.data?.data ?? [])
+const hasSteps = computed(() => userSteps.value.length > 0)
+const isLoading = computed(() => status.value === 'pending' && !hasSteps.value)
+
 watch(
-  resUserSteps,
-  (newVal) => {
-    const steps = newVal?.data?.data ?? []
-    const totalExpected = newVal?.data?.pagination.total ?? 0
-    const isComplete = totalExpected > 0 && steps.length >= totalExpected
-
-    isGenerating.value = !isComplete
-
-    if (!isComplete) startListeningSse()
-    else stopListeningSse()
+  hasSteps,
+  (ready) => {
+    if (ready) stopListeningSse()
+    else startListeningSse()
   },
   { immediate: true }
 )
@@ -120,12 +117,13 @@ onBeforeUnmount(() => stopListeningSse())
   <section class="rc-stepgroup">
     <h3 v-if="isCollapsible" class="rc-stepgroup__title">{{ stepTitle }}</h3>
 
-    <div v-if="isGenerating" class="rc-stepgroup__loading" aria-busy="true">
+    <div v-if="isLoading" class="rc-stepgroup__loading" aria-busy="true">
       <span v-for="value in 4" :key="value" class="rc-skel rc-skel--line"></span>
     </div>
+    <p v-else-if="!hasSteps" class="rc-hint" role="status">Langkah muncul setelah kuis gaya belajar selesai dan materinya siap.</p>
 
     <ul class="rc-stepgroup__list">
-      <li v-for="value in resUserSteps?.data?.data ?? []" :key="value.id">
+      <li v-for="value in userSteps" :key="value.id">
         <button
           type="button"
           class="rc-stepgroup__item"

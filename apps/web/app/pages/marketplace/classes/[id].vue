@@ -62,6 +62,7 @@ const action = computed(() =>
         signedIn: Boolean(user.value),
         accessible: Boolean(holding.value?.accessible),
         seatsLeft: item.value.seatsLeft,
+        isInstructor: Boolean(user.value && item.value.instructor?.id === user.value.id),
       })
     : null,
 );
@@ -173,7 +174,7 @@ useHead({
           <p v-else-if="item.accessType === 'PAID'" class="rc-hint">Akses terbuka setelah pembayaranmu diverifikasi.</p>
 
           <p v-if="action.kind === 'enrolled'" class="rc-alert rc-alert--success" role="status">{{ action.label }}</p>
-          <p v-else-if="action.kind === 'full'" class="rc-alert" role="status">{{ action.label }}</p>
+          <p v-else-if="action.kind === 'full' || action.kind === 'owner'" class="rc-alert" role="status">{{ action.label }}</p>
           <PlayButton v-else block :loading="busy" @click="act">{{ action.label }}</PlayButton>
 
           <p v-if="actionError" class="rc-alert rc-alert--error" role="alert">{{ actionError }}</p>

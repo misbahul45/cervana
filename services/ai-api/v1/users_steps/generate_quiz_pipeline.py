@@ -8,6 +8,7 @@ from config.agent_session import AgentSession
 from config.embedding_pipeline import get_embedding_pipeline
 from config.llm_output import json_validator, parse_json_object
 from config.model_router import get_router
+from config.retrieval_governance import GovernanceError
 from errors.types import CrossServiceError, RetrievalError
 from v1.domain.governance import learner_summary_governance, retrieval_scope
 from utils.text import text_clean
@@ -87,16 +88,21 @@ def analyze_text(state: GenerateQuestionPipeline) -> QuizResponse:
     ).text.strip()
 
     source_id = f"{state.topic_id}-{state.lesson_id}-{state.acting_user_id}"
-    pipeline.upsert_document(
-        content=summary,
-        source_id=source_id,
-        metadata={
-            "topicId": state.topic_id,
-            "lessonId": state.lesson_id,
-            "userId": state.acting_user_id,
-        },
-        governance=learner_summary_governance(state.acting_user_id, topic_id=state.topic_id, lesson_id=state.lesson_id),
-    )
+    try:
+        pipeline.upsert_document(
+            content=summary,
+            source_id=source_id,
+            metadata={
+                "topicId": state.topic_id,
+                "lessonId": state.lesson_id,
+                "userId": state.acting_user_id,
+            },
+            governance=learner_summary_governance(state.acting_user_id, topic_id=state.topic_id, lesson_id=state.lesson_id),
+        )
+    except GovernanceError:
+        raise
+    except Exception as exc:
+        logger.warning("[QUIZ] summary was not stored, the quiz is built from the summary only: %s", exc)
 
     try:
         retrieval_results = pipeline.retrieve(query=summary, scope=retrieval_scope(state.acting_user_id), top_k=10)

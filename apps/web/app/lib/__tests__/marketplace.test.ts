@@ -146,6 +146,12 @@ describe('classAction', () => {
     expect(classAction(base)).toEqual({ kind: 'buy', label: 'Beli kelas' });
   });
 
+  it('tells the instructor the class is theirs instead of offering to join or buy it', () => {
+    expect(classAction({ ...base, isInstructor: true })).toEqual({ kind: 'owner', label: 'Kamu pengajar kelas ini' });
+    expect(classAction({ ...base, accessType: 'FREE', isInstructor: true }).kind).toBe('owner');
+    expect(classAction({ ...base, accessible: true, isInstructor: true }).kind).toBe('owner');
+  });
+
   it('treats an unlimited class as having seats', () => {
     expect(classAction({ ...base, seatsLeft: null }).kind).toBe('buy');
   });

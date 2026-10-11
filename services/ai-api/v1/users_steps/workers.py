@@ -10,6 +10,7 @@ from v1.decision_traces.dto import DecisionTraceCreate
 from v1.decision_traces.service import sha256_hex, write_decision_trace
 from v1.episodes.dto import EpisodeCreate
 from v1.episodes.service import write_episode
+from v1.users_steps.dto import GenerateQuestionPipeline
 from v1.users_steps.generate_quiz_pipeline import graph
 from v1.users_steps.service import create_personality_quiz
 
@@ -44,7 +45,7 @@ def _reject_if_unsafe(payload: dict) -> None:
 def generate_personality_quiz(self, initial_state: dict):
     _reject_if_unsafe(initial_state)
     session = _session_from_payload(initial_state)
-    result = graph.invoke(initial_state)
+    result = graph.invoke(GenerateQuestionPipeline.model_validate(initial_state).model_dump())
 
     quiz_items = result.get("quiz", [])
 

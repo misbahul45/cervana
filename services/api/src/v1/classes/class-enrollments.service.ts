@@ -27,7 +27,7 @@ import { EnrollmentListQueryDtoType } from './classes.dto';
 const ATTEND_LEAD_MS = 15 * 60 * 1000;
 const HOLDING: EnrollmentStatus[] = [EnrollmentStatus.ACTIVE, EnrollmentStatus.COMPLETED];
 
-type LockedClass = Pick<ClassProduct, 'id' | 'tenantId' | 'accessType' | 'status' | 'capacity'>;
+type LockedClass = Pick<ClassProduct, 'id' | 'tenantId' | 'instructorId' | 'accessType' | 'status' | 'capacity'>;
 
 @Injectable()
 export class ClassEnrollmentsService {
@@ -42,6 +42,9 @@ export class ClassEnrollmentsService {
       const cls = await this.lockClass(tx, classId);
       if (cls.status !== ContentStatus.PUBLISHED || !(await this.tenantActive(tx, cls.tenantId))) {
         throw new AppError('Class not found', 404, AppErrorCode.CONTENT_NOT_PUBLISHED);
+      }
+      if (cls.instructorId === actor.id) {
+        throw new AppError('Creators cannot enroll in their own class', 403, AppErrorCode.FORBIDDEN);
       }
       if (cls.accessType !== ProductAccessType.FREE) {
         throw new AppError('A paid class is purchased, not joined', 422, AppErrorCode.VALIDATION_ERROR);
@@ -358,7 +361,7 @@ export class ClassEnrollmentsService {
     await tx.$queryRaw`SELECT id FROM "ClassProduct" WHERE id = ${classId} FOR UPDATE`;
     const cls = await tx.classProduct.findUnique({
       where: { id: classId },
-      select: { id: true, tenantId: true, accessType: true, status: true, capacity: true },
+      select: { id: true, tenantId: true, instructorId: true, accessType: true, status: true, capacity: true },
     });
     if (!cls) {
       throw new AppError('Class not found', 404, AppErrorCode.NOT_FOUND);

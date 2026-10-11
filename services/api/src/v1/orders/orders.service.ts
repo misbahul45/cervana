@@ -14,6 +14,7 @@ import { OrderLifecycleService } from './order-lifecycle.service';
 import { assertTransition } from './order-state';
 import { CreateOrderRequestDtoType, OrderListQueryDtoType } from './orders.dto';
 import { OrdersRepo } from './orders.repo';
+import { assertNotOwnContent } from './own-content';
 
 const MINUTE_MS = 60 * 1000;
 
@@ -60,6 +61,7 @@ export class OrdersService {
           await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${`order-create:${actor.id}`}, 0))`;
 
           const lines = await this.catalog.resolve(tx, requested);
+          assertNotOwnContent(actor.id, lines);
 
           if (lines.length === 1 && lines[0].kind === 'TOPIC' && lines[0].isFree) {
             return this.createFreeTopicOrder(tx, actor, lines[0], traceId);
